@@ -24,13 +24,17 @@
 <meta property="og:title" content="Atlas Rental.io - The Digital Headquarters for Rental Businesses">
 <meta property="og:description" content="One dashboard to run any rental business - cars, construction & heavy equipment, tools, events, property and more. Bookings, contracts, payments, a branded customer portal and the Atlas.io AI, fully branded as your own.">
 <meta property="og:url" content="https://atlasrental.io/">
-<meta property="og:image" content="https://atlasrental.io/atlas-icon.svg">
+<meta property="og:image" content="https://atlasrental.io/og-card.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:alt" content="Atlas Rental.io - The Digital Headquarters for Rental Businesses">
 <meta property="og:locale" content="en_US">
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Atlas Rental.io - The Digital Headquarters for Rental Businesses">
 <meta name="twitter:description" content="Run any rental business from one dashboard - cars, construction, tools, events, property and more. Bookings, contracts, payments, branded portal + the Atlas.io AI.">
-<meta name="twitter:image" content="https://atlasrental.io/atlas-icon.svg">
+<meta name="twitter:image" content="https://atlasrental.io/og-card.jpg">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
 {"@type":"Organization","@id":"https://atlasrental.io/#org","name":"Atlas Rental.io","url":"https://atlasrental.io/","slogan":"The Digital Headquarters for Rental Businesses","logo":"https://atlasrental.io/atlas-icon.svg"},
@@ -1255,7 +1259,10 @@ const Atlas = (function(){
   // ---- Backend bridge (flag-gated). OFF = pure local, byte-for-byte today's behavior. ON = the live
   //      Cloudflare Worker is authoritative for identity (per SECURITY.md); data stays local-first for an
   //      instant UI and mirrors to D1 in the background. Flip ON only after the security pass + data-sync slice.
-  var ATLAS_API='https://atlas.prestigeblackcorp.workers.dev';
+  // On the real domain the Worker is served same-origin at /api/* (Cloudflare Pages + a Worker route),
+  // so the login cookie is first-party and works on Safari. Anywhere else (localhost / github.io) we
+  // call the workers.dev URL cross-origin for testing. Same-origin needs no CORS + a SameSite=Lax cookie.
+  var ATLAS_API=(/(^|\.)atlasrental\.io$/.test(location.hostname)) ? '' : 'https://atlas.prestigeblackcorp.workers.dev';
   var ATLAS_BACKEND=false;              // master switch (also Atlas.setBackend(true) at runtime for ops/testing)
   var _apiCsrf=null;
   function setBackend(on){ ATLAS_BACKEND=!!on; }
