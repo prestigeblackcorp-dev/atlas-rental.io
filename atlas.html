@@ -1841,7 +1841,7 @@ const Atlas = (function(){
     else if(g==='free'){ if(S.tier!=='freecomp'||S.plan!=='active'){ S.tier='freecomp'; S.plan='active'; save(); } } }
   const CREDIT_PACKS=[ {credits:500,price:25}, {credits:2000,price:80}, {credits:5000,price:175} ];  // Atlas.io top-ups (any tier)
   /* ---- app version + owner-only feature flags (in-app upgrades) ---- */
-  var APP_VERSION='2026.7.17';
+  var APP_VERSION='2026.7.19';
   var APP_CHANGELOG=[
     'Cancellation policy you set once (Settings &gt; Money): shown to customers before they pay, in the confirmation email, and merged into your rental agreement &amp; terms',
     'Cross-device sync: your bookings, fleet &amp; settings back up to your account and merge across devices (turns on with your backend) &mdash; no more one-browser-only',
@@ -2854,11 +2854,11 @@ const Atlas = (function(){
     openModal('<div class="modal__head"><h3>'+title+'</h3>'+_xBtn()+'</div><div class="modal__body"><div style="white-space:pre-wrap;font-size:12.5px;line-height:1.55;color:var(--body);max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:14px">'+esc(d.text||'')+'</div></div>'); }
   // Easy API keys the owner pastes to power their public site.
   var WEB_KEYS=[
-    {id:'stripePk', label:'Stripe publishable key', ph:'pk_live_...', help:'Stripe Dashboard > Developers > API keys > Publishable key. Powers card checkout on your site.'},
-    {id:'ga', label:'Google Analytics ID', ph:'G-XXXXXXX', help:'Google Analytics > Admin > Data streams > Measurement ID. Tracks your visitors.'},
-    {id:'mapsKey', label:'Google Maps API key', ph:'AIza...', help:'Google Cloud > APIs & Services > Credentials. Shows maps + address autocomplete.'},
-    {id:'pixel', label:'Meta / TikTok Pixel ID', ph:'1234567890', help:'From your ad manager. Measures conversions from your ads.'},
-    {id:'custom', label:'Custom API key / embed', ph:'Paste any key or embed token', help:'For any other tool you connect to your site.'}
+    {id:'stripePk', label:'Stripe publishable key', ph:'pk_live_...', help:'Saved to your account. Atlas uses secure hosted Stripe Checkout, so you do not need this for payments -- keep it here only if you embed Stripe elsewhere.'},
+    {id:'ga', label:'Google Analytics ID', ph:'G-XXXXXXX', help:'Google Analytics > Admin > Data streams > Measurement ID. Once you publish, this tracks visitors on your live booking site.'},
+    {id:'mapsKey', label:'Google Maps API key', ph:'AIza...', help:'Saved to your account. Used on your site\'s map + address autocomplete once your site shows a map.'},
+    {id:'pixel', label:'Meta / TikTok Pixel ID', ph:'1234567890', help:'From your ad manager. Once you publish, this measures ad conversions on your live booking site.'},
+    {id:'custom', label:'Custom API key / embed', ph:'Paste any key or embed token', help:'Saved to your account for any other tool you connect.'}
   ];
   function _webKeys(){ var w=_web(); if(!w.keys)w.keys={}; return w.keys; }
   function _webKeysInner(){ var k=_webKeys(); return WEB_KEYS.map(function(x){ var set=!!(k[x.id]&&String(k[x.id]).trim());
@@ -6587,8 +6587,9 @@ const Atlas = (function(){
   function _publicSiteAssets(){ return (DATA.assets||[]).filter(function(a){return (a.status||'')!=='Maintenance';}).map(function(a){
     var m=(typeof _moneyFor==='function')?_moneyFor(a.name):null; var rate=(m&&m.baseRate)||a.rate||S.money.baseRate;
     return { name:a.name, rate:Number(rate)||0, type:a.type||'', photo:a.photo||'', desc:a.desc||'', minLen:Number(a.minLen)||0, maxLen:Number(a.maxLen)||0, blackouts:Array.isArray(a.blackouts)?a.blackouts:[] }; }); }
-  function _publicSiteConfig(){ return { unit:S.money.rateModel||'day', noun:S.fleet.noun, tax:Number(S.money.tax)||0, currency:(S.money.currency||'usd'),
-    collectPhone:true, depositHold:!!(S.money.depositHold), terms:((S.legal&&S.legal.cancelPolicy)|| '') }; }
+  function _publicSiteConfig(){ var wk=_webKeys(); return { unit:S.money.rateModel||'day', noun:S.fleet.noun, tax:Number(S.money.tax)||0, currency:(S.money.currency||'usd'),
+    collectPhone:true, depositHold:!!(S.money.depositHold), terms:((S.legal&&S.legal.cancelPolicy)|| ''),
+    analytics:{ ga:String(wk.ga||'').trim(), pixel:String(wk.pixel||'').trim() } }; }   // #24: GA + Meta/TikTok pixel actually injected into the served booking page (see worker _bookPageHtml)
   function copyBookingLink(){ try{ navigator.clipboard.writeText(_bookingLink()); }catch(e){} toast('Booking link copied'); }
   function publishBookingSite(){ if(!_guard('webEdit','Publishing your site'))return;
     if(!ATLAS_BACKEND || !_apiCsrf){ toast('Your site is a preview. Publishing to a real link goes live once your Atlas backend is connected (see go-live steps).'); return; }

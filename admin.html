@@ -227,6 +227,13 @@
   <!-- KPI ROW -->
   <div class="kpis" id="kpis"></div>
 
+  <!-- AI COMMAND CENTER -->
+  <style>.ai-tools{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.ai-brief{background:rgba(128,140,160,.06);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.55}.ai-brief-h{display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:12px}.ai-md{font-size:13px;line-height:1.6}@media(max-width:720px){.grid{grid-template-columns:1fr!important}}</style>
+  <div class="card">
+    <div class="card-h"><h2>AI Command Center</h2><span class="sub" id="aiStatus"></span><div class="sp"></div><button class="chip" id="aiToggleBtn" onclick="aiToggle()">&hellip;</button></div>
+    <div class="card-b" id="aiBody"><div class="mut" style="padding:10px 12px">Loading&hellip;</div></div>
+  </div>
+
   <!-- REVENUE BREAKDOWN + FUNNEL -->
   <div class="card">
     <div class="card-h"><h2>Revenue &amp; growth</h2><span class="sub" id="revSub"></span><div class="sp"></div><span class="sub" id="revNote"></span></div>
@@ -238,7 +245,7 @@
     <!-- LEFT: members -->
     <div>
       <div class="card">
-        <div class="card-h"><h2>Members</h2><span class="sub" id="memCount"></span></div>
+        <div class="card-h"><h2>Members</h2><span class="sub" id="memCount"></span><div class="sp"></div><button class="chip" onclick="openDeleted()">Deleted</button></div>
         <div class="toolbar">
           <div class="search">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -300,7 +307,7 @@ var TIER_LABEL = {starter:'Starter',pro:'Pro',enterprise:'Enterprise',business:'
 
 /* ================= state ================= */
 var _tok = '';
-var DATA = { overview:null, members:[], txns:[], bugs:[], tickets:[] };
+var DATA = { overview:null, members:[], txns:[], bugs:[], tickets:[], aiCfg:null };
 var _seg = 'all', _bugSeg = 'open', _tkSeg = 'open', _timer = null, _lastFetch = 0, _prevKpi = {};
 
 /* ================= helpers ================= */
@@ -314,7 +321,7 @@ function dstr(ts){ if(!ts) return '--'; try{ return new Date(ts).toLocaleDateStr
 function daysLeft(ts){ if(!ts) return null; return Math.ceil((ts-Date.now())/86400000); }
 function toast(msg){ var t=$('toast'); t.innerHTML='<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M13 4.5 6.5 11 3 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'+esc(msg); t.classList.add('on'); clearTimeout(t._t); t._t=setTimeout(function(){ t.classList.remove('on'); },2600); }
 
-function api(path, opts){ opts=opts||{}; var h={'Content-Type':'application/json','X-Admin-Token':_tok};
+function api(path, opts){ opts=opts||{}; var h={'Content-Type':'application/json','X-Admin-Token':_tok}; var _a=_actorGet(); if(_a) h['X-Admin-Actor']=_a;
   return fetch(ATLAS_API+path,{method:opts.method||'GET',headers:h,body:opts.body?JSON.stringify(opts.body):undefined})
     .then(function(r){ return r.json().catch(function(){return {};}).then(function(j){ return {status:r.status,json:j}; }); }); }
 
@@ -345,13 +352,15 @@ function loadAll(quiet){ _lastFetch=Date.now();
     api('/api/admin/members'),
     api('/api/admin/transactions?limit=40'),
     api('/api/admin/feedback?status='+(_bugSeg==='all'?'all':'open')),
-    api('/api/admin/tickets?status='+(_tkSeg==='all'?'all':'open'))
+    api('/api/admin/tickets?status='+(_tkSeg==='all'?'all':'open')),
+    api('/api/admin/config')
   ]).then(function(r){
     if(r[0].json&&r[0].json.ok){ DATA.overview=r[0].json; paintOverview(); }
     if(r[1].json&&r[1].json.ok){ DATA.members=r[1].json.members||[]; renderMembers(); }
     if(r[2].json&&r[2].json.ok){ DATA.txns=r[2].json.transactions||[]; renderTxns(); }
     if(r[3].json&&r[3].json.ok){ DATA.bugs=r[3].json.feedback||[]; renderBugs(); }
     if(r[4]&&r[4].json&&r[4].json.ok){ DATA.tickets=r[4].json.tickets||[]; renderTickets(); }
+    if(r[5]&&r[5].json&&r[5].json.config){ DATA.aiCfg=r[5].json.config; } else { DATA.aiCfg={ai_hq_enabled:false,ai_available:false,needsDeploy:true}; } renderAI();
     setTimeout(function(){ $('refreshBtn').classList.remove('spin'); },700);
     if((r[0].json&&r[0].json.ok)===false || r[0].status===403){ lock(); }
   }).catch(function(){ setTimeout(function(){ $('refreshBtn').classList.remove('spin'); },700); });
@@ -422,7 +431,7 @@ function renderMembers(){ var q=($('memSearch').value||'').toLowerCase().trim();
       '<td class="hide-sm"><span class="tier-tag">'+esc(TIER_LABEL[m.tier]||m.tier||'--')+'</span></td>'+
       '<td class="hide-sm mut num">'+dstr(m.created_at)+'</td>'+
       '<td style="text-align:right" class="money num">'+centsUSD(m.revenue_cents||0)+'</td>'+
-      '<td style="text-align:right;white-space:nowrap"><button class="chip" onclick="openGrant(&quot;'+esc(m.tenant_id)+'&quot;)">Grant</button> <button class="chip" style="color:#e5484d;margin-left:4px" onclick="delMember(&quot;'+esc(m.tenant_id)+'&quot;)">Delete</button></td>'+
+      '<td style="text-align:right;white-space:nowrap">'+((DATA.aiCfg&&DATA.aiCfg.ai_hq_enabled)?('<button class="chip" onclick="aiHealth(&quot;'+esc(m.tenant_id)+'&quot;)">Health</button> '):'')+'<button class="chip" onclick="openGrant(&quot;'+esc(m.tenant_id)+'&quot;)">Grant</button> <button class="chip" style="color:#e5484d;margin-left:4px" onclick="delMember(&quot;'+esc(m.tenant_id)+'&quot;)">Delete</button></td>'+
     '</tr>';
   }).join('');
   $('memTbl').innerHTML=head+'<tbody>'+body+'</tbody>';
@@ -486,8 +495,8 @@ function tkOpen(id){ var t=(DATA.tickets||[]).filter(function(x){return x.id===i
     '<div class="modal-h"><h3 style="min-width:0;overflow:hidden;text-overflow:ellipsis;max-width:66%">'+esc(t.subject)+'</h3><div class="sp" style="flex:1"></div>'+_tkPill(t.status)+'<button class="icon-btn" onclick="closeModal()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>'+
     '<div class="modal-b"><div class="desc">'+esc(t.email||'')+' &middot; '+esc(t.category||'')+'</div>'+
       '<div class="tk-thread-a">'+thread+'</div>'+
-      '<textarea id="tkReplyBox" rows="3" placeholder="Reply to the customer..." style="width:100%;margin-top:10px;padding:10px;border-radius:8px;border:1px solid rgba(128,140,160,.35);background:transparent;color:inherit;font-family:inherit;font-size:13px;box-sizing:border-box"></textarea></div>'+
-    '<div class="modal-f"><button class="btn ghost" onclick="tkStatus('+JSON.stringify(id)+',\'resolved\')">Mark resolved</button><button class="btn gold" onclick="tkReply('+JSON.stringify(id)+')">Send reply</button></div>';
+      '<textarea id="tkReplyBox" rows="3" placeholder="Reply to the customer..." style="width:100%;margin-top:10px;padding:10px;border-radius:8px;border:1px solid rgba(128,140,160,.35);background:transparent;color:inherit;font-family:inherit;font-size:13px;box-sizing:border-box"></textarea><div id="tkAiMeta" class="mut" style="font-size:11.5px;margin-top:6px"></div></div>'+
+    '<div class="modal-f">'+((DATA.aiCfg&&DATA.aiCfg.ai_hq_enabled)?('<button class="btn ghost" onclick="aiDraft('+JSON.stringify(id)+')">Draft with AI</button>'):'')+'<button class="btn ghost" onclick="tkStatus('+JSON.stringify(id)+',\'resolved\')">Mark resolved</button><button class="btn gold" onclick="tkReply('+JSON.stringify(id)+')">Send reply</button></div>';
   $('scrim').classList.add('on'); }
 function tkReply(id){ var el=$('tkReplyBox'); var msg=el?(el.value||'').trim():''; if(msg.length<1){ toast('Write a reply'); return; }
   api('/api/admin/ticket-reply',{method:'POST',body:{id:id,message:msg}}).then(function(r){ if(r.json&&r.json.ok){ closeModal(); toast('Reply sent'); loadAll(true); } else toast('Could not send'); }); }
@@ -497,9 +506,10 @@ function tkStatus(id,status){ api('/api/admin/ticket-status',{method:'POST',body
 function delMember(tid){
   var L=DATA.members||[], m=null; for(var i=0;i<L.length;i++){ if(L[i].tenant_id===tid){ m=L[i]; break; } } if(!m) return;   // look up by safe id (no tenant text in the onclick)
   var who=(m.name||'this account')+(m.email?(' ('+m.email+')'):'');
-  if(!confirm('Delete '+who+'?\n\nThis permanently removes the account and ALL its data, and frees the email so it can sign up again from scratch. This cannot be undone.')) return;
+  var _soft = !!(DATA.aiCfg && !DATA.aiCfg.needsDeploy);
+  if(!confirm('Delete '+who+'?\n\n'+(_soft?'This removes it from your active members and frees the email to sign up again. It is RECOVERABLE from "Deleted" (all data + the audit log are kept) until you choose to Purge it.':'This removes the account and frees the email to re-register. Paste the latest worker first to make deletes recoverable.'))) return;
   api('/api/admin/delete',{method:'POST',body:{tenant_id:tid}}).then(function(res){
-    if(res.status===200 && res.json && res.json.ok){ toast('Deleted'+(res.json.email?(' - '+res.json.email+' is free to re-register'):'')); loadAll(); }
+    if(res.status===200 && res.json && res.json.ok){ toast('Deleted (recoverable)'+(res.json.email?(' - '+res.json.email+' is free'):'')); loadAll(); }
     else { toast((res.json&&res.json.error)||'Could not delete that account'); }
   }).catch(function(){ toast('Network error deleting account'); });
 }
@@ -531,6 +541,49 @@ function doGrant(){ var body={tenant_id:_grant.id, action:_grant.action}; if(_gr
   api('/api/admin/grant',{method:'POST',body:body}).then(function(r){ if(r.json&&r.json.ok){ closeModal(); toast('Grant applied'); loadAll(true); } else toast((r.json&&r.json.error)||'Could not apply grant'); }); }
 function closeModal(){ $('scrim').classList.remove('on'); }
 $('scrim').addEventListener('click', function(e){ if(e.target===$('scrim')) closeModal(); });
+
+/* ================= AI Command Center ================= */
+var _xI='<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+function _actorGet(){ try{ return localStorage.getItem('atlas_admin_actor')||''; }catch(e){ return ''; } }
+function setActor(v){ try{ localStorage.setItem('atlas_admin_actor',(v||'').trim()); }catch(e){} }
+function _mdLite(s){ return esc(s).replace(/\n{2,}/g,'<br><br>').replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(Do this first:)/i,'<b style="color:var(--gold2)">$1</b>'); }
+function renderAI(){ var c=DATA.aiCfg||{}, on=!!c.ai_hq_enabled, hasKey=!!c.ai_available; var st=$('aiStatus'), tg=$('aiToggleBtn'), bd=$('aiBody'); if(!st) return;
+  if(c.needsDeploy){ st.innerHTML='<span class="pill gray">Not deployed</span>'; tg.style.display='none'; bd.innerHTML='<div class="mut" style="padding:10px 12px">Paste the latest worker into Cloudflare to enable the AI Command Center and the new safety features (recoverable delete, working audit trail, admin rate-limit).</div>'; return; } tg.style.display='';
+  st.innerHTML = on ? (hasKey?'<span class="pill active">On</span>':'<span class="pill past">On &middot; no AI key</span>') : '<span class="pill gray">Off</span>';
+  tg.textContent = on ? 'Turn off' : 'Turn on';
+  if(!on){ bd.innerHTML='<div style="padding:10px 12px"><div class="desc" style="margin:0 0 10px">The AI tools are dark. Turn it on for your daily <b>morning brief</b>, <b>churn risk</b> scoring, <b>bug-inbox triage</b>, plain-English <b>questions about your data</b>, and <b>drafted support replies</b> &mdash; powered by your own AI keys, metered as your ops cost. Nothing sends or charges without you.</div>'+
+      '<div class="fld" style="margin-bottom:8px"><label>Your name (optional &mdash; stamps the audit log)</label><input class="inp" id="aiActor" value="'+esc(_actorGet())+'" placeholder="e.g. Jalen" oninput="setActor(this.value)"></div>'+
+      '<button class="btn gold sm" onclick="aiToggle()">Turn on the AI Command Center</button></div>'; return; }
+  bd.innerHTML='<div style="padding:8px 12px 12px">'+(hasKey?'':'<div class="desc" style="color:var(--red);margin:0 0 8px">No AI key set in the worker &mdash; add ANTHROPIC_KEY / OPENAI_KEY / GEMINI_KEY in Cloudflare. Tools return an honest "no key" until then.</div>')+
+    '<div class="ai-brief" id="aiBrief"><div class="mut">Loading your morning brief&hellip;</div></div>'+
+    '<div class="ai-tools"><button class="btn ghost sm" onclick="aiAsk()">Ask your data</button><button class="btn ghost sm" onclick="aiCopilot()">Ops Copilot</button><button class="btn ghost sm" onclick="aiChurn()">Churn risk</button><button class="btn ghost sm" onclick="aiTriage()">Triage bugs</button><button class="btn ghost sm" onclick="aiNudges()">Onboarding nudges</button><button class="btn ghost sm" onclick="aiRelease()">Release notes</button></div></div>';
+  loadBrief(false);
+}
+function aiToggle(){ var c=DATA.aiCfg||{}, next=!c.ai_hq_enabled; api('/api/admin/config',{method:'POST',body:{ai_hq_enabled:next}}).then(function(r){ if(r.json&&r.json.config){ DATA.aiCfg=r.json.config; renderAI(); toast('AI Command Center '+(next?'on':'off')); } else toast('Could not update'); }); }
+function loadBrief(force){ var el=$('aiBrief'); if(!el) return; el.innerHTML='<div class="mut">Generating your brief&hellip; (a few seconds)</div>';
+  api('/api/admin/brief'+(force?'?force=1':'')).then(function(r){ var j=r.json||{}; if(j.enabled===false){ el.innerHTML='<div class="mut">Turn the AI on to see your brief.</div>'; return; } if(j.ai===false){ el.innerHTML='<div class="mut">Add an AI key in the worker to generate the brief.</div>'; return; }
+    el.innerHTML='<div class="ai-brief-h"><b>AI COO &middot; Morning brief</b><span class="mut" style="font-size:11px">&middot; '+esc(dstr(j.generated_at))+(j.cached?' (cached)':'')+'</span><button class="chip" style="margin-left:auto" onclick="loadBrief(true)">Regenerate</button></div><div class="ai-md">'+_mdLite((j.md||'').trim()||'(no brief text returned)')+'</div>'; }); }
+function _aiOpen(title,inner){ $('modal').innerHTML='<div class="modal-h"><h3>'+esc(title)+'</h3><div class="sp" style="flex:1"></div><button class="icon-btn" onclick="closeModal()">'+_xI+'</button></div><div class="modal-b" style="max-height:62vh;overflow:auto">'+inner+'</div><div class="modal-f"><button class="btn ghost" onclick="closeModal()">Close</button></div>'; $('scrim').classList.add('on'); }
+function _aiBusy(){ return '<div class="mut" style="padding:14px">Thinking&hellip;</div>'; }
+function _aiHonest(j){ if(j.enabled===false) return '<div class="mut" style="padding:14px">The AI Command Center is off.</div>'; if(j.ai===false) return '<div class="mut" style="padding:14px">No AI provider key is set in the worker.</div>'; return null; }
+function _cell(v){ if(v==null) return ''; if(typeof v==='number' && v>1e12) return dstr(v); return String(v).slice(0,60); }
+function aiAsk(){ _aiOpen('Ask your data','<div class="fld"><label>Ask about your platform</label><input class="inp" id="aiQ" placeholder="trials expiring this week with a card" onkeydown="if(event.key===\'Enter\')aiAskRun()"></div><button class="btn gold sm" onclick="aiAskRun()">Ask</button><div id="aiQOut" style="margin-top:12px"></div>'); setTimeout(function(){ var e=$('aiQ'); if(e)e.focus(); },60); }
+function aiAskRun(){ var q=($('aiQ').value||'').trim(); if(!q) return; var out=$('aiQOut'); out.innerHTML=_aiBusy();
+  api('/api/admin/ai/nl-query',{method:'POST',body:{q:q}}).then(function(r){ var j=r.json||{}, h=_aiHonest(j); if(h){ out.innerHTML=h; return; } var rows=j.rows||[], tbl=''; if(rows.length){ var cols=Object.keys(rows[0]).slice(0,5); tbl='<div style="overflow:auto;margin-top:8px"><table class="tbl"><thead><tr>'+cols.map(function(c){return '<th>'+esc(c)+'</th>';}).join('')+'</tr></thead><tbody>'+rows.slice(0,50).map(function(x){return '<tr>'+cols.map(function(c){return '<td class="mut">'+esc(_cell(x[c]))+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div>'; }
+    out.innerHTML='<div class="ai-md">'+esc(j.summary||'')+'</div>'+(j.intent&&j.intent!=='none'?('<div class="mut" style="font-size:11px;margin:6px 0">'+esc(j.intent)+' &middot; '+(j.count||0)+' rows</div>'):'')+tbl; }); }
+function aiCopilot(){ _aiOpen('Ops Copilot','<div class="fld"><label>Ask the copilot</label><input class="inp" id="aiCQ" placeholder="which paying tenants have not booked in 30 days?" onkeydown="if(event.key===\'Enter\')aiCopilotRun()"></div><button class="btn gold sm" onclick="aiCopilotRun()">Ask</button><div id="aiCOut" style="margin-top:12px"></div>'); setTimeout(function(){ var e=$('aiCQ'); if(e)e.focus(); },60); }
+function aiCopilotRun(){ var q=($('aiCQ').value||'').trim(); if(!q) return; var out=$('aiCOut'); out.innerHTML=_aiBusy(); api('/api/admin/ai/copilot',{method:'POST',body:{q:q}}).then(function(r){ var j=r.json||{}, h=_aiHonest(j); out.innerHTML=h||('<div class="ai-md">'+_mdLite(j.answer||'')+'</div>'); }); }
+function aiChurn(){ _aiOpen('Churn risk','<div id="aiCh">'+_aiBusy()+'</div>'); api('/api/admin/ai/churn',{method:'POST',body:{}}).then(function(r){ var j=r.json||{}, h=_aiHonest(j), el=$('aiCh'); if(!el)return; if(h){el.innerHTML=h;return;} var c=j.churn||{}, ct=c.counts||{}; el.innerHTML='<div class="mut" style="font-size:12px;margin-bottom:8px">'+(ct.paid_zero_bookings||0)+' paid, 0 bookings/30d &middot; '+(ct.past_due||0)+' past-due &middot; '+(ct.trial_no_card_expiring||0)+' trial-no-card expiring</div><div class="ai-md">'+_mdLite(c.analysis||'')+'</div>'; }); }
+function aiTriage(){ _aiOpen('Bug inbox triage','<div id="aiTr">'+_aiBusy()+'</div>'); api('/api/admin/ai/triage-bugs',{method:'POST',body:{}}).then(function(r){ var j=r.json||{}, h=_aiHonest(j), el=$('aiTr'); if(!el)return; if(h){el.innerHTML=h;return;} var t=j.triage||{}, cl=t.clusters||[]; if(!cl.length){ el.innerHTML='<div class="mut">'+esc(t.note||'Nothing to triage.')+'</div>'; return; } el.innerHTML=cl.map(function(x){ return '<div class="bug"><div class="bug-top"><span class="pill '+(/(P0|P1)/.test(x.severity||'')?'past':'gray')+'">'+esc(x.severity||'')+'</span> <b>'+esc(x.title||'')+'</b><div class="sp" style="flex:1"></div><span class="mut">'+(x.count||0)+'</span></div><div class="bug-msg">'+esc(x.action||'')+'</div></div>'; }).join(''); }); }
+function aiNudges(){ _aiOpen('Onboarding nudges','<div id="aiNu">'+_aiBusy()+'</div>'); api('/api/admin/ai/onboarding-nudges',{method:'POST',body:{}}).then(function(r){ var j=r.json||{}, h=_aiHonest(j), el=$('aiNu'); if(!el)return; if(h){el.innerHTML=h;return;} var n=j.nudges||{}, it=n.items||[]; if(!it.length){ el.innerHTML='<div class="mut">'+esc(n.note||'No one is stuck.')+'</div>'; return; } el.innerHTML=it.map(function(x){ return '<div class="bug"><div class="bug-top"><b>'+esc(x.email||x.tenant_id||'')+'</b><div class="sp" style="flex:1"></div><span class="pill trial">'+esc(x.next_step||'')+'</span></div><div class="bug-msg">'+esc(x.nudge||'')+'</div></div>'; }).join(''); }); }
+function aiRelease(){ _aiOpen('Release notes','<div id="aiRe">'+_aiBusy()+'</div>'); api('/api/admin/ai/release-notes',{method:'POST',body:{}}).then(function(r){ var j=r.json||{}, h=_aiHonest(j), el=$('aiRe'); if(!el)return; if(h){el.innerHTML=h;return;} if(!j.changelog && !j.internal){ el.innerHTML='<div class="mut">'+esc(j.note||'No shipped items yet (resolve some feedback first).')+'</div>'; return; } el.innerHTML='<div class="desc" style="margin:0 0 4px"><b>Customer changelog</b></div><div class="ai-md">'+_mdLite(j.changelog||'')+'</div><div class="desc" style="margin:12px 0 4px"><b>Internal ship-log</b></div><div class="ai-md">'+_mdLite(j.internal||'')+'</div>'; }); }
+function aiHealth(tid){ _aiOpen('Tenant health','<div id="aiHe">'+_aiBusy()+'</div>'); api('/api/admin/ai/tenant-health',{method:'POST',body:{tenant_id:tid}}).then(function(r){ var j=r.json||{}, h=_aiHonest(j), el=$('aiHe'); if(!el)return; if(h){el.innerHTML=h;return;} var hh=j.health||{}, f=hh.facts||{}; el.innerHTML='<div class="ai-md">'+_mdLite(hh.summary||'')+'</div><div class="mut" style="font-size:11.5px;margin-top:10px">'+(f.bookings_total||0)+' bookings &middot; '+(f.assets||0)+' assets &middot; '+centsUSD(f.revenue_cents||0)+' &middot; '+(f.open_tickets||0)+' open tickets</div>'; }); }
+function aiDraft(id){ var box=$('tkReplyBox'); if(box){ box.value='Drafting a reply...'; box.disabled=true; } api('/api/admin/ai/ticket-draft',{method:'POST',body:{id:id}}).then(function(r){ var j=r.json||{}; if(box) box.disabled=false; if(j.enabled===false||j.ai===false){ if(box)box.value=''; toast(j.reason||'AI is off'); return; } if(box) box.value=j.draft||''; var meta=$('tkAiMeta'); if(meta){ meta.innerHTML=(j.summary?('<b>Summary:</b> '+esc(j.summary)+' '):'')+(j.suggested_priority?('<span class="pill '+(j.suggested_priority==='high'?'past':'gray')+'">'+esc(j.suggested_priority)+'</span> '):'')+(j.confidence?('<span class="mut">confidence '+Math.round(j.confidence*100)+'%</span> '):'')+'<span class="mut">&mdash; review before sending</span>'; } }); }
+/* ================= deleted accounts (soft-delete recovery) ================= */
+function openDeleted(){ _aiOpen('Deleted accounts','<div id="delList">'+_aiBusy()+'</div>'); loadDeleted(); }
+function loadDeleted(){ api('/api/admin/deleted').then(function(r){ var el=$('delList'); if(!el)return; var d=(r.json&&r.json.deleted)||[]; if(!d.length){ el.innerHTML='<div class="mut" style="padding:10px">No deleted accounts. Deletes are recoverable and land here.</div>'; return; } el.innerHTML='<div class="desc" style="margin:0 0 8px">Deleted accounts keep all data + the audit log. <b>Restore</b> brings one back; <b>Purge</b> (two-step) removes its operating data for good but keeps the revenue + audit ledger.</div>'+d.map(function(x){ return '<div class="bug"><div class="bug-top"><b>'+esc(x.name||'(unnamed)')+'</b><div class="sp" style="flex:1"></div><span class="mut">'+dstr(x.deleted_at)+'</span></div><div class="bug-meta">'+esc(x.email||'')+' &middot; '+esc(TIER_LABEL[x.tier]||x.tier||'')+'</div><div class="bug-acts"><button class="chip" onclick="restoreAcct('+JSON.stringify(x.tenant_id)+')">Restore</button> <button class="chip" style="color:#e5484d" onclick="purgeAcct('+JSON.stringify(x.tenant_id)+','+JSON.stringify(x.email||'')+')">Purge</button></div></div>'; }).join(''); }); }
+function restoreAcct(tid){ api('/api/admin/restore',{method:'POST',body:{tenant_id:tid}}).then(function(r){ if(r.json&&r.json.ok){ var bl=r.json.blocked_emails||[]; toast(bl.length?('Restored, but email '+bl[0]+' was re-taken'):'Account restored'); loadDeleted(); loadAll(true); } else toast('Could not restore'); }); }
+function purgeAcct(tid,email){ if(!confirm('Permanently purge '+(email||'this account')+'?\n\nThis removes its operating data for good. The revenue ledger and audit log are KEPT. This cannot be undone.')) return; api('/api/admin/purge',{method:'POST',body:{tenant_id:tid}}).then(function(r){ if(r.json&&r.json.ok){ toast('Purged'); loadDeleted(); loadAll(true); } else toast((r.json&&r.json.error)||'Could not purge'); }); }
 
 /* ================= boot ================= */
 (function(){ var saved=''; try{ saved=localStorage.getItem(TOK_KEY)||''; }catch(e){}
