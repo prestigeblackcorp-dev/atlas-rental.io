@@ -249,6 +249,26 @@
   <div id="buildBanner"></div>
   <div class="kpis" id="kpis"></div>
 
+  <!-- ATLAS COUNSEL: what deserves your attention today (institutional-memory feed, ranked by dollar impact) -->
+  <style>
+    .cx-brief{background:rgba(59,189,133,.07);border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-bottom:12px}
+    .cx-brief-h{font-size:12px;font-weight:700;letter-spacing:.02em;margin-bottom:6px;color:var(--ink)}
+    .cx-item{display:flex;gap:11px;align-items:flex-start;padding:11px 12px;border:1px solid var(--line);border-radius:11px;margin-bottom:8px;background:var(--surf2)}
+    .cx-ic{flex:none;padding-top:3px}
+    .cx-main{flex:1;min-width:0}
+    .cx-t{font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+    .cx-b{font-size:12.5px;color:var(--mut);margin-top:3px;line-height:1.5}
+    .cx-a{font-size:12.5px;color:var(--gold2);margin-top:5px;font-weight:600}
+    .cx-lyr{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+    .cx-btns{flex:none;display:flex;flex-direction:column;gap:5px}
+    .cx-btns .chip{font-size:11px;padding:3px 10px;text-align:center}
+    .cx-empty{font-size:13px;color:var(--mut);padding:6px 2px}
+  </style>
+  <div class="card">
+    <div class="card-h"><h2>Atlas Counsel</h2><span class="sub" id="cxSub"></span><div class="sp"></div><button class="chip" onclick="counselRun(this)">Run now</button></div>
+    <div class="card-b pad" id="cxBody"><div class="mut">Loading&hellip;</div></div>
+  </div>
+
   <!-- SYSTEM HEALTH -->
   <style>.hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:9px}.hc{background:var(--surf2);border:1px solid var(--line);border-radius:11px;padding:11px 13px;min-width:0}.hc .hk{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);font-weight:600}.hc .hv{font-size:14px;font-weight:700;margin-top:4px;display:flex;align-items:center;gap:6px}.hdot{width:9px;height:9px;border-radius:50%;flex:none}.hbanner{display:flex;align-items:center;gap:12px;margin-bottom:12px}.hbig{font-size:16px;font-weight:800;letter-spacing:-.01em}</style>
   <div class="card">
@@ -457,8 +477,9 @@ function enter(overview){ $('gate').style.display='none'; $('app').style.display
   loadAll();
   initCollapsible();
   loadHealth();
+  loadCounsel();
   if(_timer) clearInterval(_timer);
-  _timer=setInterval(function(){ loadAll(true); loadHealth(); }, REFRESH_MS);
+  _timer=setInterval(function(){ loadAll(true); loadHealth(); loadCounsel(); }, REFRESH_MS);
   setInterval(tickLive, 1000);
 }
 
@@ -728,8 +749,28 @@ var _xI='<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6
 function _actorGet(){ try{ return localStorage.getItem('atlas_admin_actor')||''; }catch(e){ return ''; } }
 function setActor(v){ try{ localStorage.setItem('atlas_admin_actor',(v||'').trim()); }catch(e){} }
 function _mdLite(s){ return esc(s).replace(/\n{2,}/g,'<br><br>').replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(Do this first:)/i,'<b style="color:var(--gold2)">$1</b>'); }
-var ATLAS_EXPECT_BUILD='2026.07.19h';
+var ATLAS_EXPECT_BUILD='2026.07.19m';
 function renderBuildBanner(){ var el=$('buildBanner'); if(!el) return; var c=DATA.aiCfg||{}; if(c.build===ATLAS_EXPECT_BUILD){ el.innerHTML=''; return; } if(!c.build){ el.innerHTML='<div style="background:rgba(224,180,80,.12);border:1px solid rgba(224,180,80,.5);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#d0a53f">Your live worker is <b>out of date</b>. Competitor delete, Deep-read, Generate-brief and the newest features will not work until you paste the latest <b>worker.js</b> into Cloudflare, then reload this page.</div>'; return; } el.innerHTML='<div style="background:rgba(224,180,80,.10);border:1px solid rgba(224,180,80,.4);border-radius:10px;padding:9px 14px;margin-bottom:14px;font-size:12.5px;color:#d0a53f">Live worker build <b>'+esc(c.build)+'</b>; this dashboard expects <b>'+ATLAS_EXPECT_BUILD+'</b>. Paste the latest worker.js to update.</div>'; }
+/* ===== Atlas Counsel: what deserves your attention today ===== */
+function loadCounsel(){ return api('/api/admin/counsel').then(function(r){ if(r.status===404){ DATA.counsel={needsDeploy:true}; } else { DATA.counsel=r.json||{}; } renderCounsel(); }).catch(function(){ var el=$('cxBody'); if(el) el.innerHTML='<div class="mut">Could not reach the platform.</div>'; }); }
+function _cxDot(sev){ var c=(sev==='high'?'#e0736f':(sev==='med'?'#e0a94a':(sev==='low'?'#6ea8ff':'#3ecb8f'))); return '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+c+'"></span>'; }
+function _cxLayer(l){ var m={L1:'Customer',L2:'Platform',L3:'Executive'}; return '<span class="cx-lyr">'+esc(m[l]||l||'')+'</span>'; }
+function _cxItem(it){ return '<div class="cx-item"><div class="cx-ic">'+_cxDot(it.severity)+'</div><div class="cx-main"><div class="cx-t">'+esc(it.title)+' '+_cxLayer(it.layer)+'</div>'+(it.body_md?'<div class="cx-b">'+esc(it.body_md)+'</div>':'')+(it.action?'<div class="cx-a">'+esc(it.action)+'</div>':'')+'</div><div class="cx-btns"><button class="chip" onclick="counselAct(\''+esc(it.id)+'\',\'done\')">Done</button><button class="chip" onclick="counselAct(\''+esc(it.id)+'\',\'dismissed\')">Dismiss</button></div></div>'; }
+function renderCounsel(){ var el=$('cxBody'); if(!el) return; var d=DATA.counsel||{};
+  if(d.needsDeploy){ el.innerHTML='<div class="mut" style="font-size:12.5px">Atlas Counsel activates on the latest worker (build k) &mdash; it auto-deploys shortly after a push. Reload once it is live.</div>'; if($('cxSub'))$('cxSub').textContent=''; return; }
+  var items=(d.items||[]).filter(function(x){return x.status==='new';});
+  if($('cxSub')) $('cxSub').textContent=(d.open||0)+' open'+(d.last_run?(', last '+d.last_run):'');
+  var h='<div class="cx-brief"><div class="cx-brief-h">What deserves your attention today?</div>';
+  if(d.brief && d.brief.md){ h+='<div class="ai-md">'+_mdLite(d.brief.md)+'</div>'; }
+  else { h+='<div class="mut" style="font-size:12.5px">Ranked by dollar impact from your live data'+(d.ai?'.':' &mdash; add an AI key for a written brief; the ranked actions below work without one.')+'</div>'; }
+  h+='</div>';
+  if(!items.length){ h+='<div class="cx-empty">All clear &mdash; nothing needs your attention right now.'+(d.last_run?'':' <a onclick="counselRun()" style="cursor:pointer;color:var(--gold2)">Run Counsel</a>')+'</div>'; }
+  else { items.forEach(function(it){ h+=_cxItem(it); }); }
+  if((d.rollups||[]).length){ h+='<details style="margin-top:12px"><summary style="cursor:pointer;font-size:12px;color:var(--mut);font-weight:600">Weekly &amp; monthly reviews</summary>'+d.rollups.map(function(rr){ return '<div class="cx-brief" style="margin-top:8px"><div class="cx-brief-h">'+esc(rr.title||rr.kind||'Review')+'</div><div class="ai-md">'+_mdLite(rr.body_md||'')+'</div></div>'; }).join('')+'</details>'; }
+  el.innerHTML=h;
+}
+function counselAct(id,status){ api('/api/admin/counsel/act',{method:'POST',body:{id:id,status:status}}).then(function(r){ if(r.json&&r.json.ok){ toast(status==='done'?'Marked done':'Dismissed'); loadCounsel(); } else toast('Could not update'); }).catch(function(){ toast('Could not update'); }); }
+function counselRun(btn){ if(btn&&btn.tagName){ btn.disabled=true; btn.textContent='Running...'; } if($('cxBody')) $('cxBody').innerHTML='<div class="mut">Atlas Counsel is reviewing your platform&hellip;</div>'; api('/api/admin/counsel/run',{method:'POST',body:{}}).then(function(r){ var j=r.json||{}; if(r.status===404){ DATA.counsel={needsDeploy:true}; renderCounsel(); return; } var n=(j.ran&&j.ran.findings); toast('Counsel updated'+(n!=null?(' - '+n+' item'+(n===1?'':'s')):'')); loadCounsel(); }).catch(function(){ toast('Could not run Counsel'); }).then(function(){ if(btn&&btn.tagName){ btn.disabled=false; btn.textContent='Run now'; } }); }
 /* ===== System health card ===== */
 function loadHealth(manual){ if(manual&&$('healthBody')) $('healthBody').innerHTML='<div class="mut">Checking&hellip;</div>'; return api('/api/health').then(function(r){ DATA.health=r.json||{}; renderHealth(); }).catch(function(){ var el=$('healthBody'); if(el) el.innerHTML='<div class="mut">Could not reach the platform.</div>'; if($('healthSub'))$('healthSub').textContent='unreachable'; }); }
 function _hdot(s){ return '<span class="hdot" style="background:'+(s==='ok'?'#3ecb8f':(s==='warn'?'#e0a94a':'#e0736f'))+'"></span>'; }
@@ -752,6 +793,7 @@ function renderHealth(){ var el=$('healthBody'); if(!el) return; var h=DATA.heal
     +_hc('Email', h.mailer?'ok':'warn', h.mailer?'on':'off')
     +_hc('AI council', h.ai_council?'ok':'warn', h.ai_council?'on':'off')
     +_hc('SaaS domains', h.saas_domains?'ok':'warn', h.saas_domains?'on':'off')
+    +_hc('Registrar', h.registrar?'ok':'warn', h.registrar?'Dynadot on':'off')
     +((h.big_rows!=null)?_hc('Payload', h.big_rows>5?'warn':'ok', (h.big_rows||0)+' big rows'):'')
     +'</div>';
   el.innerHTML=g;
@@ -982,6 +1024,11 @@ function renderEnterprise(){ var e=DATA.enterprise||{}; var el=$('entBody'); if(
     +'<label style="display:flex;align-items:center;gap:7px;font-size:12.5px;margin:2px 0 8px"><input type="checkbox" id="payTest" '+(e.payments_test_mode?'checked':'')+' onchange="payToggleTest(this.checked)"> Test / sandbox mode <span class="mut">'+(e.test_key?'(PLATFORM_STRIPE_TEST_KEY set)':'(add PLATFORM_STRIPE_TEST_KEY in the worker)')+'</span></label>'
     +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px"><button class="btn ghost sm" onclick="paymentsSelftest()">Check payment readiness</button>'+((e.payments_test_mode&&e.test_key)?'<button class="btn ghost sm" onclick="payTestCharge()">Run a $49.99 test payment</button>':'')+'</div>'
     +'<div id="paySelf" style="margin-bottom:14px"></div>'
+    +'<div class="desc" style="margin:0 0 5px"><b>Domain registrar</b> <span class="mut" style="font-weight:400">- Dynadot buy/renew for tenant domains (read-only test; never buys).</span></div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px"><button class="btn ghost sm" onclick="registrarSelftest()">Test registrar key (no charge)</button><span class="mut" style="font-size:12px">'+(e.registrar?('key set'+(e.registrar_sandbox?' &middot; sandbox':'')):'add DYNADOT_KEY in the worker')+'</span></div>'
+    +'<div id="regSelf" style="margin-bottom:14px"></div>'
+    +'<div class="desc" style="margin:0 0 5px"><b>Developer API</b> <span class="mut" style="font-weight:400">- read-only /api/v1 (bookings, assets, customers). Each tenant creates their own keys; this is the platform-wide on/off. Off by default.</span></div>'
+    +'<label style="display:flex;align-items:center;gap:7px;font-size:12.5px;margin:2px 0 14px"><input type="checkbox" id="devApi" '+(e.dev_api_enabled?'checked':'')+' onchange="toggleDevApi(this.checked)"> Enable the developer API platform-wide <span class="mut">'+(e.dev_api_enabled?'(on)':'(off)')+'</span></label>'
     +(e.gmv_available?('<div class="desc" style="margin:0 0 5px"><b>GMV take-rate</b> <span class="mut" style="font-weight:400">- Stripe Connect; only affects tenants who onboarded to Connect. The rest keep their own key, $0 GMV cut.</span></div>'
       +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px"><span class="mut" style="font-size:12px">Take %</span><input class="inp num" id="entBps" type="number" min="0" max="20" step="0.25" value="'+takePct+'" style="width:82px;padding:7px 9px"><button class="btn ghost sm" onclick="entSaveTake()">Save</button>'
       +'<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin-left:6px"><input type="checkbox" id="entGmvOn" '+(e.gmv_connect_enabled?'checked':'')+' onchange="entToggleGmv(this.checked)"> Route new bookings via Connect</label></div>')
@@ -992,6 +1039,7 @@ function renderEnterprise(){ var e=DATA.enterprise||{}; var el=$('entBody'); if(
 function _dl(name,obj){ var s=(typeof obj==='string')?obj:JSON.stringify(obj,null,2); var a=document.createElement('a'); a.href='data:application/json;charset=utf-8,'+encodeURIComponent(s); a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
 function entBackup(){ toast('Preparing backup...'); api('/api/admin/backup').then(function(r){ if(r.json&&r.json.atlas_backup){ _dl('atlas-backup.json', r.json); toast('Backup downloaded'); } else toast((r.json&&r.json.error)||'Backup failed'); }); }
 function payToggleTest(on){ api('/api/admin/config',{method:'POST',body:{payments_test_mode:on}}).then(function(r){ if(r.json&&r.json.enterprise){ DATA.enterprise=r.json.enterprise; renderEnterprise(); toast('Payments '+(on?'TEST / sandbox':'LIVE')+' mode'); paymentsSelftest(); } else toast('Could not update'); }); }
+function toggleDevApi(on){ api('/api/admin/config',{method:'POST',body:{dev_api_enabled:on}}).then(function(r){ if(r.json&&r.json.enterprise){ DATA.enterprise=r.json.enterprise; renderEnterprise(); toast('Developer API '+(on?'enabled':'disabled')); } else toast('Could not update'); }); }
 function payTestCharge(){ toast('Starting a test checkout...'); api('/api/admin/payments/testcharge',{method:'POST',body:{amountCents:4999}}).then(function(r){ var j=r.json||{}; if(j.ok&&j.payUrl){ window.open(j.payUrl,'_blank'); toast('Pay with test card 4242 4242 4242 4242'); } else toast(j.message||'Could not start the test payment'); }); }
 function paymentsSelftest(){ var out=$('paySelf'); if(out) out.innerHTML='<span class="mut" style="font-size:12px">Checking Stripe (read-only)...</span>'; api('/api/admin/payments/selftest').then(function(r){ var j=r.json||{}; if(!out) return; if(r.status===404){ out.innerHTML='<div class="mut" style="font-size:12px">Needs the latest worker. Paste worker.js into Cloudflare, then reload.</div>'; return; } if(!j.ok){ out.innerHTML='<div class="mut" style="font-size:12px">'+esc((j.error)||'Could not run the check')+'</div>'; return; } out.innerHTML=_paySelfHtml(j); }).catch(function(){ if(out) out.innerHTML='<div class="mut" style="font-size:12px">Network error</div>'; }); }
 function _paySelfHtml(j){ var c=j.checks||{}; function row(okv,label){ return '<div style="font-size:12.5px;display:flex;gap:8px;align-items:flex-start;padding:3px 0"><span style="color:'+(okv?'#3ecb8f':'#e0736f')+';font-weight:700;width:14px;flex:none">'+(okv?'&#10003;':'&#10007;')+'</span> <span>'+esc(label)+'</span></div>'; }
@@ -1010,6 +1058,17 @@ function _paySelfHtml(j){ var c=j.checks||{}; function row(okv,label){ return '<
   if(j.account){ h+='<div class="mut" style="font-size:11.5px;margin-top:6px">account '+esc(j.account.id||'')+' &middot; '+esc((j.account.country||'')+' / '+String(j.account.currency||'').toUpperCase())+'</div>'; }
   if((j.recent_payments||[]).length){ h+='<div class="dsec" style="margin-top:10px">Recent payments '+(j.mode==='test'?'(test)':'')+'</div>'; j.recent_payments.slice(0,8).forEach(function(p){ var amt='$'+(((p.amount||0)/100)).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); var st=p.refunded?'refunded':(p.status||''); h+='<div class="drow" style="padding:5px 2px"><span class="dl">'+esc(amt)+' '+esc(String(p.currency||'').toUpperCase())+(p.desc?(' <span class="mut">'+esc(p.desc)+'</span>'):'')+'</span><b style="color:'+(st==='succeeded'?'#3ecb8f':(st==='refunded'?'#d9b25f':'#e0736f'))+'">'+esc(st)+'</b></div>'; }); }
   else if(c.key_valid){ h+='<div class="mut" style="font-size:12px;margin-top:8px">No payments on this account yet &mdash; run a booking + pay with test card 4242 4242 4242 4242 to watch one appear here.</div>'; }
+  if((j.notes||[]).length){ h+='<div style="margin-top:8px">'+(j.notes.map(function(n){return '<div class="mut" style="font-size:12px;line-height:1.5">&middot; '+esc(n)+'</div>';}).join(''))+'</div>'; }
+  return h;
+}
+function registrarSelftest(){ var out=$('regSelf'); if(out) out.innerHTML='<span class="mut" style="font-size:12px">Checking Dynadot (read-only)...</span>'; api('/api/admin/domains/selftest').then(function(r){ var j=r.json||{}; if(!out) return; if(r.status===404){ out.innerHTML='<div class="mut" style="font-size:12px">Needs the latest worker. Paste worker.js into Cloudflare, then reload.</div>'; return; } if(!j.ok){ out.innerHTML='<div class="mut" style="font-size:12px">'+esc((j.error)||'Could not run the check')+'</div>'; return; } out.innerHTML=_regSelfHtml(j); }).catch(function(){ if(out) out.innerHTML='<div class="mut" style="font-size:12px">Network error</div>'; }); }
+function _regSelfHtml(j){ var c=j.checks||{}; function row(okv,label){ return '<div style="font-size:12.5px;display:flex;gap:8px;align-items:flex-start;padding:3px 0"><span style="color:'+(okv?'#3ecb8f':'#e0736f')+';font-weight:700;width:14px;flex:none">'+(okv?'&#10003;':'&#10007;')+'</span> <span>'+esc(label)+'</span></div>'; }
+  var ready=j.ready?'<span class="pill active">key live</span>':'<span class="pill past">not verified</span>';
+  var sb=j.sandbox?' <span class="pill gray">sandbox</span>':'';
+  var h='<div style="margin:2px 0 8px">'+ready+sb+'</div>'
+   +row(c.key_set,'DYNADOT_KEY set in the worker')
+   +row(c.api_answered,'Dynadot API answered')
+   +row(c.key_valid,'Key authenticated (search returned a price)');
   if((j.notes||[]).length){ h+='<div style="margin-top:8px">'+(j.notes.map(function(n){return '<div class="mut" style="font-size:12px;line-height:1.5">&middot; '+esc(n)+'</div>';}).join(''))+'</div>'; }
   return h;
 }
