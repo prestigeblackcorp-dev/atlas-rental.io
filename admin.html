@@ -285,7 +285,7 @@
 
   <!-- COMPETITOR INTEL (watchlist + AI brief) -->
   <div class="card">
-    <div class="card-h"><h2>Competitor intel</h2><span class="sub" id="compSub"></span><div class="sp"></div><button class="chip" onclick="aiCompetitorBrief()">Generate brief</button></div>
+    <div class="card-h"><h2>Competitor intel</h2><span class="sub" id="compSub"></span><div class="sp"></div><button class="chip" onclick="competitorDeepAll()">Deep-read all</button><button class="chip" onclick="aiCompetitorBrief()">Generate brief</button></div>
     <div class="card-b pad">
       <div style="display:flex;gap:7px;margin-bottom:10px;flex-wrap:wrap"><input class="inp" id="compUrl" placeholder="https://competitor.com/pricing" style="flex:1;min-width:160px"><input class="inp" id="compLabel" placeholder="Label (optional)" style="max-width:150px"><button class="btn sm" onclick="addCompetitor()">Watch</button></div>
       <div id="compList"><div class="mut">Loading&hellip;</div></div>
@@ -707,9 +707,41 @@ function renderVisits(){ var v=DATA.visits||{}; var series=v.series||[], top=v.t
 }
 /* ================= competitor intel ================= */
 function renderCompetitors(){ var el=$('compList'); if(!el) return; var list=DATA.competitors||[];
-  var cs=$('compSub'); if(cs) cs.textContent = list.length ? (list.length+' watched'+(DATA.searchAvailable?' + web search':'')) : (DATA.searchAvailable?'web search on':'');
-  if(!list.length){ el.innerHTML='<div class="mut" style="font-size:12.5px">Add a competitor\'s booking or pricing page above. Atlas fetches it nightly and the AI brief flags real price/asset changes.'+(DATA.searchAvailable?'':' Add a SEARCH_KEY in the worker to also auto-discover the market.')+'</div>'; return; }
-  el.innerHTML = list.map(function(c){ var pr=(c.prices||[]).slice(0,4).join('  '); return '<div class="bug"><div class="bug-top"><b style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%">'+esc(c.label||c.title||c.url)+'</b><div class="sp" style="flex:1"></div>'+(c.last_status===200?'<span class="pill active">ok</span>':(c.last_status?'<span class="pill past">'+esc(String(c.last_status))+'</span>':'<span class="pill gray">new</span>'))+' <button class="chip" onclick="delCompetitor('+JSON.stringify(c.id)+')">Remove</button></div><div class="bug-meta" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(c.url)+'</div>'+(pr?'<div class="bug-msg" style="font-size:12px">prices: '+esc(pr)+(c.price_count>4?(' +'+(c.price_count-4)+' more'):'')+'</div>':'')+'</div>'; }).join('');
+  var an=list.filter(function(c){return c.intel;}).length;
+  var cs=$('compSub'); if(cs) cs.textContent = list.length ? (list.length+' watched'+(an?(' - '+an+' analyzed'):'')) : '';
+  if(!list.length){ el.innerHTML='<div class="mut" style="font-size:12.5px">Add a competitor\'s site above. Atlas deep-crawls the whole site nightly (pricing, fleet, reviews, about) and the council reads it for real prices + what their customers like and dislike. They stay on the watchlist until you remove them.</div>'; return; }
+  el.innerHTML = list.map(function(c){
+    var pr=(c.prices||[]).slice(0,4).join('  ');
+    var pf=(c.intel&&c.intel.profile)||null;
+    var st=(c.last_status===200?'<span class="pill active">ok</span>':(c.last_status?'<span class="pill past">'+esc(String(c.last_status))+'</span>':'<span class="pill gray">new</span>'));
+    var pg=(c.pages>1?' <span class="pill gray">'+c.pages+' pages</span>':'');
+    var intelLine='';
+    if(pf){ var lk=(pf.likes||[]).slice(0,2).map(esc).join(', '); var dl=(pf.dislikes||[]).slice(0,2).map(esc).join(', ');
+      intelLine='<div class="bug-msg" style="font-size:12px;cursor:pointer" onclick="competitorShow('+JSON.stringify(c.id)+')">'+(lk?('<b style="color:#3ecb8f">Likes:</b> '+lk):'')+(dl?('&nbsp; <b style="color:#e0736f">Dislikes:</b> '+dl):'')+' <span class="mut" style="font-size:11px">- full profile</span></div>'; }
+    return '<div class="bug"><div class="bug-top"><b style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:46%">'+esc(c.label||c.title||c.url)+'</b><div class="sp" style="flex:1"></div>'+st+pg+' <button class="chip" onclick="competitorDeep('+JSON.stringify(c.id)+')">'+(pf?'Re-read':'Deep read')+'</button> <button class="chip" onclick="delCompetitor('+JSON.stringify(c.id)+')">Remove</button></div><div class="bug-meta" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(c.url)+'</div>'+(pr?'<div class="bug-msg" style="font-size:12px">prices: '+esc(pr)+(c.price_count>4?(' +'+(c.price_count-4)+' more'):'')+'</div>':'')+intelLine+'</div>';
+  }).join('');
+}
+function _compChips(arr,cls){ return (arr||[]).slice(0,10).map(function(x){ return '<span class="pill '+cls+'" style="margin:2px 3px 2px 0;display:inline-block;white-space:normal">'+esc(String(x))+'</span>'; }).join('')||'<span class="mut">-</span>'; }
+function _compProfileHtml(it){ if(!it) return '<div class="mut">No profile yet.</div>'; var p=it.profile||it; var pr=p.pricing||{};
+  return '<div style="margin-bottom:7px"><span class="pill gray">'+(it.pages||1)+' pages read</span>'+(it.at?(' <span class="mut" style="font-size:11px">'+new Date(it.at).toLocaleDateString()+'</span>'):'')+'</div>'
+    +(p.summary?'<div class="ai-md" style="margin-bottom:9px">'+_mdLite(String(p.summary))+'</div>':'')
+    +'<div style="font-size:12px;margin-bottom:8px"><b>Pricing</b> '+esc(pr.model||'')+(pr.notes?(' <span class="mut">- '+esc(pr.notes)+'</span>'):'')+'<br>'+_compChips(pr.points,'active')+'</div>'
+    +'<div style="font-size:12px;margin-bottom:8px"><b style="color:#3ecb8f">Customers like</b><br>'+_compChips(p.likes,'active')+'</div>'
+    +'<div style="font-size:12px;margin-bottom:8px"><b style="color:#e0736f">Customers dislike</b><br>'+_compChips(p.dislikes,'past')+'</div>'
+    +(p.positioning?'<div style="font-size:12px;margin-bottom:8px"><b>Positioning</b> '+esc(String(p.positioning))+'</div>':'')
+    +(p.audience?'<div style="font-size:12px;margin-bottom:8px"><b>Audience</b> '+esc(String(p.audience))+'</div>':'')
+    +'<div style="font-size:12px;margin-bottom:8px"><b style="color:#d9b25f">How Atlas wins</b><br>'+_compChips(p.opportunities,'gray')+'</div>'
+    +((p.watch_for&&p.watch_for.length)?'<div style="font-size:12px"><b>Watch for</b><br>'+_compChips(p.watch_for,'gray')+'</div>':'');
+}
+function competitorShow(id){ var c=(DATA.competitors||[]).filter(function(x){return x.id===id;})[0]; if(!c) return; if(!c.intel){ competitorDeep(id); return; } _aiOpen('Profile: '+esc(c.label||c.url), _compProfileHtml(c.intel)); }
+function competitorDeep(id){ var c=(DATA.competitors||[]).filter(function(x){return x.id===id;})[0]||{};
+  _aiOpen('Deep read: '+esc(c.label||c.url||''), '<div id="compDeepOut">'+_aiBusy()+'<div class="mut" style="font-size:12px;margin-top:8px">Crawling the whole site (pricing, fleet, reviews, about) and reading it with the council&hellip; this can take ~20-40s.</div></div>');
+  api('/api/admin/ai/competitor-deep',{method:'POST',body:{id:id,force:true}}).then(function(r){ var j=r.json||{}, out=$('compDeepOut'); if(!out) return; var h=_aiHonest(j); if(h){ out.innerHTML=h; return; } if(j.crawled&&!j.intel){ out.innerHTML='<div class="mut">Crawled '+(j.pages||0)+' pages, but no AI key is set in the worker to analyze them.</div>'; return; } out.innerHTML=_compProfileHtml(j.intel); loadAll(true); }).catch(function(){ var out=$('compDeepOut'); if(out) out.innerHTML='<div class="mut">Could not complete the deep read.</div>'; });
+}
+function competitorDeepAll(){ var list=(DATA.competitors||[]).slice(); if(!list.length){ toast('No competitors on the watchlist yet'); return; } if(!confirm('Deep-read all '+list.length+' competitors now? Each crawls the full site and runs the council - this can take a few minutes.')) return;
+  var i=0, done=0; toast('Deep-reading 0/'+list.length+'...');
+  (function next(){ if(i>=list.length){ toast('Deep read complete ('+done+'/'+list.length+')'); loadAll(true); return; } var c=list[i++];
+    api('/api/admin/ai/competitor-deep',{method:'POST',body:{id:c.id,force:true}}).then(function(r){ if(r.json&&r.json.ok&&r.json.intel) done++; }).catch(function(){}).then(function(){ toast('Deep-reading '+i+'/'+list.length+'...'); next(); }); })();
 }
 function addCompetitor(){ var u=($('compUrl').value||'').trim(), lbl=($('compLabel').value||'').trim(); if(!/^https?:\/\//i.test(u)){ toast('Enter a full http(s) URL'); return; } api('/api/admin/competitors',{method:'POST',body:{url:u,label:lbl}}).then(function(r){ if(r.json&&r.json.ok){ $('compUrl').value=''; $('compLabel').value=''; toast('Watching'); loadAll(true); } else toast((r.json&&r.json.error)||'Could not add'); }); }
 function delCompetitor(id){ api('/api/admin/competitors',{method:'DELETE',body:{id:id}}).then(function(r){ if(r.json&&r.json.ok){ toast('Removed'); loadAll(true); } else toast('Could not remove'); }); }
