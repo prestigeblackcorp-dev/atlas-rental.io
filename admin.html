@@ -251,6 +251,18 @@
     <div class="card-b pad" id="visBody"><div class="mut">Loading&hellip;</div></div>
   </div>
 
+  <!-- VISITS WORLD MAP -->
+  <div class="card">
+    <div class="card-h"><h2>Visits by country</h2><span class="sub" id="geoSub"></span><div class="sp"></div><span class="sub" id="geoRange"></span></div>
+    <div class="card-b pad">
+      <div id="geoMapBox" style="position:relative;max-width:940px;margin:0 auto;background:#0b1512;border:1px solid var(--line);border-radius:12px;overflow:hidden">
+        <div id="geoMap" style="width:100%"><div class="mut" style="padding:20px">Loading map&hellip;</div></div>
+        <div id="geoTip" style="position:absolute;pointer-events:none;display:none;left:0;top:0;background:#0a0f0d;border:1px solid var(--line2);border-radius:8px;padding:6px 9px;font-size:12px;line-height:1.4;box-shadow:0 6px 18px rgba(0,0,0,.55);z-index:5;white-space:nowrap"></div>
+      </div>
+      <div id="geoList" style="margin-top:12px"></div>
+    </div>
+  </div>
+
   <!-- COMPETITOR INTEL (watchlist + AI brief) -->
   <div class="card">
     <div class="card-h"><h2>Competitor intel</h2><span class="sub" id="compSub"></span><div class="sp"></div><button class="chip" onclick="aiCompetitorBrief()">Generate brief</button></div>
@@ -265,6 +277,26 @@
   <div class="card">
     <div class="card-h"><h2>Revenue &amp; growth</h2><span class="sub" id="revSub"></span><div class="sp"></div><span class="sub" id="revNote"></span></div>
     <div class="split" id="revSplit"></div>
+  </div>
+
+  <!-- PURCHASES (itemized: subscriptions, credits, websites, domains) -->
+  <div class="card">
+    <div class="card-h"><h2>Purchases</h2><span class="sub" id="purSub"></span><div class="sp"></div><button class="chip" onclick="purCSV()">Export CSV</button></div>
+    <div class="toolbar">
+      <div class="search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <input id="purSearch" placeholder="Search email, plan, domain..." oninput="purFilter()">
+      </div>
+      <div class="seg" id="purSeg">
+        <button class="on" data-k="all" onclick="setPurKind(this)">All</button>
+        <button data-k="subscription" onclick="setPurKind(this)">Subs</button>
+        <button data-k="credits" onclick="setPurKind(this)">Credits</button>
+        <button data-k="website" onclick="setPurKind(this)">Websites</button>
+        <button data-k="domain" onclick="setPurKind(this)">Domains</button>
+      </div>
+    </div>
+    <div id="purTotals" style="padding:0 12px 8px;display:flex;flex-wrap:wrap;gap:4px"></div>
+    <div style="overflow-x:auto"><table class="tbl" id="purTbl"></table></div>
   </div>
 
   <!-- MAIN GRID -->
@@ -323,6 +355,7 @@
 <div id="scrim"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
 
+<script src="world-geo.js"></script>
 <script>
 "use strict";
 /* ================= config ================= */
@@ -334,9 +367,9 @@ var TIER_LABEL = {starter:'Starter',pro:'Pro',enterprise:'Enterprise',business:'
 
 /* ================= state ================= */
 var _tok = '';
-var DATA = { overview:null, members:[], txns:[], bugs:[], tickets:[], aiCfg:null, visits:null, inbox:[], inboxCounts:{}, competitors:[] };
+var DATA = { overview:null, members:[], txns:[], bugs:[], tickets:[], aiCfg:null, visits:null, inbox:[], inboxCounts:{}, competitors:[], geo:null, purchases:null };
 var _seg = 'all', _bugSeg = 'open', _tkSeg = 'open', _timer = null, _lastFetch = 0, _prevKpi = {};
-var _range = '30d', _inboxSeg = 'new';
+var _range = '30d', _inboxSeg = 'new', _purKind = 'all', _purQ = '';
 
 /* ================= helpers ================= */
 function $(id){ return document.getElementById(id); }
@@ -384,7 +417,9 @@ function loadAll(quiet){ _lastFetch=Date.now();
     api('/api/admin/config'),
     api('/api/admin/visits?range='+_range),
     api('/api/admin/inbox?status='+(_inboxSeg==='all'?'':_inboxSeg)),
-    api('/api/admin/competitors')
+    api('/api/admin/competitors'),
+    api('/api/admin/visits-geo?range='+_range),
+    api('/api/admin/purchases?range='+_range+'&limit=1000')
   ]).then(function(r){
     if(r[0].json&&r[0].json.ok){ DATA.overview=r[0].json; paintOverview(); }
     if(r[1].json&&r[1].json.ok){ DATA.members=r[1].json.members||[]; renderMembers(); }
@@ -395,6 +430,8 @@ function loadAll(quiet){ _lastFetch=Date.now();
     if(r[6]&&r[6].json&&r[6].json.ok){ DATA.visits=r[6].json; renderVisits(); }
     if(r[7]&&r[7].json&&r[7].json.ok){ DATA.inbox=r[7].json.messages||[]; DATA.inboxCounts=r[7].json.counts||{}; DATA.inboxCanSend=!!r[7].json.can_send; renderInbox(); }
     if(r[8]&&r[8].json&&r[8].json.ok){ DATA.competitors=r[8].json.competitors||[]; DATA.searchAvailable=!!r[8].json.search_available; renderCompetitors(); }
+    if(r[9]&&r[9].json&&r[9].json.ok){ DATA.geo=r[9].json; renderGeo(); }
+    if(r[10]&&r[10].json&&r[10].json.ok){ DATA.purchases=r[10].json; renderPurchases(); }
     setTimeout(function(){ $('refreshBtn').classList.remove('spin'); },700);
     if((r[0].json&&r[0].json.ok)===false || r[0].status===403){ lock(); }
   }).catch(function(){ setTimeout(function(){ $('refreshBtn').classList.remove('spin'); },700); });
@@ -665,6 +702,56 @@ function inboxOpen(id){ var m=(DATA.inbox||[]).filter(function(x){return x.id===
 function inboxDraft(id){ var box=$('inReplyBox'); if(box){ box.value='Drafting...'; box.disabled=true; } api('/api/admin/ai/inbox-draft',{method:'POST',body:{id:id}}).then(function(r){ var j=r.json||{}; if(box) box.disabled=false; if(j.enabled===false||j.ai===false){ if(box)box.value=''; toast(j.reason||'AI is off'); return; } if(box) box.value=j.draft||''; var meta=$('inAiMeta'); if(meta){ meta.innerHTML=(j.summary?('<b>Summary:</b> '+esc(j.summary)+' '):'')+(j.suggested_priority?('<span class="pill '+(j.suggested_priority==='high'?'past':'gray')+'">'+esc(j.suggested_priority)+'</span> '):'')+'<span class="mut">&mdash; review before sending</span>'; } }); }
 function inboxSend(id){ if(!DATA.inboxCanSend){ toast('No mailer configured'); return; } var box=$('inReplyBox'); var body=box?(box.value||'').trim():''; if(body.length<2){ toast('Write a reply first'); return; } if(!confirm('Send this reply now?')) return; api('/api/admin/inbox/reply',{method:'POST',body:{id:id,body:body}}).then(function(r){ var j=r.json||{}; if(j.ok&&j.sent){ closeModal(); toast('Reply sent'); loadAll(true); } else toast((j&&j.message)||'Could not send'); }); }
 function inboxStatus(id,st){ api('/api/admin/inbox/status',{method:'POST',body:{id:id,status:st}}).then(function(r){ if(r.json&&r.json.ok){ closeModal(); toast('Marked '+st); loadAll(true); } else toast('Could not update'); }); }
+
+/* ================= visits world map (self-contained SVG choropleth from world-geo.js) ================= */
+function _worldReady(){ return (typeof ATLAS_WORLD!=='undefined' && ATLAS_WORLD && ATLAS_WORLD.length>0); }
+function _geoShade(v,max){ if(!v) return '#16241d'; var t=Math.sqrt(v/(max||1)); var a=[26,58,45], b=[49,214,138]; var c=[0,1,2].map(function(i){return Math.round(a[i]+(b[i]-a[i])*t);}); return 'rgb('+c[0]+','+c[1]+','+c[2]+')'; }
+function renderGeo(){ var el=$('geoMap'); if(!el) return; var g=DATA.geo||{}; var list=g.countries||[]; var total=g.total||0;
+  var gr=$('geoRange'); if(gr) gr.textContent=(g.range&&g.range.label)||'';
+  var gs=$('geoSub'); if(gs) gs.textContent= total? (nfmt(total)+' located views / '+list.length+' countries') : '';
+  if(!_worldReady()){ el.innerHTML='<div class="mut" style="padding:20px">Map data unavailable.</div>'; return; }
+  var byCode={}; list.forEach(function(r){ byCode[String(r.country||'').toUpperCase()]=r.views||0; });
+  var max=list.length? Math.max.apply(null,list.map(function(r){return r.views||0;})) : 0;
+  var paths=ATLAS_WORLD.map(function(c){ var v=byCode[c.c]||0; var fill=c.c? _geoShade(v,max):'#16241d';
+    return '<path d="'+c.d+'" fill="'+fill+'" stroke="#0b1512" stroke-width="0.4" fill-rule="evenodd" data-c="'+esc(c.c)+'" data-n="'+esc(c.n)+'" data-v="'+v+'"></path>'; }).join('');
+  el.innerHTML='<svg viewBox="0 0 1000 500" style="width:100%;height:auto;display:block" id="geoSvg">'+paths+'</svg>';
+  var svg=$('geoSvg'), tip=$('geoTip'), box=$('geoMapBox'); var _last=null;
+  function clear(){ if(_last){ _last.style.filter=''; _last=null; } tip.style.display='none'; }
+  svg.addEventListener('mousemove',function(e){ var t=e.target; if(!t||t.tagName!=='path'||!t.getAttribute('data-n')){ clear(); return; }
+    if(_last!==t){ if(_last)_last.style.filter=''; _last=t; t.style.filter='brightness(1.4)'; }
+    var v=+(t.getAttribute('data-v')||0), pct= total? Math.round(v/total*100):0, code=t.getAttribute('data-c');
+    tip.innerHTML='<b>'+esc(t.getAttribute('data-n'))+'</b>'+(code?(' <span class="mut">'+esc(code)+'</span>'):'')+'<br>'+nfmt(v)+' visit'+(v===1?'':'s')+(v?(' &middot; '+pct+'%'):'');
+    var r=box.getBoundingClientRect(), tw=tip.offsetWidth, th=tip.offsetHeight;
+    tip.style.display='block'; tip.style.left=Math.max(4,Math.min(e.clientX-r.left+12, r.width-tw-6))+'px'; tip.style.top=Math.max(4,(e.clientY-r.top)-th-8)+'px'; });
+  svg.addEventListener('mouseleave',clear);
+  var ge=$('geoList'); if(ge){ if(!list.length){ ge.innerHTML='<div class="mut" style="font-size:12.5px">No located visits yet in this window. Countries fill in as your booking pages get traffic &mdash; from Cloudflare\'s edge geo, with no IPs or PII stored.</div>'; }
+    else { var nm={}; ATLAS_WORLD.forEach(function(c){ if(c.c) nm[c.c]=c.n; });
+      ge.innerHTML='<div class="desc" style="margin:0 0 6px">Top countries</div>'+list.slice(0,12).map(function(r){ var pct=total?Math.round(r.views/total*100):0, code=String(r.country||'').toUpperCase();
+        return '<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;padding:3px 0"><span style="width:160px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(nm[code]||code)+'</span><div style="flex:1;height:6px;background:#16241d;border-radius:6px;overflow:hidden"><i style="display:block;height:100%;width:'+pct+'%;background:var(--em)"></i></div><b class="num" style="width:54px;text-align:right">'+nfmt(r.views)+'</b></div>'; }).join(''); } }
+}
+/* ================= purchases (itemized + filtered) ================= */
+function _purKindLabel(k){ return ({subscription:'Subscription',plan:'Subscription',credits:'Credits',website:'Website',domain:'Domain',trial:'Trial'})[k] || (k? (k.charAt(0).toUpperCase()+k.slice(1)) : 'Other'); }
+function _purNorm(r){ return (r.kind==='plan')?'subscription':(r.kind||'other'); }
+function _purDesc(r){ var base=_purKindLabel(_purNorm(r)); var extra=r.tier||r.pack||''; return base+(extra?(' - '+extra):''); }
+function _purFiltered(){ var items=(DATA.purchases&&DATA.purchases.items)||[]; var q=_purQ.toLowerCase();
+  return items.filter(function(r){ if(_purKind!=='all' && _purNorm(r)!==_purKind) return false; if(q){ var hay=((r.email||'')+' '+(r.tier||'')+' '+(r.pack||'')+' '+(r.kind||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; } return true; }); }
+function renderPurchases(){ var p=DATA.purchases||{}; var byk=p.by_kind||{};
+  var ps=$('purSub'); if(ps) ps.textContent=((p.range&&p.range.label)||'')+' / '+centsUSD(p.grand_total_cents||0)+' / '+nfmt(p.grand_count||0)+' items';
+  var order=['subscription','credits','website','domain','trial'], seen={}, chips=[];
+  order.forEach(function(k){ if(byk[k]){ seen[k]=1; chips.push('<span class="pill gray">'+esc(_purKindLabel(k))+' <b class="num">'+nfmt(byk[k].n)+'</b> '+centsUSD0(byk[k].c)+'</span>'); } });
+  Object.keys(byk).forEach(function(k){ if(!seen[k]){ chips.push('<span class="pill gray">'+esc(_purKindLabel(k))+' <b class="num">'+nfmt(byk[k].n)+'</b></span>'); } });
+  var pt=$('purTotals'); if(pt) pt.innerHTML=chips.join('')||'<span class="mut" style="font-size:12px">No purchases in this window.</span>';
+  var rows=_purFiltered(); var shown=rows.reduce(function(s,r){return s+(r.amount_cents||0);},0); var tbl=$('purTbl'); if(!tbl) return;
+  if(!rows.length){ tbl.innerHTML='<tbody><tr><td class="mut" style="padding:16px">No purchases match this filter. Every subscription, credit pack, website and domain purchase is itemized here as it happens.</td></tr></tbody>'; return; }
+  tbl.innerHTML='<thead><tr><th>Date</th><th>Account</th><th>Item</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+rows.map(function(r){ return '<tr class="row"><td class="mut num">'+dstr(r.created_at)+'</td><td><div class="m-name"><b>'+esc(r.email||r.tenant_id||'-')+'</b></div></td><td>'+esc(_purDesc(r))+'</td><td class="money num" style="text-align:right">'+centsUSD(r.amount_cents||0)+'</td></tr>'; }).join('')+'</tbody><tfoot><tr><td colspan="3" class="mut" style="text-align:right;padding:10px 12px">'+nfmt(rows.length)+' shown'+((p.count>=1000)?' (latest 1000)':'')+'</td><td class="money num" style="text-align:right;padding:10px 12px">'+centsUSD(shown)+'</td></tr></tfoot>';
+}
+function setPurKind(btn){ Array.prototype.forEach.call($('purSeg').children,function(b){b.classList.remove('on');}); btn.classList.add('on'); _purKind=btn.getAttribute('data-k'); renderPurchases(); }
+function purFilter(){ _purQ=($('purSearch').value||'').trim(); renderPurchases(); }
+function _csv(v){ v=String(v==null?'':v); return /[",\n]/.test(v)?('"'+v.replace(/"/g,'""')+'"'):v; }
+function purCSV(){ var rows=_purFiltered(); if(!rows.length){ toast('Nothing to export'); return; }
+  var head=['Date','Account','Kind','Detail','Amount USD','Currency','Txn ID'];
+  var lines=[head.join(',')].concat(rows.map(function(r){ return [dstr(r.created_at),(r.email||r.tenant_id||''),_purNorm(r),(r.tier||r.pack||''),((r.amount_cents||0)/100).toFixed(2),(r.currency||'usd'),r.id].map(_csv).join(','); }));
+  var a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(lines.join('\n')); a.download='atlas-purchases-'+_range+'.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a); toast('CSV exported'); }
 
 /* ================= boot ================= */
 (function(){ var saved=''; try{ saved=localStorage.getItem(TOK_KEY)||''; }catch(e){}
