@@ -397,7 +397,10 @@ function centsUSD(c){ c=Number(c)||0; return '$'+(c/100).toLocaleString('en-US',
 function centsUSD0(c){ c=Number(c)||0; return '$'+Math.round(c/100).toLocaleString('en-US'); }
 function nfmt(n){ return (Number(n)||0).toLocaleString('en-US'); }
 function ago(ts){ if(!ts) return ''; var s=Math.floor((Date.now()-ts)/1000); if(s<60)return s+'s ago'; var m=Math.floor(s/60); if(m<60)return m+'m ago'; var h=Math.floor(m/60); if(h<24)return h+'h ago'; var d=Math.floor(h/24); return d+'d ago'; }
-function dstr(ts){ if(!ts) return '--'; try{ return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){ return '--'; } }
+function dstr(ts){ if(!ts) return '--'; try{ return new Date(ts).toLocaleDateString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',year:'numeric'}); }catch(e){ return '--'; } }
+/* Central-time timestamp (owner's zone) + the account's OWN zone/local time. */
+function tsCT(ts){ if(!ts) return '--'; try{ return new Date(ts).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})+' CT'; }catch(e){ return dstr(ts); } }
+function tsTheir(ts,tz){ if(!ts||!tz) return ''; try{ var loc=new Date(ts).toLocaleString('en-US',{timeZone:tz,hour:'numeric',minute:'2-digit',timeZoneName:'short'}); var city=String(tz).split('/').pop().replace(/_/g,' '); return city+' '+loc; }catch(e){ return String(tz); } }
 function daysLeft(ts){ if(!ts) return null; return Math.ceil((ts-Date.now())/86400000); }
 function toast(msg){ var t=$('toast'); t.innerHTML='<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M13 4.5 6.5 11 3 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'+esc(msg); t.classList.add('on'); clearTimeout(t._t); t._t=setTimeout(function(){ t.classList.remove('on'); },2600); }
 
@@ -766,14 +769,14 @@ function renderPurchases(){ var p=DATA.purchases||{}; var byk=p.by_kind||{};
   var pt=$('purTotals'); if(pt) pt.innerHTML=chips.join('')||'<span class="mut" style="font-size:12px">No purchases in this window.</span>';
   var rows=_purFiltered(); var shown=rows.reduce(function(s,r){return s+(r.amount_cents||0);},0); var tbl=$('purTbl'); if(!tbl) return;
   if(!rows.length){ tbl.innerHTML='<tbody><tr><td class="mut" style="padding:16px">No purchases match this filter. Every subscription, credit pack, website and domain purchase is itemized here as it happens.</td></tr></tbody>'; return; }
-  tbl.innerHTML='<thead><tr><th>Date</th><th>Account</th><th>Item</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+rows.map(function(r){ return '<tr class="row"><td class="mut num">'+dstr(r.created_at)+'</td><td><div class="m-name"><b>'+esc(r.email||r.tenant_id||'-')+'</b></div></td><td>'+esc(_purDesc(r))+'</td><td class="money num" style="text-align:right">'+centsUSD(r.amount_cents||0)+'</td></tr>'; }).join('')+'</tbody><tfoot><tr><td colspan="3" class="mut" style="text-align:right;padding:10px 12px">'+nfmt(rows.length)+' shown'+((p.count>=1000)?' (latest 1000)':'')+'</td><td class="money num" style="text-align:right;padding:10px 12px">'+centsUSD(shown)+'</td></tr></tfoot>';
+  tbl.innerHTML='<thead><tr><th>Date (CT)</th><th>Account</th><th>Item</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+rows.map(function(r){ return '<tr class="row"><td class="num" style="white-space:nowrap"><div>'+esc(tsCT(r.created_at))+'</div>'+(r.tz?('<div class="mut" style="font-size:11px" title="'+esc(r.tz)+'">'+esc(tsTheir(r.created_at,r.tz))+'</div>'):'')+'</td><td><div class="m-name"><b>'+esc(r.email||r.tenant_id||'-')+'</b></div></td><td>'+esc(_purDesc(r))+'</td><td class="money num" style="text-align:right">'+centsUSD(r.amount_cents||0)+'</td></tr>'; }).join('')+'</tbody><tfoot><tr><td colspan="3" class="mut" style="text-align:right;padding:10px 12px">'+nfmt(rows.length)+' shown'+((p.count>=1000)?' (latest 1000)':'')+'</td><td class="money num" style="text-align:right;padding:10px 12px">'+centsUSD(shown)+'</td></tr></tfoot>';
 }
 function setPurKind(btn){ Array.prototype.forEach.call($('purSeg').children,function(b){b.classList.remove('on');}); btn.classList.add('on'); _purKind=btn.getAttribute('data-k'); renderPurchases(); }
 function purFilter(){ _purQ=($('purSearch').value||'').trim(); renderPurchases(); }
 function _csv(v){ v=String(v==null?'':v); return /[",\n]/.test(v)?('"'+v.replace(/"/g,'""')+'"'):v; }
 function purCSV(){ var rows=_purFiltered(); if(!rows.length){ toast('Nothing to export'); return; }
-  var head=['Date','Account','Kind','Detail','Amount USD','Currency','Txn ID'];
-  var lines=[head.join(',')].concat(rows.map(function(r){ return [dstr(r.created_at),(r.email||r.tenant_id||''),_purNorm(r),(r.tier||r.pack||''),((r.amount_cents||0)/100).toFixed(2),(r.currency||'usd'),r.id].map(_csv).join(','); }));
+  var head=['Central Time','Account','Account TZ','Account Local Time','Kind','Detail','Amount USD','Currency','Txn ID'];
+  var lines=[head.join(',')].concat(rows.map(function(r){ return [tsCT(r.created_at),(r.email||r.tenant_id||''),(r.tz||''),(r.tz?tsTheir(r.created_at,r.tz):''),_purNorm(r),(r.tier||r.pack||''),((r.amount_cents||0)/100).toFixed(2),(r.currency||'usd'),r.id].map(_csv).join(','); }));
   var a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(lines.join('\n')); a.download='atlas-purchases-'+_range+'.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a); toast('CSV exported'); }
 
 /* ================= growth & social (AI marketing brain) ================= */
