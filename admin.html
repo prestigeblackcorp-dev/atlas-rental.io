@@ -237,6 +237,25 @@
     <div class="card-b" id="aiBody"><div class="mut" style="padding:10px 12px">Loading&hellip;</div></div>
   </div>
 
+  <!-- GROWTH & SOCIAL (AI marketing brain: day-by-day compare, campaigns, posts, partners, real accounts) -->
+  <div class="card">
+    <div class="card-h"><h2>Growth &amp; social</h2><span class="sub" id="growSub"></span><div class="sp"></div><span class="sub" id="growRange"></span></div>
+    <div class="card-b pad">
+      <div id="growCompare"></div>
+      <div class="ai-tools" style="margin-top:12px">
+        <button class="btn ghost sm" onclick="growAI('strategy')">Go-to-market</button>
+        <button class="btn ghost sm" onclick="growCampaign()">Social campaign</button>
+        <button class="btn ghost sm" onclick="growPosts()">Post ideas</button>
+        <button class="btn ghost sm" onclick="growAI('audience')">Audience / ICP</button>
+        <button class="btn ghost sm" onclick="growPartners()">Partners &amp; sponsors</button>
+        <button class="btn ghost sm" onclick="growAccounts()">Find real accounts</button>
+        <button class="btn ghost sm" onclick="growOutreach()">Draft outreach</button>
+      </div>
+      <div id="growSocial" style="margin-top:14px"></div>
+      <div id="growNote" class="mut" style="font-size:11.5px;margin-top:10px"></div>
+    </div>
+  </div>
+
   <!-- SUPPORT INBOX (inbound email -> AI draft -> you Send) -->
   <div class="card">
     <div class="card-h"><h2>Support inbox</h2><span class="sub" id="inboxSub"></span><div class="sp"></div>
@@ -367,7 +386,7 @@ var TIER_LABEL = {starter:'Starter',pro:'Pro',enterprise:'Enterprise',business:'
 
 /* ================= state ================= */
 var _tok = '';
-var DATA = { overview:null, members:[], txns:[], bugs:[], tickets:[], aiCfg:null, visits:null, inbox:[], inboxCounts:{}, competitors:[], geo:null, purchases:null };
+var DATA = { overview:null, members:[], txns:[], bugs:[], tickets:[], aiCfg:null, visits:null, inbox:[], inboxCounts:{}, competitors:[], geo:null, purchases:null, growth:null, socialHandles:{} };
 var _seg = 'all', _bugSeg = 'open', _tkSeg = 'open', _timer = null, _lastFetch = 0, _prevKpi = {};
 var _range = '30d', _inboxSeg = 'new', _purKind = 'all', _purQ = '';
 
@@ -419,7 +438,9 @@ function loadAll(quiet){ _lastFetch=Date.now();
     api('/api/admin/inbox?status='+(_inboxSeg==='all'?'':_inboxSeg)),
     api('/api/admin/competitors'),
     api('/api/admin/visits-geo?range='+_range),
-    api('/api/admin/purchases?range='+_range+'&limit=1000')
+    api('/api/admin/purchases?range='+_range+'&limit=1000'),
+    api('/api/admin/growth-data?range='+_range),
+    api('/api/admin/social')
   ]).then(function(r){
     if(r[0].json&&r[0].json.ok){ DATA.overview=r[0].json; paintOverview(); }
     if(r[1].json&&r[1].json.ok){ DATA.members=r[1].json.members||[]; renderMembers(); }
@@ -432,6 +453,8 @@ function loadAll(quiet){ _lastFetch=Date.now();
     if(r[8]&&r[8].json&&r[8].json.ok){ DATA.competitors=r[8].json.competitors||[]; DATA.searchAvailable=!!r[8].json.search_available; renderCompetitors(); }
     if(r[9]&&r[9].json&&r[9].json.ok){ DATA.geo=r[9].json; renderGeo(); }
     if(r[10]&&r[10].json&&r[10].json.ok){ DATA.purchases=r[10].json; renderPurchases(); }
+    if(r[11]&&r[11].json&&r[11].json.ok){ DATA.growth=r[11].json.growth||null; renderGrowth(); }
+    if(r[12]&&r[12].json&&r[12].json.ok){ DATA.socialHandles=r[12].json.handles||{}; renderSocial(); }
     setTimeout(function(){ $('refreshBtn').classList.remove('spin'); },700);
     if((r[0].json&&r[0].json.ok)===false || r[0].status===403){ lock(); }
   }).catch(function(){ setTimeout(function(){ $('refreshBtn').classList.remove('spin'); },700); });
@@ -752,6 +775,42 @@ function purCSV(){ var rows=_purFiltered(); if(!rows.length){ toast('Nothing to 
   var head=['Date','Account','Kind','Detail','Amount USD','Currency','Txn ID'];
   var lines=[head.join(',')].concat(rows.map(function(r){ return [dstr(r.created_at),(r.email||r.tenant_id||''),_purNorm(r),(r.tier||r.pack||''),((r.amount_cents||0)/100).toFixed(2),(r.currency||'usd'),r.id].map(_csv).join(','); }));
   var a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(lines.join('\n')); a.download='atlas-purchases-'+_range+'.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a); toast('CSV exported'); }
+
+/* ================= growth & social (AI marketing brain) ================= */
+function renderGrowth(){ var g=DATA.growth||{}; var s=g.series||[]; var el=$('growCompare'); if(!el) return;
+  var gr=$('growRange'); if(gr) gr.textContent=(g.range&&g.range.label)||'';
+  var t=g.totals||{}; var gsb=$('growSub'); if(gsb) gsb.textContent = nfmt(t.visits||0)+' visits / '+nfmt(t.signups||0)+' signups / '+centsUSD0(t.revenue_cents||0);
+  function arrow(cur,prev){ if(prev==null) return ''; var d=cur-prev; if(d>0) return ' <span style="color:var(--em)">&#9650;'+nfmt(d)+'</span>'; if(d<0) return ' <span style="color:var(--red)">&#9660;'+nfmt(-d)+'</span>'; return ''; }
+  if(!s.length){ el.innerHTML='<div class="mut" style="font-size:12.5px">No day-by-day data in this window yet. Visits, signups and revenue are compared here per day as they come in.</div>'; }
+  else { var rows=s.slice(-14).reverse();
+    el.innerHTML='<div class="desc" style="margin:0 0 6px">Day by day</div><div style="overflow-x:auto;max-height:260px;overflow-y:auto"><table class="tbl"><thead><tr><th>Day</th><th style="text-align:right">Visits</th><th style="text-align:right">Signups</th><th style="text-align:right">Revenue</th></tr></thead><tbody>'+rows.map(function(r,i){ var prev=rows[i+1]; return '<tr class="row"><td class="mut num">'+esc(r.day)+'</td><td class="num" style="text-align:right">'+nfmt(r.visits)+arrow(r.visits,prev&&prev.visits)+'</td><td class="num" style="text-align:right">'+nfmt(r.signups)+arrow(r.signups,prev&&prev.signups)+'</td><td class="money num" style="text-align:right">'+centsUSD(r.revenue_cents)+'</td></tr>'; }).join('')+'</tbody></table></div>'; }
+  var fm=(g.fleet_mix||[]).slice(0,6).map(function(f){ return '<span class="pill gray">'+esc(f.ft)+' <b class="num">'+nfmt(f.c)+'</b></span>'; }).join(' ');
+  var note=$('growNote'); if(note){ var aiOff=!(DATA.aiCfg&&DATA.aiCfg.ai_hq_enabled);
+    note.innerHTML=(fm?('<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">'+fm+'</div>'):'')+(aiOff?'Turn on the AI Command Center (above) to generate campaigns, posts, and partner + real-account lists.':'Grounded in your real numbers. Partners + Find-real-accounts use live web search when a SEARCH_KEY is set in the worker.'); }
+}
+function renderSocial(){ var el=$('growSocial'); if(!el) return; var h=DATA.socialHandles||{};
+  var plats=[['instagram','Instagram'],['tiktok','TikTok'],['x','X'],['linkedin','LinkedIn'],['facebook','Facebook'],['youtube','YouTube']];
+  el.innerHTML='<div class="desc" style="margin:0 0 6px">Your social handles <span class="mut" style="font-weight:400">- the AI writes posts that reference these. Auto-posting + audience pull come when you link each platform.</span></div><div style="display:flex;flex-wrap:wrap;gap:8px 12px">'+plats.map(function(p){ return '<div style="display:flex;align-items:center;gap:5px"><span class="mut" style="font-size:11.5px;width:62px">'+p[1]+'</span><input class="inp" style="padding:6px 8px;font-size:12px;width:132px" value="'+esc(h[p[0]]||'')+'" placeholder="@handle" onchange="setSocial(\''+p[0]+'\',this.value)"></div>'; }).join('')+'</div>';
+}
+function setSocial(platform,handle){ api('/api/admin/social',{method:'POST',body:{platform:platform,handle:handle}}).then(function(r){ if(r.json&&r.json.ok){ DATA.socialHandles=r.json.handles||{}; toast('Saved'); } else toast('Could not save'); }); }
+var _PLATS='<option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="x">X</option><option value="linkedin">LinkedIn</option><option value="facebook">Facebook</option><option value="youtube">YouTube</option>';
+function _growModal(title,fields,mode){ _aiOpen(title, fields+'<button class="btn gold sm" onclick="growRun(\''+mode+'\')" style="margin-top:4px">Generate</button><div id="growOut" style="margin-top:12px"></div>'); }
+function growRun(mode){ var out=$('growOut'); if(!out) return; out.innerHTML=_aiBusy();
+  var body={mode:mode, range:_range};
+  var pf=$('growPlatform'); if(pf) body.platform=pf.value;
+  var tp=$('growTopic'); if(tp) body.topic=(tp.value||'').trim();
+  var q=$('growQuery'); if(q) body.query=(q.value||'').trim();
+  var tg=$('growTarget'); if(tg) body.target=(tg.value||'').trim();
+  api('/api/admin/ai/growth',{method:'POST',body:body}).then(function(r){ var j=r.json||{}, h=_aiHonest(j); if(h){ out.innerHTML=h; return; }
+    var src=j.sources||{}; var usesWeb=(mode==='partners'||mode==='accounts'||mode==='outreach');
+    var tag = usesWeb ? ('<div style="margin-bottom:8px">'+(src.web_search?'<span class="pill active">live web search</span>':(src.search_available?'<span class="pill gray">search on - add a query</span>':'<span class="pill gray">no search key - general ideas + queries to run</span>'))+' <span class="mut" style="font-size:11px">'+(src.data_days||0)+' days of data</span></div>') : ('<div class="mut" style="font-size:11px;margin-bottom:8px">grounded in '+(src.data_days||0)+' days of your real data</div>');
+    out.innerHTML=tag+'<div class="ai-md">'+_mdLite(j.text||'')+'</div>'; }); }
+function growAI(mode){ _growModal(mode==='audience'?'Audience / ICP':'Go-to-market strategy','',mode); growRun(mode); }
+function growCampaign(){ _growModal('Social campaign','<div class="fld"><label>Platform</label><select class="inp" id="growPlatform">'+_PLATS+'</select></div><div class="fld"><label>Angle (optional)</label><input class="inp" id="growTopic" placeholder="e.g. launch week, boat-rental niche"></div>','campaign'); }
+function growPosts(){ _growModal('Post ideas','<div class="fld"><label>Platform</label><select class="inp" id="growPlatform">'+_PLATS+'</select></div><div class="fld"><label>Topic (optional)</label><input class="inp" id="growTopic" placeholder="e.g. deposits, contracts, no-shows"></div>','posts'); }
+function growPartners(){ _growModal('Partners & sponsors','<div class="fld"><label>Search the market <span class="mut" style="font-weight:400">(needs SEARCH_KEY for live results)</span></label><input class="inp" id="growQuery" placeholder="exotic car rental associations, RV rental influencers"></div>','partners'); }
+function growAccounts(){ _growModal('Find real accounts','<div class="fld"><label>Who to find <span class="mut" style="font-weight:400">(needs SEARCH_KEY)</span></label><input class="inp" id="growQuery" placeholder="car rental YouTubers, property manager communities"></div>','accounts'); }
+function growOutreach(){ _growModal('Draft outreach','<div class="fld"><label>Target (account / org / person)</label><input class="inp" id="growTarget" placeholder="@SomeRentalCreator on Instagram"></div><div class="fld"><label>Context search (optional, needs SEARCH_KEY)</label><input class="inp" id="growQuery" placeholder="who they are"></div>','outreach'); }
 
 /* ================= boot ================= */
 (function(){ var saved=''; try{ saved=localStorage.getItem(TOK_KEY)||''; }catch(e){}
