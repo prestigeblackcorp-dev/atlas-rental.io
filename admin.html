@@ -219,6 +219,9 @@
       <div><b>ATLAS HQ</b><span>Master Dashboard</span></div>
     </div>
     <div class="top-spacer"></div>
+    <select id="rangeSel" onchange="setRange(this.value)" title="Date range" style="background:#0c1310;border:1px solid var(--line2);border-radius:8px;color:var(--ink);padding:7px 10px;font-size:12.5px;font-family:inherit;outline:none;margin-right:2px">
+      <option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7d">Past 7 days</option><option value="30d" selected>Past 30 days</option><option value="year">This year</option><option value="all">All time</option>
+    </select>
     <div class="live"><span class="dot"></span><span id="liveTxt">live</span></div>
     <button class="icon-btn" id="refreshBtn" title="Refresh now" onclick="refreshNow()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 4v5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button class="icon-btn" title="Lock console" onclick="lock()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="4" y="10.5" width="16" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" stroke="currentColor" stroke-width="1.8"/></svg></button>
@@ -232,6 +235,30 @@
   <div class="card">
     <div class="card-h"><h2>AI Command Center</h2><span class="sub" id="aiStatus"></span><div class="sp"></div><button class="chip" id="aiToggleBtn" onclick="aiToggle()">&hellip;</button></div>
     <div class="card-b" id="aiBody"><div class="mut" style="padding:10px 12px">Loading&hellip;</div></div>
+  </div>
+
+  <!-- SUPPORT INBOX (inbound email -> AI draft -> you Send) -->
+  <div class="card">
+    <div class="card-h"><h2>Support inbox</h2><span class="sub" id="inboxSub"></span><div class="sp"></div>
+      <div class="seg" id="inboxSeg"><button class="on" data-s="new" onclick="setInboxSeg(this)">New</button><button data-s="replied" onclick="setInboxSeg(this)">Replied</button><button data-s="all" onclick="setInboxSeg(this)">All</button></div>
+    </div>
+    <div id="inboxList" class="card-b"><div class="mut" style="padding:10px 12px">Loading&hellip;</div></div>
+  </div>
+
+  <!-- WEBSITE VISITS -->
+  <div class="card">
+    <div class="card-h"><h2>Website visits</h2><span class="sub" id="visSub"></span><div class="sp"></div><span class="sub" id="visRange"></span></div>
+    <div class="card-b pad" id="visBody"><div class="mut">Loading&hellip;</div></div>
+  </div>
+
+  <!-- COMPETITOR INTEL (watchlist + AI brief) -->
+  <div class="card">
+    <div class="card-h"><h2>Competitor intel</h2><span class="sub" id="compSub"></span><div class="sp"></div><button class="chip" onclick="aiCompetitorBrief()">Generate brief</button></div>
+    <div class="card-b pad">
+      <div style="display:flex;gap:7px;margin-bottom:10px;flex-wrap:wrap"><input class="inp" id="compUrl" placeholder="https://competitor.com/pricing" style="flex:1;min-width:160px"><input class="inp" id="compLabel" placeholder="Label (optional)" style="max-width:150px"><button class="btn sm" onclick="addCompetitor()">Watch</button></div>
+      <div id="compList"><div class="mut">Loading&hellip;</div></div>
+      <div id="compBrief" style="margin-top:12px"></div>
+    </div>
   </div>
 
   <!-- REVENUE BREAKDOWN + FUNNEL -->
@@ -307,8 +334,9 @@ var TIER_LABEL = {starter:'Starter',pro:'Pro',enterprise:'Enterprise',business:'
 
 /* ================= state ================= */
 var _tok = '';
-var DATA = { overview:null, members:[], txns:[], bugs:[], tickets:[], aiCfg:null };
+var DATA = { overview:null, members:[], txns:[], bugs:[], tickets:[], aiCfg:null, visits:null, inbox:[], inboxCounts:{}, competitors:[] };
 var _seg = 'all', _bugSeg = 'open', _tkSeg = 'open', _timer = null, _lastFetch = 0, _prevKpi = {};
+var _range = '30d', _inboxSeg = 'new';
 
 /* ================= helpers ================= */
 function $(id){ return document.getElementById(id); }
@@ -348,12 +376,15 @@ function enter(overview){ $('gate').style.display='none'; $('app').style.display
 function loadAll(quiet){ _lastFetch=Date.now();
   if(!quiet) $('refreshBtn').classList.add('spin');
   return Promise.all([
-    api('/api/admin/overview'),
+    api('/api/admin/overview?range='+_range),
     api('/api/admin/members'),
     api('/api/admin/transactions?limit=40'),
     api('/api/admin/feedback?status='+(_bugSeg==='all'?'all':'open')),
     api('/api/admin/tickets?status='+(_tkSeg==='all'?'all':'open')),
-    api('/api/admin/config')
+    api('/api/admin/config'),
+    api('/api/admin/visits?range='+_range),
+    api('/api/admin/inbox?status='+(_inboxSeg==='all'?'':_inboxSeg)),
+    api('/api/admin/competitors')
   ]).then(function(r){
     if(r[0].json&&r[0].json.ok){ DATA.overview=r[0].json; paintOverview(); }
     if(r[1].json&&r[1].json.ok){ DATA.members=r[1].json.members||[]; renderMembers(); }
@@ -361,11 +392,16 @@ function loadAll(quiet){ _lastFetch=Date.now();
     if(r[3].json&&r[3].json.ok){ DATA.bugs=r[3].json.feedback||[]; renderBugs(); }
     if(r[4]&&r[4].json&&r[4].json.ok){ DATA.tickets=r[4].json.tickets||[]; renderTickets(); }
     if(r[5]&&r[5].json&&r[5].json.config){ DATA.aiCfg=r[5].json.config; } else { DATA.aiCfg={ai_hq_enabled:false,ai_available:false,needsDeploy:true}; } renderAI();
+    if(r[6]&&r[6].json&&r[6].json.ok){ DATA.visits=r[6].json; renderVisits(); }
+    if(r[7]&&r[7].json&&r[7].json.ok){ DATA.inbox=r[7].json.messages||[]; DATA.inboxCounts=r[7].json.counts||{}; DATA.inboxCanSend=!!r[7].json.can_send; renderInbox(); }
+    if(r[8]&&r[8].json&&r[8].json.ok){ DATA.competitors=r[8].json.competitors||[]; DATA.searchAvailable=!!r[8].json.search_available; renderCompetitors(); }
     setTimeout(function(){ $('refreshBtn').classList.remove('spin'); },700);
     if((r[0].json&&r[0].json.ok)===false || r[0].status===403){ lock(); }
   }).catch(function(){ setTimeout(function(){ $('refreshBtn').classList.remove('spin'); },700); });
 }
 function refreshNow(){ loadAll(); toast('Refreshed'); }
+function setRange(v){ _range=v; loadAll(); }
+function setInboxSeg(btn){ Array.prototype.forEach.call($('inboxSeg').children,function(b){b.classList.remove('on');}); btn.classList.add('on'); _inboxSeg=btn.getAttribute('data-s'); loadAll(true); }
 function tickLive(){ $('liveTxt').textContent = _lastFetch ? ('updated '+ago(_lastFetch)) : 'live'; }
 
 /* ================= KPI + revenue ================= */
@@ -374,13 +410,14 @@ function animateNum(el, to, fmt){ var from=_prevKpi[el.id]||0; _prevKpi[el.id]=t
   function step(t){ if(!start)start=t; var p=Math.min((t-start)/dur,1); var e=1-Math.pow(1-p,3); el.textContent=fmt(Math.round(from+(to-from)*e)); if(p<1)requestAnimationFrame(step); }
   requestAnimationFrame(step); }
 
-function paintOverview(){ var o=DATA.overview||{}; var rev=o.revenue||{}, mem=o.members||{}, ins=o.installs||{}, bugs=o.bugs||{};
+function paintOverview(){ var o=DATA.overview||{}; var rev=o.revenue||{}, mem=o.members||{}, ins=o.installs||{}, bugs=o.bugs||{}, vis=o.visits||{}; var rl=((o.range&&o.range.label)||'range').toLowerCase();
   var kpis=[
-    {id:'k_rev', hero:true, gold:true, label:'Total revenue', val:rev.total_cents||0, fmt:centsUSD, sub:'<b>'+centsUSD(rev.month_cents||0)+'</b> this month'},
+    {id:'k_rev', hero:true, gold:true, label:'Total revenue', val:rev.total_cents||0, fmt:centsUSD, sub:'<b>'+centsUSD(rev.range_cents||0)+'</b> in '+esc(rl)},
     {id:'k_mrr', gold:true, label:'MRR', val:rev.mrr_cents||0, fmt:centsUSD, sub:'recurring / month'},
     {id:'k_mem', label:'Members', val:mem.total||0, fmt:function(v){return nfmt(v);}, sub:'<b>'+nfmt(mem.paid||0)+'</b> paying'},
+    {id:'k_vis', label:'Website visits', val:vis.range||0, fmt:function(v){return nfmt(v);}, sub:nfmt(vis.today||0)+' today'},
+    {id:'k_signup', label:'New signups', val:o.signups||0, fmt:function(v){return nfmt(v);}, sub:esc(rl)},
     {id:'k_trial', label:'Trials', val:mem.trials||0, fmt:function(v){return nfmt(v);}, sub:nfmt(mem.trials_with_card||0)+' with card'},
-    {id:'k_inst', label:'App installs', val:ins.total||0, fmt:function(v){return nfmt(v);}, sub:'PWA to home screen'},
     {id:'k_bug', label:'Open bugs', val:bugs.open||0, fmt:function(v){return nfmt(v);}, sub:nfmt(bugs.total||0)+' total'}
   ];
   $('kpis').innerHTML = kpis.map(function(k){ return '<div class="kpi'+(k.hero?' hero':'')+(k.gold?' gold':'')+'"><div class="glow"></div>'+
@@ -392,7 +429,7 @@ function paintOverview(){ var o=DATA.overview||{}; var rev=o.revenue||{}, mem=o.
   var byk = rev.by_kind||{}; var sub=byk.subscription||0, cr=byk.credits||0, ws=byk.website||0;
   var byt = mem.by_tier||{};
   $('revSub').textContent = o.ts ? '' : '';
-  $('revNote').textContent = 'all-time, to the cent';
+  $('revNote').textContent = ((o.range&&o.range.label)||'all-time')+', to the cent';
   var tierRows = TIERS.map(function(t){ var n=byt[t]||0; return n?('<span class="tier-tag" style="color:var(--ink)">'+TIER_LABEL[t]+': <b class="num">'+n+'</b></span>'):''; }).filter(Boolean).join(' &middot; ') || '<span class="mut">no paid members yet</span>';
   var tot=sub+cr+ws||1;
   $('revSplit').innerHTML =
@@ -584,6 +621,50 @@ function openDeleted(){ _aiOpen('Deleted accounts','<div id="delList">'+_aiBusy(
 function loadDeleted(){ api('/api/admin/deleted').then(function(r){ var el=$('delList'); if(!el)return; var d=(r.json&&r.json.deleted)||[]; if(!d.length){ el.innerHTML='<div class="mut" style="padding:10px">No deleted accounts. Deletes are recoverable and land here.</div>'; return; } el.innerHTML='<div class="desc" style="margin:0 0 8px">Deleted accounts keep all data + the audit log. <b>Restore</b> brings one back; <b>Purge</b> (two-step) removes its operating data for good but keeps the revenue + audit ledger.</div>'+d.map(function(x){ return '<div class="bug"><div class="bug-top"><b>'+esc(x.name||'(unnamed)')+'</b><div class="sp" style="flex:1"></div><span class="mut">'+dstr(x.deleted_at)+'</span></div><div class="bug-meta">'+esc(x.email||'')+' &middot; '+esc(TIER_LABEL[x.tier]||x.tier||'')+'</div><div class="bug-acts"><button class="chip" onclick="restoreAcct('+JSON.stringify(x.tenant_id)+')">Restore</button> <button class="chip" style="color:#e5484d" onclick="purgeAcct('+JSON.stringify(x.tenant_id)+','+JSON.stringify(x.email||'')+')">Purge</button></div></div>'; }).join(''); }); }
 function restoreAcct(tid){ api('/api/admin/restore',{method:'POST',body:{tenant_id:tid}}).then(function(r){ if(r.json&&r.json.ok){ var bl=r.json.blocked_emails||[]; toast(bl.length?('Restored, but email '+bl[0]+' was re-taken'):'Account restored'); loadDeleted(); loadAll(true); } else toast('Could not restore'); }); }
 function purgeAcct(tid,email){ if(!confirm('Permanently purge '+(email||'this account')+'?\n\nThis removes its operating data for good. The revenue ledger and audit log are KEPT. This cannot be undone.')) return; api('/api/admin/purge',{method:'POST',body:{tenant_id:tid}}).then(function(r){ if(r.json&&r.json.ok){ toast('Purged'); loadDeleted(); loadAll(true); } else toast((r.json&&r.json.error)||'Could not purge'); }); }
+
+/* ================= website visits ================= */
+function renderVisits(){ var v=DATA.visits||{}; var series=v.series||[], top=v.top||[]; var el=$('visBody'); if(!el) return;
+  var totV=series.reduce(function(s,r){return s+(r.views||0);},0);
+  var st=$('visSub'); if(st) st.textContent = nfmt(totV)+' views';
+  var vr=$('visRange'); if(vr) vr.textContent = (v.range&&v.range.label)||'';
+  if(!series.length){ el.innerHTML='<div class="mut">No visits recorded in this window yet. Every load of a published booking page counts here &mdash; first-party, no cookies, no third-party tracker.</div>'; return; }
+  var w=560,h=64,pad=4, max=Math.max.apply(null,series.map(function(r){return r.views||0;}))||1, n=series.length, step=(w-pad*2)/Math.max(1,(n-1));
+  var pts=series.map(function(r,i){ var x=pad+i*step, y=h-pad-((r.views||0)/max)*(h-pad*2); return x.toFixed(1)+','+y.toFixed(1); });
+  var area='M'+pad+','+(h-pad)+' L'+pts.join(' L')+' L'+(pad+(n-1)*step).toFixed(1)+','+(h-pad)+' Z', line='M'+pts.join(' L');
+  var spark='<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" style="width:100%;height:64px;display:block"><path d="'+area+'" fill="rgba(49,214,138,.14)"/><path d="'+line+'" fill="none" stroke="#31d68a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+  var topHtml = top.length ? ('<div style="margin-top:12px"><div class="desc" style="margin:0 0 6px">Top booking sites</div>'+top.slice(0,6).map(function(t){ return '<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;border-bottom:1px solid rgba(33,48,41,.5)"><span class="mut" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.name||t.tenant_id||'(tenant)')+'</span><b class="num">'+nfmt(t.views||0)+'</b></div>'; }).join('')+'</div>') : '';
+  el.innerHTML = spark + topHtml;
+}
+/* ================= competitor intel ================= */
+function renderCompetitors(){ var el=$('compList'); if(!el) return; var list=DATA.competitors||[];
+  var cs=$('compSub'); if(cs) cs.textContent = list.length ? (list.length+' watched'+(DATA.searchAvailable?' + web search':'')) : (DATA.searchAvailable?'web search on':'');
+  if(!list.length){ el.innerHTML='<div class="mut" style="font-size:12.5px">Add a competitor\'s booking or pricing page above. Atlas fetches it nightly and the AI brief flags real price/asset changes.'+(DATA.searchAvailable?'':' Add a SEARCH_KEY in the worker to also auto-discover the market.')+'</div>'; return; }
+  el.innerHTML = list.map(function(c){ var pr=(c.prices||[]).slice(0,4).join('  '); return '<div class="bug"><div class="bug-top"><b style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%">'+esc(c.label||c.title||c.url)+'</b><div class="sp" style="flex:1"></div>'+(c.last_status===200?'<span class="pill active">ok</span>':(c.last_status?'<span class="pill past">'+esc(String(c.last_status))+'</span>':'<span class="pill gray">new</span>'))+' <button class="chip" onclick="delCompetitor('+JSON.stringify(c.id)+')">Remove</button></div><div class="bug-meta" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(c.url)+'</div>'+(pr?'<div class="bug-msg" style="font-size:12px">prices: '+esc(pr)+(c.price_count>4?(' +'+(c.price_count-4)+' more'):'')+'</div>':'')+'</div>'; }).join('');
+}
+function addCompetitor(){ var u=($('compUrl').value||'').trim(), lbl=($('compLabel').value||'').trim(); if(!/^https?:\/\//i.test(u)){ toast('Enter a full http(s) URL'); return; } api('/api/admin/competitors',{method:'POST',body:{url:u,label:lbl}}).then(function(r){ if(r.json&&r.json.ok){ $('compUrl').value=''; $('compLabel').value=''; toast('Watching'); loadAll(true); } else toast((r.json&&r.json.error)||'Could not add'); }); }
+function delCompetitor(id){ api('/api/admin/competitors',{method:'DELETE',body:{id:id}}).then(function(r){ if(r.json&&r.json.ok){ toast('Removed'); loadAll(true); } else toast('Could not remove'); }); }
+function aiCompetitorBrief(){ _aiOpen('Competitor + market brief','<div class="fld"><label>Optional market search (needs a search key in the worker)</label><input class="inp" id="compQ" placeholder="exotic car rental Miami pricing"></div><button class="btn gold sm" onclick="aiCompetitorBriefRun()">Generate</button><div id="compBriefOut" style="margin-top:12px"></div>'); }
+function aiCompetitorBriefRun(){ var q=(($('compQ')&&$('compQ').value)||'').trim(); var out=$('compBriefOut'); out.innerHTML=_aiBusy(); api('/api/admin/ai/competitor-brief',{method:'POST',body:{query:q}}).then(function(r){ var j=r.json||{}, h=_aiHonest(j); if(h){ out.innerHTML=h; return; } var b=j.brief||{}, s=b.sources||{}; var tag=(s.live?'<span class="pill active">live data</span>':'<span class="pill gray">general knowledge</span>')+' '+(s.watchlist?('<span class="mut" style="font-size:11px">'+s.watchlist+' watched</span> '):'')+(s.web_search?'<span class="mut" style="font-size:11px">+ web search</span>':(s.search_available?'':'<span class="mut" style="font-size:11px">no search key</span>')); out.innerHTML='<div style="margin-bottom:8px">'+tag+'</div><div class="ai-md">'+_mdLite(b.analysis||'')+'</div>'; }); }
+/* ================= support inbox (inbound email) ================= */
+function renderInbox(){ var el=$('inboxList'); if(!el) return; var msgs=DATA.inbox||[], c=DATA.inboxCounts||{};
+  var isb=$('inboxSub'); if(isb) isb.textContent = (c.new||0)+' new'+(DATA.inboxCanSend?'':' - no mailer');
+  if(!msgs.length){ el.innerHTML='<div class="empty" style="padding:16px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 6h16v12H4z" stroke="currentColor" stroke-width="1.6"/><path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.6"/></svg><br>No messages here.<br><span style="font-size:11.5px">Forward your atlasrental.io support mail to the worker\'s /api/inbound-email (secured by INBOUND_SECRET) and it lands here for an AI-drafted, you-approved reply.</span></div>'; return; }
+  el.innerHTML = msgs.map(function(m){ return '<div class="bug" style="cursor:pointer" onclick="inboxOpen('+JSON.stringify(m.id)+')"><div class="bug-top">'+(m.status==='new'?'<span class="tk-dot"></span>':'')+'<b style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:62%">'+esc(m.subject||'(no subject)')+'</b><div class="sp" style="flex:1"></div><span class="pill '+(m.status==='new'?'trial':(m.status==='replied'?'active':'gray'))+'">'+esc(m.status||'new')+'</span></div><div class="bug-msg" style="font-size:12.5px">'+esc(String(m.body||'').slice(0,110))+'</div><div class="bug-meta">'+esc(m.from_name||m.from_email||'')+' &middot; '+ago(m.received_at)+'</div></div>'; }).join('');
+}
+function inboxOpen(id){ var m=(DATA.inbox||[]).filter(function(x){return x.id===id;})[0]; if(!m) return; var aiOn=!!(DATA.aiCfg&&DATA.aiCfg.ai_hq_enabled);
+  $('modal').innerHTML =
+    '<div class="modal-h"><h3 style="min-width:0;overflow:hidden;text-overflow:ellipsis;max-width:64%">'+esc(m.subject||'(no subject)')+'</h3><div class="sp" style="flex:1"></div><span class="pill '+(m.status==='new'?'trial':(m.status==='replied'?'active':'gray'))+'">'+esc(m.status||'new')+'</span><button class="icon-btn" onclick="closeModal()">'+_xI+'</button></div>'+
+    '<div class="modal-b" style="max-height:64vh;overflow:auto"><div class="desc">From <b>'+esc(m.from_name||'')+'</b> &lt;'+esc(m.from_email||'')+'&gt; &middot; '+dstr(m.received_at)+'</div>'+
+      '<div style="white-space:pre-wrap;font-size:13px;line-height:1.55;background:rgba(128,140,160,.06);border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0">'+esc(m.body||'')+'</div>'+
+      (m.reply_body?('<div class="desc" style="margin:8px 0 2px"><b>Your last reply</b> &middot; '+dstr(m.replied_at)+'</div><div style="white-space:pre-wrap;font-size:12.5px;color:var(--mut)">'+esc(m.reply_body)+'</div>'):'')+
+      '<textarea id="inReplyBox" rows="5" placeholder="Write your reply (or draft with AI)..." style="width:100%;margin-top:10px;padding:10px;border-radius:8px;border:1px solid rgba(128,140,160,.35);background:transparent;color:inherit;font-family:inherit;font-size:13px;box-sizing:border-box">'+esc(m.reply_body||'')+'</textarea>'+
+      '<div id="inAiMeta" class="mut" style="font-size:11.5px;margin-top:6px"></div>'+
+      (DATA.inboxCanSend?'':'<div class="desc" style="color:var(--amber);margin-top:6px">No mailer configured (set RESEND_KEY in the worker) &mdash; you can draft here, but Send is disabled until then.</div>')+'</div>'+
+    '<div class="modal-f">'+(aiOn?('<button class="btn ghost" onclick="inboxDraft('+JSON.stringify(id)+')">Draft with AI</button>'):'')+'<button class="btn ghost" onclick="inboxStatus('+JSON.stringify(id)+',\'closed\')">Close</button><button class="btn gold" onclick="inboxSend('+JSON.stringify(id)+')"'+(DATA.inboxCanSend?'':' disabled style="opacity:.5;cursor:not-allowed"')+'>Send reply</button></div>';
+  $('scrim').classList.add('on'); }
+function inboxDraft(id){ var box=$('inReplyBox'); if(box){ box.value='Drafting...'; box.disabled=true; } api('/api/admin/ai/inbox-draft',{method:'POST',body:{id:id}}).then(function(r){ var j=r.json||{}; if(box) box.disabled=false; if(j.enabled===false||j.ai===false){ if(box)box.value=''; toast(j.reason||'AI is off'); return; } if(box) box.value=j.draft||''; var meta=$('inAiMeta'); if(meta){ meta.innerHTML=(j.summary?('<b>Summary:</b> '+esc(j.summary)+' '):'')+(j.suggested_priority?('<span class="pill '+(j.suggested_priority==='high'?'past':'gray')+'">'+esc(j.suggested_priority)+'</span> '):'')+'<span class="mut">&mdash; review before sending</span>'; } }); }
+function inboxSend(id){ if(!DATA.inboxCanSend){ toast('No mailer configured'); return; } var box=$('inReplyBox'); var body=box?(box.value||'').trim():''; if(body.length<2){ toast('Write a reply first'); return; } if(!confirm('Send this reply now?')) return; api('/api/admin/inbox/reply',{method:'POST',body:{id:id,body:body}}).then(function(r){ var j=r.json||{}; if(j.ok&&j.sent){ closeModal(); toast('Reply sent'); loadAll(true); } else toast((j&&j.message)||'Could not send'); }); }
+function inboxStatus(id,st){ api('/api/admin/inbox/status',{method:'POST',body:{id:id,status:st}}).then(function(r){ if(r.json&&r.json.ok){ closeModal(); toast('Marked '+st); loadAll(true); } else toast('Could not update'); }); }
 
 /* ================= boot ================= */
 (function(){ var saved=''; try{ saved=localStorage.getItem(TOK_KEY)||''; }catch(e){}

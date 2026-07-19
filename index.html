@@ -1841,8 +1841,9 @@ const Atlas = (function(){
     else if(g==='free'){ if(S.tier!=='freecomp'||S.plan!=='active'){ S.tier='freecomp'; S.plan='active'; save(); } } }
   const CREDIT_PACKS=[ {credits:500,price:25}, {credits:2000,price:80}, {credits:5000,price:175} ];  // Atlas.io top-ups (any tier)
   /* ---- app version + owner-only feature flags (in-app upgrades) ---- */
-  var APP_VERSION='2026.7.19b';
+  var APP_VERSION='2026.7.19c';
   var APP_CHANGELOG=[
+    'Tell Atlas where you operate (Settings &gt; Brand, plus per asset): your city, service area &amp; ZIP now power location-aware dreaming &mdash; local gaps, market-based pricing ideas and nearby referral-partner suggestions',
     'Cancellation policy you set once (Settings &gt; Money): shown to customers before they pay, in the confirmation email, and merged into your rental agreement &amp; terms',
     'Cross-device sync: your bookings, fleet &amp; settings back up to your account and merge across devices (turns on with your backend) &mdash; no more one-browser-only',
     'Public booking site: a real customer-reachable page + branded portal, deposits via Stripe, confirmation emails (turns on when you connect your backend + keys)',
@@ -2576,6 +2577,10 @@ const Atlas = (function(){
     var an=document.getElementById('obAssetName'); if(an){ S.firstAsset=S.firstAsset||{}; S.firstAsset.name=String(an.value||'').trim(); }
     var ar=document.getElementById('obAssetRate'); if(ar){ S.firstAsset=S.firstAsset||{}; var rv=parseFloat(String(ar.value||'').replace(/[^0-9.]/g,'')); if(rv>0) S.firstAsset.rate=rv; }
     var bn=document.getElementById('fName'); if(bn && String(bn.value||'').trim()){ S.brand.name=String(bn.value).trim(); S.brand.initial=(S.brand.name[0]||'A').toUpperCase(); }
+    S.brand=S.brand||{};   // where you operate -> lets the AI research your market, price locally + line up nearby partners
+    var _c=document.getElementById('fCity'); if(_c) S.brand.city=String(_c.value||'').trim();
+    var _z=document.getElementById('fZip'); if(_z) S.brand.zip=String(_z.value||'').trim();
+    var _ar=document.getElementById('fArea'); if(_ar) S.brand.area=String(_ar.value||'').trim();
   }catch(e){} }
   function next(){ _captureOB(); if(step<STEPS.length-1){step++; S.onboardStep=step; save(); renderStep(); window.scrollTo(0,0);} }
   function back(){ if(step>0){step--; S.onboardStep=step; save(); renderStep(); window.scrollTo(0,0);} }
@@ -2600,6 +2605,9 @@ const Atlas = (function(){
     identity:()=>`
       <h2>Make it yours</h2><p class="ob-card__lead">Your brand runs across the whole app, your portal, contracts and emails.</p>
       <div class="field"><label>Business name</label><input class="input" id="fName" value="${esc(S.brand.name)}" oninput="Atlas.brandLive()" placeholder="e.g. Summit Exotics"></div>
+      <div class="row2"><div class="field"><label>City</label><input class="input" id="fCity" value="${esc((S.brand&&S.brand.city)||'')}" placeholder="e.g. Miami, FL"></div>
+        <div class="field"><label>ZIP / postal</label><input class="input" id="fZip" value="${esc((S.brand&&S.brand.zip)||'')}" placeholder="33139"></div></div>
+      <div class="field"><label>Service area <span style="color:var(--muted);font-weight:400;font-size:12px">(where you deliver / operate)</span></label><input class="input" id="fArea" value="${esc((S.brand&&S.brand.area)||'')}" placeholder="e.g. Miami-Dade &amp; Broward"><div class="hint">Atlas uses this to spot local demand, price to your market and line up nearby partners.</div></div>
       <div class="field"><label>Logo</label>
         <div class="logo-drop" onclick="document.getElementById('fLogo').click()">
           <div class="logo-drop__prev" id="logoPrev">${S.brand.logo?`<img src="${S.brand.logo}">`:`<span>${S.brand.initial}</span>`}</div>
@@ -3316,6 +3324,8 @@ const Atlas = (function(){
       +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">'+statusChip(a.status)+(a.loc?'<span style="font-size:12.5px;color:var(--muted)">in '+esc(a.loc)+'</span>':'')+'<span style="flex:1"></span><span style="font-size:13px;color:var(--muted)">'+a.util+'% '+_fterm('occ')+'</span></div>'
       +'<div class="row2"><div class="field"><label>Name</label><input class="input" id="aName" value="'+esc(a.name)+'"'+dis+'></div>'
       +'<div class="field"><label>'+esc(locL)+'</label><input class="input" id="aLoc" list="vLocList2" value="'+esc(a.loc||'')+'"'+dis+'><datalist id="vLocList2">'+(function(){var ls=[];DATA.assets.forEach(function(x){if(x.loc&&ls.indexOf(x.loc)<0)ls.push(x.loc);});return ls.map(function(l){return '<option value="'+esc(l)+'"></option>';}).join('');})()+'</datalist></div></div>'
+      +'<div class="row2"><div class="field"><label>City / market <span style="color:var(--muted);font-weight:400;font-size:12px">(where this one rents)</span></label><input class="input" id="aLocCity" value="'+esc(a.locCity||'')+'" placeholder="'+esc((S.brand&&S.brand.city)||'City')+'"'+dis+'></div>'
+      +'<div class="field"><label>ZIP</label><input class="input" id="aLocZip" value="'+esc(a.locZip||'')+'" placeholder="'+esc((S.brand&&S.brand.zip)||'')+'"'+dis+'></div></div>'
       +'<div class="row2"><div class="field"><label>Rate</label><div class="rule-input" style="padding:0 12px"><span>$</span><input class="tnum" id="aRate" style="width:auto;flex:1;text-align:left" value="'+a.rate+'"'+dis+'><span>/ '+S.money.rateModel+'</span></div></div>'
       +'<div class="field"><label>Status</label><select class="select" id="aStatus"'+dis+'>'+['Available','On rent','Maintenance'].map(function(s){return '<option'+(a.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select></div></div>'
       +'<div class="row2"><div class="field"><label>Min booking length <span style="color:var(--muted);font-weight:400;font-size:12px">('+esc(S.money.rateModel)+'s)</span></label><input class="input tnum" id="aMinLen" value="'+((a.minLen>0)?a.minLen:'')+'" placeholder="no minimum"'+dis+'></div>'
@@ -3337,6 +3347,8 @@ const Atlas = (function(){
   }
   function saveAsset(id){ if(!_guard('fleetEdit'))return; var a=DATA.assets.filter(function(x){return x.id===id;})[0]; if(!a)return;
     a.name=(val('aName')||a.name).trim(); var lc=(val('aLoc')||'').trim(); if(lc)a.loc=lc; else delete a.loc;
+    var _lcc=(val('aLocCity')||'').trim(); if(_lcc)a.locCity=_lcc; else delete a.locCity;   // per-asset market -> feeds location-aware dreaming
+    var _lcz=(val('aLocZip')||'').trim(); if(_lcz)a.locZip=_lcz; else delete a.locZip;
     var _r=parseFloat(val('aRate')); a.rate=(_r>=0?_r:a.rate); a.status=val('aStatus')||a.status;   // fix: accept a valid 0 rate (comp/loaner/free asset); blank/NaN keeps the old rate. Mirrors saveVehicle.
     var _mn=parseInt(val('aMinLen'),10); a.minLen=(_mn>0?_mn:0); var _mx=parseInt(val('aMaxLen'),10); a.maxLen=(_mx>0?_mx:0);   // per-asset min/max booking length rules
     var _exb=document.querySelectorAll('#aExtras .aEx'); if(_exb.length){ var _ck=[]; [].forEach.call(_exb,function(cb){ if(cb.checked) _ck.push(cb.value); }); if(_ck.length===_exb.length) delete a.extraIds; else a.extraIds=_ck; }   // per-asset extras: all checked = inherit global; otherwise store the offered subset (empty = none)
@@ -5286,6 +5298,9 @@ const Atlas = (function(){
       <div class="set-block"><h3>Brand identity</h3><div class="desc">This runs across your dashboard, portal, contracts and emails.</div>
         <div class="row2"><div class="field"><label>Business name</label><input class="input" value="${esc(S.brand.name)}" onchange="Atlas.setBrandName(this.value)"></div>
         <div class="field"><label>Portal subdomain</label><div class="rule-input" style="padding:0 12px"><input style="width:auto;flex:1;text-align:left" value="${esc(S.brand.subdomain)}" onchange="Atlas.S().brand.subdomain=this.value.replace(/[^a-z0-9]/g,'');Atlas.save2()"><span>.atlasrental.io</span></div></div></div>
+        <div class="row2"><div class="field"><label>City</label><input class="input" value="${esc((S.brand&&S.brand.city)||'')}" onchange="Atlas.S().brand.city=this.value.trim();Atlas.save2()" placeholder="e.g. Miami, FL"></div>
+        <div class="field"><label>ZIP / postal</label><input class="input" value="${esc((S.brand&&S.brand.zip)||'')}" onchange="Atlas.S().brand.zip=this.value.trim();Atlas.save2()" placeholder="33139"></div></div>
+        <div class="field"><label>Service area</label><input class="input" value="${esc((S.brand&&S.brand.area)||'')}" onchange="Atlas.S().brand.area=this.value.trim();Atlas.save2()" placeholder="e.g. Miami-Dade &amp; Broward"><div class="desc" style="margin-top:4px">Atlas uses where you operate to research your market, price locally and suggest nearby referral partners.</div></div>
         <div class="field"><label>Brand color</label><div class="swatches">${SWATCHES.map(c=>`<div class="swatch ${c===S.brand.color?'sel':''}" style="background:${c}" onclick="Atlas.setBrandColor('${c}')"></div>`).join('')}</div></div>
         <div class="field" style="margin:0"><label>Logo</label><div class="logo-drop" onclick="document.getElementById('setLogo').click()"><div class="logo-drop__prev">${S.brand.logo?`<img src="${S.brand.logo}">`:`<span>${S.brand.initial}</span>`}</div><div><b style="color:var(--ink);font-size:14px">Replace logo</b><div style="font-size:12.5px;color:var(--muted)">PNG or SVG</div></div></div><input type="file" id="setLogo" accept="image/*" class="hidden" onchange="Atlas.setLogo(this)"></div>
       </div>
