@@ -1378,7 +1378,7 @@ body.trk-fs-on .trk-fs-exit{display:grid}
   </div>
 
   <footer class="lp-foot">
-    <a class="brandmark" href="#" onclick="return false"><span class="brandmark__glyph"><svg viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" d="M12 2.2 L21.6 21.4 H2.4 Z M13.5 4 Q11.3 12 10.3 21.4 H12.5 Q13.3 12.6 15.1 5 Z M12 13.2 L9.8 18.6 H14.2 Z" fill="#fff"/></svg></span>Atlas Rental.io</a>
+    <a class="brandmark" href="#" onclick="return false"><span class="brandmark__glyph" style="background:linear-gradient(140deg,#1E6E4E,#124D36)"><svg viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" d="M12 2.2 L21.6 21.4 H2.4 Z M13.5 4 Q11.3 12 10.3 21.4 H12.5 Q13.3 12.6 15.1 5 Z M12 13.2 L9.8 18.6 H14.2 Z" fill="#fff"/></svg></span>Atlas Rental.io</a>
     <small>&copy; 2026 Atlas Rental.io &middot; atlasrental.io &middot; The Digital Headquarters for Rental Businesses &middot; Vehicles, property, construction &amp; equipment, tools, events &amp; anything you rent out</small>
     <small style="display:block;margin-top:6px"><a href="/terms" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">Terms</a> &middot; <a href="/privacy" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">Privacy Policy</a></small>
   </footer>
@@ -1390,7 +1390,7 @@ body.trk-fs-on .trk-fs-exit{display:grid}
     <div class="auth-card">
       <a onclick="Atlas.goHome();return false" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);cursor:pointer;margin-bottom:12px">&larr; Back to site</a>
       <a class="brandmark" href="#" onclick="Atlas.goHome();return false" style="justify-content:center;margin-bottom:22px">
-        <span class="brandmark__glyph"><svg viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" d="M12 2.2 L21.6 21.4 H2.4 Z M13.5 4 Q11.3 12 10.3 21.4 H12.5 Q13.3 12.6 15.1 5 Z M12 13.2 L9.8 18.6 H14.2 Z" fill="#fff"/></svg></span>Atlas Rental.io</a>
+        <span class="brandmark__glyph" style="background:linear-gradient(140deg,#1E6E4E,#124D36)"><svg viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" d="M12 2.2 L21.6 21.4 H2.4 Z M13.5 4 Q11.3 12 10.3 21.4 H12.5 Q13.3 12.6 15.1 5 Z M12 13.2 L9.8 18.6 H14.2 Z" fill="#fff"/></svg></span>Atlas Rental.io</a>
       <h2 id="authTitle" style="text-align:center;font-size:24px;letter-spacing:-.02em">Create your account</h2>
       <p id="authLead" style="text-align:center;color:var(--muted);font-size:14px;margin:8px 0 24px">Start your 7-day free trial. No charge for 7 days - cancel anytime.</p>
       <div id="authErr" style="display:none;background:var(--danger-bg);color:var(--danger);font-size:13px;font-weight:600;border-radius:9px;padding:10px 12px;margin-bottom:14px"></div>
@@ -1406,7 +1406,7 @@ body.trk-fs-on .trk-fs-exit{display:grid}
 
 <div id="view-onboarding" class="hidden">
   <div class="ob-top">
-    <span class="brandmark"><span class="brandmark__glyph"><svg viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" d="M12 2.2 L21.6 21.4 H2.4 Z M13.5 4 Q11.3 12 10.3 21.4 H12.5 Q13.3 12.6 15.1 5 Z M12 13.2 L9.8 18.6 H14.2 Z" fill="#fff"/></svg></span>Atlas Rental.io</span>
+    <span class="brandmark"><span class="brandmark__glyph" style="background:linear-gradient(140deg,#1E6E4E,#124D36)"><svg viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" d="M12 2.2 L21.6 21.4 H2.4 Z M13.5 4 Q11.3 12 10.3 21.4 H12.5 Q13.3 12.6 15.1 5 Z M12 13.2 L9.8 18.6 H14.2 Z" fill="#fff"/></svg></span>Atlas Rental.io</span>
     <div class="ob-progress"><i id="obBar"></i></div>
     <span class="ob-step-count" id="obCount">Step 1 of 7</span>
   </div>
@@ -2551,7 +2551,9 @@ const Atlas = (function(){
   function _authErr(m){ var el=document.getElementById('authErr'); if(!el)return; if(m){ el.textContent=m; el.style.display='block'; } else { el.style.display='none'; } }
   // Show/hide the password so a non-technical user can confirm what they typed (a top cause of "wrong password" on sign-in).
   function authTogglePass(){ var p=document.getElementById('authPass'), b=document.getElementById('authPassEye'); if(!p) return; var show=(p.type==='password'); p.type=show?'text':'password'; if(b) b.textContent=show?'Hide':'Show'; }
+  var _authBusy=false;   // guards repeat taps: a non-technical user on a slow connection saw no instant change + re-tapped -> each tap fired another /api/auth/login until the per-account rate limit tripped ("Too many attempts for this account")
   async function authSubmit(){
+    if(_authBusy) return;                                                  // a request is already in flight -- swallow the extra taps that used to burn the login rate-limit
     var email=(document.getElementById('authEmail')||{}).value||'', pass=(document.getElementById('authPass')||{}).value||'';
     if(_authMode==='signup'){ var _ag=document.getElementById('authAgree'); if(_ag && !_ag.checked){ _authErr('Please agree to the Terms & Privacy Policy to create your account.'); return; } }
     // Friendly, instant checks BEFORE the server round-trip -- a non-technical user sees exactly what to fix (and the real 8-char rule) without a confusing "rejected" bounce. Trim stray spaces they often paste into the email.
@@ -2559,20 +2561,27 @@ const Atlas = (function(){
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ _authErr('Please enter a valid email address, like you@example.com.'); return; }
     if(_authMode==='signup' && pass.length<8){ _authErr('Your password needs to be at least 8 characters.'); return; }
     if(!pass){ _authErr('Please enter your password.'); return; }
-    var r;
-    if(ATLAS_BACKEND){
-      // Server owns identity: the Worker verifies + assigns tenant_id. We mirror a local session under that
-      // SAME id so every existing (synchronous, instant) render keeps working -- then hydrate the server rows.
-      _authErr('');
-      r = await _srvAuth(_authMode, email, pass);
-      if(r.mfa){ _mfaBegin(email, r.method, r.challenge); return; }   // 2FA is on for this account -- show the code screen instead of finishing sign-in
-      if(r.err){ _authErr(r.err); return; }
-      await _srvAuthSettle(email, r.tenant_id);
-    } else {
-      r = _authMode==='login' ? store.login(email,pass) : store.signup(email,pass);
-      if(r.err){ _authErr(r.err); return; }
+    var _btn=document.getElementById('authBtn'), _btnTxt=_btn?_btn.textContent:'';
+    _authBusy=true; _authErr('');
+    if(_btn){ _btn.disabled=true; _btn.classList.add('is-loading'); _btn.textContent=(_authMode==='login'?'Signing in...':'Creating your account...'); }   // instant visible feedback so the button never looks "dead"
+    try{
+      var r;
+      if(ATLAS_BACKEND){
+        // Server owns identity: the Worker verifies + assigns tenant_id. We mirror a local session under that
+        // SAME id so every existing (synchronous, instant) render keeps working -- then hydrate the server rows.
+        r = await _srvAuth(_authMode, email, pass);
+        if(r.mfa){ _mfaBegin(email, r.method, r.challenge); return; }   // 2FA is on for this account -- show the code screen instead of finishing sign-in
+        if(r.err){ _authErr(r.err); return; }
+        await _srvAuthSettle(email, r.tenant_id);
+      } else {
+        r = _authMode==='login' ? store.login(email,pass) : store.signup(email,pass);
+        if(r.err){ _authErr(r.err); return; }
+      }
+      await _afterAuthSuccess(email, r);
+    } finally {
+      _authBusy=false;                                                    // always release -- whether we navigated to the dashboard/verify/paywall (button now hidden, restore is harmless) or are showing an error for the user to retry
+      if(_btn){ _btn.disabled=false; _btn.classList.remove('is-loading'); _btn.textContent=_btnTxt; }
     }
-    await _afterAuthSuccess(email, r);
   }
   // Shared with the post-2FA success path (mfaSubmit): local session pointer + seed + server hydrate.
   async function _srvAuthSettle(email, tenantId){
