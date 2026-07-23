@@ -31,7 +31,8 @@
     --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
+  html{background:#080c0a}   /* iOS rubber-band overscroll reveals the HTML bg above/below the body -- keep it dark, never white */
+  html,body{margin:0;padding:0;overscroll-behavior-y:none;-webkit-overflow-scrolling:touch}
   body{background:radial-gradient(1200px 700px at 78% -8%,#123122 0%,rgba(18,49,34,0) 60%),linear-gradient(180deg,#0a0f0d,#080c0a);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh;font-size:14px;line-height:1.5}
   .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
   button{font-family:inherit;cursor:pointer}
