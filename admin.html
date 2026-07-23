@@ -96,6 +96,10 @@
   .kpi .k-v.money{color:var(--gold2)}
   .kpi .k-s{font-size:11.5px;color:var(--mut2);margin-top:6px}
   .kpi .k-s b{color:var(--em)}
+  /* time-basis chip: makes each KPI's window explicit -- range tiles show the selected filter (value moves with it), snapshot tiles show a live "now" dot */
+  .kpi .k-basis{font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--mut2);background:rgba(255,255,255,.045);border:1px solid var(--line);border-radius:5px;padding:1px 5px;line-height:1.6;white-space:nowrap}
+  .kpi .k-basis.now{color:var(--em);border-color:rgba(49,214,138,.32);background:rgba(49,214,138,.08)}
+  .kpi .k-basis.now::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--em);margin-right:4px;vertical-align:baseline}
   .kpi .glow{position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;background:radial-gradient(circle,rgba(49,214,138,.14),transparent 70%);pointer-events:none}
   .kpi.gold .glow{background:radial-gradient(circle,rgba(239,201,120,.16),transparent 70%)}
 
@@ -658,17 +662,20 @@ function animateNum(el, to, fmt){ var from=_prevKpi[el.id]||0; _prevKpi[el.id]=t
   requestAnimationFrame(step); }
 
 function paintOverview(){ var o=DATA.overview||{}; var rev=o.revenue||{}, mem=o.members||{}, ins=o.installs||{}, bugs=o.bugs||{}, vis=o.visits||{}; var rl=((o.range&&o.range.label)||'range').toLowerCase();
+  // Each KPI declares a `basis` -- the time window its number reflects -- rendered as a chip so the filter's reach is
+  // explicit. Range tiles (revenue, visits, signups) carry the selected range AND their VALUE tracks it; snapshot tiles
+  // (MRR, members, trials, open bugs) carry a live "now" because a date range does not apply to a point-in-time count.
   var kpis=[
-    {id:'k_rev', hero:true, gold:true, label:'Total revenue', val:rev.total_cents||0, fmt:centsUSD, sub:'<b>'+centsUSD(rev.range_cents||0)+'</b> in '+esc(rl)},
-    {id:'k_mrr', gold:true, label:'MRR', val:rev.mrr_cents||0, fmt:centsUSD, sub:'recurring / month'},
-    {id:'k_mem', label:'Members', val:mem.total||0, fmt:function(v){return nfmt(v);}, sub:'<b>'+nfmt(mem.paid||0)+'</b> paying'},
-    {id:'k_vis', label:'Website visits', val:vis.range||0, fmt:function(v){return nfmt(v);}, sub:nfmt(vis.today||0)+' today'},
-    {id:'k_signup', label:'New signups', val:o.signups||0, fmt:function(v){return nfmt(v);}, sub:esc(rl)},
-    {id:'k_trial', label:'Trials', val:mem.trials||0, fmt:function(v){return nfmt(v);}, sub:nfmt(mem.trials_with_card||0)+' with card'},
-    {id:'k_bug', label:'Open bugs', val:bugs.open||0, fmt:function(v){return nfmt(v);}, sub:nfmt(bugs.total||0)+' total'}
+    {id:'k_rev', hero:true, gold:true, label:'Revenue', basis:rl, val:rev.range_cents||0, fmt:centsUSD, sub:'<b>'+centsUSD(rev.total_cents||0)+'</b> all-time'},
+    {id:'k_mrr', gold:true, label:'MRR', basis:'now', val:rev.mrr_cents||0, fmt:centsUSD, sub:'recurring / month'},
+    {id:'k_mem', label:'Members', basis:'now', val:mem.total||0, fmt:function(v){return nfmt(v);}, sub:'<b>'+nfmt(mem.paid||0)+'</b> paying'},
+    {id:'k_vis', label:'Website visits', basis:rl, val:vis.range||0, fmt:function(v){return nfmt(v);}, sub:nfmt(vis.today||0)+' today'},
+    {id:'k_signup', label:'New signups', basis:rl, val:o.signups||0, fmt:function(v){return nfmt(v);}, sub:'new businesses'},
+    {id:'k_trial', label:'Trials', basis:'now', val:mem.trials||0, fmt:function(v){return nfmt(v);}, sub:nfmt(mem.trials_with_card||0)+' with card'},
+    {id:'k_bug', label:'Open bugs', basis:'now', val:bugs.open||0, fmt:function(v){return nfmt(v);}, sub:nfmt(bugs.total||0)+' total'}
   ];
   $('kpis').innerHTML = kpis.map(function(k){ return '<div class="kpi'+(k.hero?' hero':'')+(k.gold?' gold':'')+'" onclick="kpiDrill(\''+k.id+'\')" role="button" tabindex="0" title="Click for the detail behind this number"><div class="glow"></div>'+
-    '<div class="k-l">'+esc(k.label)+'</div><div class="k-v'+(k.gold?' money':'')+' num" id="'+k.id+'">'+(k.fmt(0))+'</div>'+
+    '<div class="k-l">'+esc(k.label)+(k.basis?'<span class="k-basis'+(k.basis==='now'?' now':'')+'">'+esc(k.basis)+'</span>':'')+'</div><div class="k-v'+(k.gold?' money':'')+' num" id="'+k.id+'">'+(k.fmt(0))+'</div>'+
     '<div class="k-s num">'+k.sub+'</div></div>'; }).join('');
   kpis.forEach(function(k){ var el=$(k.id); if(el) animateNum(el, k.val, k.fmt); });
 
