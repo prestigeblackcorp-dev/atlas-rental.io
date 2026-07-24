@@ -1830,7 +1830,17 @@ const Atlas = (function(){
   }
   function _srvUnshape(kind,row){ try{
     if(kind==='assets'){ var i=row.info; var o=i?(typeof i==='string'?JSON.parse(i):i):null; return o||{id:row.id,name:row.name,type:row.type,status:row.status,rate:(row.day_rate_cents||0)/100}; }
-    var d=row.data; var b=d?(typeof d==='string'?JSON.parse(d):d):null; return b||{id:row.id,status:row.status};
+    var d=row.data; var b=d?(typeof d==='string'?JSON.parse(d):d):null; if(!b||typeof b!=='object') b={id:row.id,status:row.status};
+    if(kind==='bookings'){   // CORE-LOOP FIX: the worker stores a booking's id/starts/ends/status/created as D1 COLUMNS; a WEBSITE-origin booking's data blob omits them, so graft them on -> otherwise _srvMergeColl drops the row on a falsy .id and every "book on your site" reservation vanishes from the dashboard/calendar/KPIs.
+      if(b.id==null && row.id!=null) b.id=row.id;
+      if(b.startTs==null && Number.isFinite(row.starts)) b.startTs=row.starts;
+      if(b.endTs==null && Number.isFinite(row.ends)) b.endTs=row.ends;
+      if(b.createdAt==null && Number.isFinite(row.created_at)) b.createdAt=row.created_at;
+      if(!b.status && row.status) b.status=row.status;
+      if(!b.phone && b.custPhone) b.phone=b.custPhone;                       // website intake stores custPhone; the owner view reads b.phone
+      if(b._t==null && Number.isFinite(row.updated_at)) b._t=row.updated_at; // let the newest-wins merge see a server timestamp
+    }
+    return b;
   }catch(e){ return {id:row.id}; } }
   function _srvMirror(kind,item,hk,hv){ if(!ATLAS_BACKEND||!_apiCsrf||!item||!item.id) return; var body=_srvShape(kind,item);
     // #294 Gap 4: record the "synced" hash ONLY after the server actually accepted the write. If the PUT/POST fails
@@ -6485,7 +6495,7 @@ const Atlas = (function(){
     return [
       { ok:A>0, key:'fleet', label:'Add your first '+esc(noun), detail:A>0?(A+' in your fleet'):('Your fleet is empty -- customers can only book what you list.') },
       { ok:(Number(m.baseRate)||0)>0, key:'money', label:'Set your pricing', detail:(Number(m.baseRate)||0)>0?('Base rate is set'):('No base rate yet -- Atlas needs to know what you charge to quote a booking.') },
-      { ok:(Number(m.deposit)||0)>0||!!m.protection, key:'money', label:'Turn on a deposit or protection', detail:((Number(m.deposit)||0)>0||m.protection)?('Covered'):('No security deposit or damage protection -- this is your safety net.') },
+      { ok:(m.deposit&&m.deposit.mode&&m.deposit.mode!=='none')||!!m.protection, key:'money', label:'Turn on a deposit or protection', detail:((m.deposit&&m.deposit.mode&&m.deposit.mode!=='none')||m.protection)?('Covered'):('No security deposit or damage protection -- this is your safety net.') },
       { ok:!!b.logo, key:'brand', label:'Upload your logo', detail:b.logo?('Set'):('No logo -- your brand shows on your site, portal and receipts.') },
       { ok:!!pay.provider, key:'pay', label:'Connect payments', detail:pay.provider?('Connected'):('Connect Stripe so you actually get paid, not just quoted.') },
       { ok:sitePub, key:'site', label:'Publish your booking site', detail:sitePub?('Live'):('Your public booking link is not live yet -- publish to start taking bookings.') }
