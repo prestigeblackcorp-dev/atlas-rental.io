@@ -2131,7 +2131,7 @@ const Atlas = (function(){
     ['aiActions','Atlas.io can make changes for you (preview + one-tap undo)'],
     ['aiSiteCopy','Atlas.io writes your website copy with live AI (falls back to the built-in template)']
   ];
-  function _flags(){ if(!S.flags)S.flags={}; if(S.flags.aiActions==null) S.flags.aiActions=true; return S.flags; }   // aiActions defaults ON: the edit engine is RBAC-gated + preview-before-apply on money + fully undoable; owner can still toggle it off in Settings.
+  function _flags(){ if(!S.flags)S.flags={}; if(S.flags.aiActions==null) S.flags.aiActions=true; if(S.flags.aiSiteCopy==null) S.flags.aiSiteCopy=true; return S.flags; }   // aiActions defaults ON: the edit engine is RBAC-gated + preview-before-apply on money + fully undoable; owner can still toggle it off in Settings.
   /* ---- Team roles & granular, enforced permissions ---- */
   // Modules = which tabs a worker can SEE. Caps = what they can DO. Every action re-checks a cap (client guard;
   // the real backend must mirror the same check server-side so a hidden button can't be forced).
