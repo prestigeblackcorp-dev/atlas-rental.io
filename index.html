@@ -5359,6 +5359,7 @@ const Atlas = (function(){
     var nav=LIVE_TOUR_TABS[idx];
     if(!_canMod(nav)){ _liveTourAt(idx+1); return; }           // skip any tab this user cannot access
     try{ closeAio(); }catch(e){}
+    try{ closeModal(); }catch(e){}
     try{ go(nav); }catch(e){}
     setTimeout(function(){
       var steps=(nav==='bookings')? _liveBkSteps() : _tabTourSteps(nav);
@@ -5370,6 +5371,7 @@ const Atlas = (function(){
   // ---- Per-tab first-visit walkthroughs ------------------------------------------------------------------
   // Every tab runs its OWN in-depth guided tour the first time it is opened. Steps adapt to the business type
   // (nouns) AND to what the owner already set up, so it acknowledges done work instead of re-explaining it.
+  function _tourOpenFirstAsset(){ if(document.getElementById('aLoc')) return; var a=(DATA.assets||[])[0]; if(a){ try{ openAsset(a.id); }catch(e){} } }
   function _tabTourSteps(nav){
     var noun=esc(S.fleet.noun), nouns=esc(S.fleet.nouns);
     var A=(DATA.assets||[]).length, B=(DATA.bookings||[]).length, C=(DATA.customers||[]).length, T=((S.team||[]).length);
@@ -5379,11 +5381,15 @@ const Atlas = (function(){
       {sel:'[data-panel="overview"] .grid-2 .card', title:'Trends &amp; top performers', body:("See revenue and bookings over time, and which "+nouns+" earn you the most &mdash; so you always know your next move.")},
       {sel:'.aio-btn', title:'Atlas.io never sleeps', body:"Your AI is one tap away &mdash; it prices, finds idle days, drafts messages and researches your market while you are away."}
     ];
-    if(nav==='fleet') return [
-      {sel:'#addAssetBtn', click:true, title:(A?"Add another ":"Add your first ")+noun, body:("Give it a name, photo, rate and status. "+(A? ("You have "+A+" already &mdash; add as many as you like.") : ("This is where your whole "+nouns+" inventory lives.")))},
-      {sel:'#assetGrid', title:(A? ("Your "+nouns) : ("Your "+nouns+" show here")), body: A? "Each card shows status, utilization and who has it. Tap one to edit its rate, photo, availability or location." : ("Once you add "+nouns+", each appears here as a card you can tap to manage.")},
-      (A? {sel:'#assetGrid .asset', title:'Location, dates &amp; availability', body:('Open any '+noun+' (tap its card) to set its <b>location</b>, block out <b>dates</b> it cannot be booked, and manage <b>availability</b> and rate &mdash; Atlas keeps double-bookings out.')} : {sel:'#addAssetBtn', title:'Locations &amp; availability', body:('Add a '+noun+' first, then open it to set its <b>location</b> and block out unavailable <b>dates</b> &mdash; Atlas keeps double-bookings out.')})
-    ];
+    if(nav==='fleet') return (A? [
+      {sel:'#addAssetBtn', title:'Add another '+noun, body:('You have '+A+' already &mdash; add as many '+nouns+' as you like: name, photo, rate and status.')},
+      {before:function(){ try{ closeModal(); }catch(e){} }, sel:'#assetGrid .asset', click:true, title:'Open a '+noun, body:'Each card shows status and utilization. <b>Tap it to open</b> &mdash; let us set its location and availability.'},
+      {before:_tourOpenFirstAsset, sel:'#aLoc', title:'Location', body:('Set where this '+noun+' is based. Group '+nouns+' by location so the right ones show for each spot &mdash; add a city and ZIP for delivery too.')},
+      {before:_tourOpenFirstAsset, sel:'#aStatus', title:'Availability', body:'<b>Available</b>, <b>On rent</b> or <b>Maintenance</b> &mdash; this is what controls whether it can be booked right now.'},
+      {before:_tourOpenFirstAsset, sel:'[onclick^="Atlas.assetBlock"]', pad:6, title:'Block out dates', body:'Tap <b>+ Block days</b> to mark dates it cannot be booked &mdash; service, personal use, anything. Atlas keeps double-bookings out.'}
+    ] : [
+      {sel:'#addAssetBtn', click:true, title:'Add your first '+noun, body:('Give it a name, photo and rate &mdash; then open it to set its <b>location</b> and <b>availability</b>, and block out any dates it cannot be booked. This is where your whole '+nouns+' inventory lives.')}
+    ]);
     if(nav==='customers') return [
       {sel:'[data-panel="customers"] .card', title:'Your branded member portal', body:"Every renter gets a self-service portal under YOUR brand &mdash; they book, pay a deposit, e-sign and message you. No marketplace taking a cut."},
       {sel:'[data-panel="customers"] button[onclick*="openPortal"]', click:true, title:'Preview it', body:"See exactly what your customers see. Copy the link to drop it on your site or in a text."},
