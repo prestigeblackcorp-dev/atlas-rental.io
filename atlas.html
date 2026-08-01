@@ -3093,7 +3093,7 @@ const Atlas = (function(){
     if(_authMode==='signup'){ try{ localStorage.removeItem('atlas_ref_code'); }catch(e){} }   // REFERRAL: the code (if any) rode along on the signup body -> clear it so a later signup on this browser can't reuse it
     if(_authMode==='signup') _funnelEvent('signup_submit');   // #297 funnel: account created (this path only runs once the server confirms a real session)
     if(ATLAS_BACKEND && (r.verify==='sent' || r.verified===0)){ showVerifyGate(email); return; }       // email confirmation gate: hold the account until the link is clicked (if the mailer is off the server auto-verifies -> this is skipped)
-    if(ATLAS_BACKEND && r.billing_state && r.billing_state!=='ok'){
+    if(ATLAS_BACKEND && r.billing_state && r.billing_state!=='ok' && String(email||'').toLowerCase()!==OWNER_EMAIL){   // owner is comped (Diamond) -- NEVER paywalled/plan-gated, even if a stale/misconfigured server billing_state says otherwise
       // NEW funnel: a fresh signup that needs a card picks a PLAN FIRST (the plan picker collects the card via checkout).
       // The plain card-only paywall stays for RETURNING sessions that hit the gate mid-use.
       if(SIGNUP_PLAN_FIRST && PAYMENTS_LIVE && !_isDemoTenant() && !_isNativeApp() && r.billing_state==='needs_card'){ showSignupPlans(); return; }   // #291: show the plan PICKER for ANY not-yet-carded user (fresh signup OR a returning / verify-on-a-different-device login) -- never silently drop them into onboarding at the default tier
@@ -3102,7 +3102,7 @@ const Atlas = (function(){
     if(_authMode==='signup'){
       // NEW funnel: pick a plan (full features) -> card on file (7-day trial at that plan) -> onboarding -> day-7 auto-charge.
       // Demo/offline/native fall through to the original onboarding-first flow. Already-carded (returning mid-funnel) skips ahead.
-      if(SIGNUP_PLAN_FIRST && PAYMENTS_LIVE && ATLAS_BACKEND && !_isDemoTenant() && !_isNativeApp() && !(S && S.card && S.card.onFile)){ showSignupPlans(); return; }
+      if(SIGNUP_PLAN_FIRST && PAYMENTS_LIVE && ATLAS_BACKEND && !_isDemoTenant() && !_isNativeApp() && !(S && S.card && S.card.onFile) && String(email||'').toLowerCase()!==OWNER_EMAIL){ showSignupPlans(); return; }   // owner is comped -- skip the plan/card gate, straight to onboarding
       startTrial(); return;                        // new account -> guided onboarding
     }
     if(S && S.onboarded){ applyBrand(); buildApp(); show('app'); }           // returning -> resume exactly where they were
@@ -3366,7 +3366,7 @@ const Atlas = (function(){
     }).catch(function(){ toast('Network error'); });
   }
   function _postVerifyProceed(bs){ S=load();
-    if(bs && bs!=='ok'){ if(SIGNUP_PLAN_FIRST && PAYMENTS_LIVE && ATLAS_BACKEND && !_isDemoTenant() && !_isNativeApp() && bs==='needs_card'){ showSignupPlans(); return; } showPaywall(bs); return; }   // #291: after email verify (often on a DIFFERENT device), a not-yet-carded user goes to the plan PICKER (their prior pick is highlighted), not the bare card gate. #280/#276: other locked states still hit the paywall.
+    if(bs && bs!=='ok' && !_isOwnerAcct()){ if(SIGNUP_PLAN_FIRST && PAYMENTS_LIVE && ATLAS_BACKEND && !_isDemoTenant() && !_isNativeApp() && bs==='needs_card'){ showSignupPlans(); return; } showPaywall(bs); return; }   // owner is comped -- never gated post-verify. #291: after email verify (often on a DIFFERENT device), a not-yet-carded user goes to the plan PICKER (their prior pick is highlighted), not the bare card gate. #280/#276: other locked states still hit the paywall.
     if(S && S.onboarded){ applyBrand(); buildApp(); show('app'); }
     else if(S && S.onboardStarted){ applyBrand(); step=Math.min(S.onboardStep||0,STEPS.length-1); show('onboarding'); renderStep(); }
     else { startTrial(); } }
@@ -11508,7 +11508,7 @@ const Atlas = (function(){
       else if(S){ _billingReturn(); applyBrand();   // #280: a fresh signup gated pre-onboarding returns from Stripe checkout here -- _billingReturn marks the card on file
         // NEW funnel: a fresh signup that has not put a card on file yet is re-shown the plan picker on reload (so it cannot be
         // skipped by refreshing). Returning from the Stripe trial checkout, _billingReturn set card.onFile above -> onboarding.
-        if(SIGNUP_PLAN_FIRST && PAYMENTS_LIVE && ATLAS_BACKEND && !_isDemoTenant() && !_isNativeApp() && !(S.card && S.card.onFile)){ showSignupPlans(); }
+        if(SIGNUP_PLAN_FIRST && PAYMENTS_LIVE && ATLAS_BACKEND && !_isDemoTenant() && !_isNativeApp() && !(S.card && S.card.onFile) && !_isOwnerAcct()){ showSignupPlans(); }   // owner is comped -- never re-gated on reload
         else startTrial();
       }
       else { store.logout(); show('landing'); }   // dangling session, no tenant
