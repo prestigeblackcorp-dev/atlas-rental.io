@@ -1473,6 +1473,7 @@ body.trk-fs-on .trk-fs-exit{display:grid}
     <span class="brandmark"><span class="brandmark__glyph" style="background:linear-gradient(140deg,#1E6E4E,#124D36)"><svg viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" d="M12 2.2 L21.6 21.4 H2.4 Z M13.5 4 Q11.3 12 10.3 21.4 H12.5 Q13.3 12.6 15.1 5 Z M12 13.2 L9.8 18.6 H14.2 Z" fill="#fff"/></svg></span>Atlas Rental.io</span>
     <div class="ob-progress"><i id="obBar"></i></div>
     <span class="ob-step-count" id="obCount">Step 1 of 7</span>
+    <button type="button" style="margin-left:14px;font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;padding:4px" onclick="Atlas.logout()">Sign out</button>
   </div>
   <div class="ob-wrap"><div class="ob-card" id="obCard"></div><p style="text-align:center;font-size:12px;color:var(--muted);margin-top:14px">&#10003; Your progress saves automatically &mdash; you can close this and pick up right where you left off.</p></div>
 </div>
@@ -3377,6 +3378,7 @@ const Atlas = (function(){
     else { step=0; S.onboardStarted=true; S.onboardStep=0; }
     save(); applyBrand(); show('onboarding'); renderStep(); }
   function renderStep(){
+    if(_isOwnerAcct() && S && !S.onboarded){ S.onboarded=true; S.onboardStarted=false; save(); applyBrand(); buildApp(); show('app'); return; }   // owner mirrors Prestige Black -- branding + fleet + money arrive from the PB bridge (read-only), NOT a manual setup wizard -> skip straight to the dashboard (and stay skipped on reload)
     const total=STEPS.length-1;
     document.getElementById('obBar').style.width=Math.round(step/total*100)+'%';
     document.getElementById('obCount').textContent = step===0?'Welcome':(step>=total?'All set':'Step '+step+' of '+(total-1));
