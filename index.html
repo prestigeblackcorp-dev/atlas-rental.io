@@ -1459,6 +1459,7 @@ body.trk-fs-on .trk-fs-exit{display:grid}
       <div id="authErr" role="alert" style="display:none;background:var(--danger-bg);color:var(--danger-text);font-size:13px;font-weight:600;border-radius:9px;padding:10px 12px;margin-bottom:14px"></div>
       <div class="field" id="authEmailField"><label>Email address</label><input class="input" id="authEmail" type="email" placeholder="you@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')Atlas.authSubmit()"></div>
       <div class="field"><label>Password</label><div style="position:relative;display:flex;align-items:center"><input class="input" id="authPass" type="password" placeholder="At least 8 characters" autocomplete="current-password" style="padding-right:60px" onkeydown="if(event.key==='Enter')Atlas.authSubmit()"><button type="button" id="authPassEye" onclick="Atlas.authTogglePass()" style="position:absolute;right:8px;background:none;border:0;color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer;padding:6px;line-height:1">Show</button></div></div>
+      <div class="field" id="authTokenField" style="display:none"><label>Owner setup token</label><input class="input" id="authToken" type="password" placeholder="Your OWNER_SETUP_TOKEN" autocomplete="off" autocapitalize="off" spellcheck="false" onkeydown="if(event.key==='Enter')Atlas.authSubmit()"><div style="font-size:12px;color:var(--muted);margin-top:4px">This is the platform-owner email. Enter your setup token (the Cloudflare secret) to claim it &mdash; this is NOT your login password.</div></div>
       <p id="authForgot" style="text-align:right;margin:-6px 0 10px;display:none"><a onclick="Atlas.forgotPassword();return false" style="color:var(--muted);font-size:12.5px;cursor:pointer;text-decoration:underline">Forgot password?</a></p>
       <div id="authConsent" style="margin:2px 0 6px"><label class="cfg-check" style="align-items:flex-start;gap:9px;font-size:12px;color:var(--muted);text-align:left"><input type="checkbox" id="authAgree" style="margin-top:2px;flex:none"><span>I agree to the <a href="/terms" target="_blank" rel="noopener" style="color:var(--brand);font-weight:600">Terms</a> &amp; <a href="/privacy" target="_blank" rel="noopener" style="color:var(--brand);font-weight:600">Privacy Policy</a>. My 7-day free trial converts to $49.99/mo after the trial unless I cancel &mdash; cancel anytime.</span></label></div>
       <button class="btn btn--primary btn--full btn--lg" id="authBtn" onclick="Atlas.authSubmit()" style="margin-top:6px">Create account</button>
@@ -1864,11 +1865,12 @@ const Atlas = (function(){
       setInterval(function(){ try{ if(!document.hidden) _vping(); }catch(e){} }, 60000);   // heartbeat while the tab is visible, so "active now" ages out naturally when a visitor leaves/hides the tab
     }catch(e){} });
   // Server-authoritative signup/login -> the server assigns tenant_id + a CSRF token (held in memory).
-  function _srvAuth(mode,email,pass){
+  function _srvAuth(mode,email,pass,setupToken){
     // A remembered device sends back its trusted_device token (see mfaSubmit) so the server can skip a repeat
     // 2FA challenge; sits in the JSON body (not a header) so it never needs a CORS allow-list change.
     var body = mode==='login' ? {email:email,password:pass,trusted_device:_mfaDeviceToken(email)}
              : {email:email,password:pass,business:(S&&S.brand&&S.brand.name)||'My Rental Business',fleet:(S&&S.fleet&&S.fleet.id)||'cars',ref:_refStoredCode()};
+    if(mode==='signup' && setupToken) body.setupToken=setupToken;   // owner-claim: the OWNER_SETUP_TOKEN rides in the signup body (never a header) so the reserved owner email can be created/recovered right on the website
     return _api('/api/auth/'+(mode==='login'?'login':'signup'),{method:'POST',body:body}).then(function(res){
       if(res.json && res.json.mfa_required){ return {mfa:true, method:res.json.method, challenge:res.json.challenge}; }
       if(res.status>=200&&res.status<300&&res.json.ok){ _apiCsrf=res.json.csrf; if(res.json.ip) _clientIp=res.json.ip; return {ok:true,tenant_id:res.json.tenant_id,verify:res.json.verify,verified:res.json.verified,billing_state:res.json.billing_state}; }
@@ -2911,7 +2913,7 @@ const Atlas = (function(){
     function grp(g){ return '<tr class="pc-grp"><th>'+g+'</th>'+tiers.map(function(){return '<td class="pc-grp"></td>';}).join('')+'</tr>'; }
     function valRow(label, fn){ return '<tr><th>'+label+'</th>'+tiers.map(function(t){return '<td class="pc-val">'+fn(t)+'</td>';}).join('')+'</tr>'; }
     function tickRow(label, minR){ return '<tr><th>'+label+'</th>'+tiers.map(function(t){return '<td>'+((rank[t.id]||0)>=minR?ok:no)+'</td>';}).join('')+'</tr>'; }
-    var core=['Online booking & scheduling','Calendar view','Quotes, tax, discounts & deposits','Contracts & e-signature','Refundable deposit holds','Branded customer portal','Itemized branded receipts','Analytics, reports & tax / QuickBooks exports','Incident & damage records','Cancellation-policy engine','Asset service log + document vault','Promo codes','Reviews & message preferences','Team & roles (permissions)','Dark mode + installable app','Atlas.io AI assistant + Council'];
+    var core=['Online booking & scheduling','Calendar view','Quotes, tax, discounts & deposits','Contracts & e-signature','Refundable deposit holds','Branded customer portal','Itemized branded receipts','Analytics, reports & tax / QuickBooks exports','Incident & damage records','Cancellation-policy engine','Asset service log + document vault','Promo codes','Reviews & message preferences','Team & roles (permissions)','Dark mode + installable app','Atlas.io AI assistant + Council','Priority support'];
     var body='<tbody>'
       +grp('Capacity &amp; Atlas.io')
       +valRow('Assets', function(t){return t.vehicles===Infinity?'Unlimited':t.vehicles;})
@@ -2923,8 +2925,6 @@ const Atlas = (function(){
       +tickRow('Live GPS tracking + 3D map view',1)
       +tickRow('AI website builder',2)
       +tickRow('Multi-location management',1)   /* fix: Pro (rank 1) is sold with 3 locations, so multi-location management must show included on Pro+ */
-      +tickRow('Priority support',3)
-      +tickRow('Dedicated onboarding & success',4)
       +'</tbody>';
     return '<div class="pc-wrap"><table class="pc-table">'+head+body+'</table></div>'
       +'<div class="pc-hint">Need one premium feature on a smaller plan? Add it a-la-carte in-app &mdash; or step up a tier. 7-day free trial, cancel anytime.</div>';
@@ -3032,9 +3032,19 @@ const Atlas = (function(){
       if(ATLAS_BACKEND){
         // Server owns identity: the Worker verifies + assigns tenant_id. We mirror a local session under that
         // SAME id so every existing (synchronous, instant) render keeps working -- then hydrate the server rows.
-        r = await _srvAuth(_authMode, email, pass);
+        var _tokEl=document.getElementById('authToken'); var _tok=(_tokEl&&_tokEl.value||'').trim();
+        r = await _srvAuth(_authMode, email, pass, _tok);
         if(r.mfa){ _mfaBegin(email, r.method, r.challenge); return; }   // 2FA is on for this account -- show the code screen instead of finishing sign-in
-        if(r.err){ _authErr(r.err); return; }
+        if(r.err){
+          if(_authMode==='signup' && /reserved for the platform owner/i.test(r.err)){   // owner-claim: reveal the setup-token field so the reserved owner email can be claimed (or recovered) right here on the website
+            var _tf=document.getElementById('authTokenField'); if(_tf) _tf.style.display='';
+            var _cb=document.getElementById('authBtn'); if(_cb) _cb.textContent='Claim owner account';
+            _authErr(_tok ? 'That setup token was not accepted. Check the value in Cloudflare and try again.' : 'This is the platform-owner email. Enter your setup token below to claim it.');
+            if(_tokEl) _tokEl.focus();
+            return;
+          }
+          _authErr(r.err); return;
+        }
         await _srvAuthSettle(email, r.tenant_id);
       } else {
         r = _authMode==='login' ? store.login(email,pass) : store.signup(email,pass);
@@ -4086,7 +4096,7 @@ const Atlas = (function(){
     renderTrialBox();
     const sl=document.getElementById('sideLogo'); sl.innerHTML=S.brand.logo?`<img src="${esc(S.brand.logo)}" alt="business logo">`:`<span>${S.brand.initial}</span>`;
     document.getElementById('acctAv').textContent=S.brand.initial;
-    document.getElementById('portalUrl').textContent=S.brand.subdomain+'.atlasrental.io/portal';
+    document.getElementById('portalUrl').textContent=((S.brand&&S.brand.externalPortal||'').trim())||(S.brand.subdomain+'.atlasrental.io/portal');
     // nav: sidebar + hamburger drawer always list every allowed area; the mobile tab bar honors the owner's
     // customization (hide/rename tabs, or turn the bar off entirely). See _renderNavs + the navHide/navRename/navSetBar API.
     _renderNavs();
@@ -7263,6 +7273,10 @@ const Atlas = (function(){
         <div class="field"><label>Brand color</label><div class="swatches">${SWATCHES.map(c=>`<div class="swatch ${c===S.brand.color?'sel':''}" style="background:${c}" onclick="Atlas.setBrandColor('${c}')"></div>`).join('')}</div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:9px"><input type="color" value="${esc(S.brand.color||'#0f172a')}" oninput="Atlas.setBrandColor(this.value)" title="Custom color" style="width:44px;height:36px;padding:0;border:1px solid var(--line);border-radius:9px;background:none;cursor:pointer"><input type="text" class="input" value="${esc(S.brand.color||'')}" maxlength="7" placeholder="#RRGGBB" oninput="Atlas.setBrandColorHex(this.value)" spellcheck="false" style="width:120px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase"><span class="desc" style="margin:0">Any color &mdash; type a hex or use the picker.</span></div></div>
         <div class="field" style="margin:0"><label>Logo</label><div class="logo-drop" onclick="document.getElementById('setLogo').click()"><div class="logo-drop__prev">${S.brand.logo?`<img src="${esc(S.brand.logo)}" alt="business logo">`:`<span>${S.brand.initial}</span>`}</div><div><b style="color:var(--ink);font-size:14px">Replace logo</b><div style="font-size:12.5px;color:var(--muted)">PNG or SVG</div></div></div><input type="file" id="setLogo" accept="image/*" class="hidden" onchange="Atlas.setLogo(this)"></div>
+      </div>
+      <div class="set-block"><h3>External links</h3><div class="desc">Optional. If you already run your own website or customer portal outside Atlas, add them here &mdash; Atlas links out to these instead of its built-in pages.</div>
+        <div class="field"><label>Your live website URL</label><input class="input" value="${esc((S.brand&&S.brand.externalSite)||'')}" onchange="Atlas.S().brand.externalSite=this.value.trim();Atlas.save2();Atlas.renderSet()" placeholder="https://yourbusiness.com">${(S.brand&&/^https?:\/\//i.test(S.brand.externalSite||''))?`<a class="btn btn--ghost btn--sm" href="${esc(S.brand.externalSite)}" target="_blank" rel="noopener noreferrer" style="margin-top:8px;display:inline-block">Open my website</a>`:''}</div>
+        <div class="field" style="margin:0"><label>Your customer portal URL</label><input class="input" value="${esc((S.brand&&S.brand.externalPortal)||'')}" onchange="Atlas.S().brand.externalPortal=this.value.trim();Atlas.save2();Atlas.renderSet()" placeholder="https://yourbusiness.com/portal"><div class="desc" style="margin-top:4px">When set, &ldquo;Preview portal&rdquo; and your portal link open your own portal.</div>${(S.brand&&/^https?:\/\//i.test(S.brand.externalPortal||''))?`<a class="btn btn--ghost btn--sm" href="${esc(S.brand.externalPortal)}" target="_blank" rel="noopener noreferrer" style="margin-top:8px;display:inline-block">Open my portal</a>`:''}</div>
       </div>
       <div class="set-block"><h3>What you rent</h3><div class="desc">Atlas Rental.io relabels your whole dashboard &mdash; KPIs, charts and every label &mdash; to match. Cars, properties, yachts, aircraft, equipment &mdash; or anything you name yourself.</div>
         <div class="field"><label>Asset type</label><select class="select" onchange="Atlas.setFleetType(this.value)">${FLEET_TYPES.map(t=>`<option value="${t.id}" ${S.fleet.id===t.id?'selected':''}>${t.emoji} ${t.label}</option>`).join('')}</select></div>
@@ -10625,7 +10639,8 @@ const Atlas = (function(){
         return '<div class="portal__acts" style="margin:14px 0 4px"><div class="portal__act"><div class="portal__act__ic'+(_paid?' done':'')+'">'+(_paid?'&#10003;':'')+'</div><div style="flex:1;min-width:0"><b>'+esc(w.title||'Payment')+(w.mode==='pct'?(' <span style="font-weight:600;color:var(--muted)">('+_amt+'%)</span>'):'')+'</b><div>'+(w.body?esc(w.body)+' &middot; ':'')+money(_gross)+(w.taxable&&_t>0?' incl. tax':'')+'</div></div>'+(_paid?'<span class="chip chip--ok" style="font-size:11px"><span class="dot"></span>Paid</span>':'<button class="btn btn--primary btn--sm" onclick="Atlas.portalPayWidget(\''+w.id+'\')">Pay '+money(_gross)+'</button>')+'</div></div>'; }
       else { inner='<div class="pw-body">'+esc(w.body||'')+'</div>'; }
       return '<div class="portal__perks">'+(w.title?'<div class="portal__docs-hd">'+esc(w.title)+'</div>':'')+inner+'</div>'; }).join(''); }
-  function openPortal(id){ if(!id){ var b0=_bookings()[0]; id=b0&&b0.id; } if(!id){ toast('Create a booking first, then preview the portal'); return; } _portalBk=id; _portalView='home'; _renderPortal(); }
+  function openPortal(id){ try{ var _ep=((S.brand&&S.brand.externalPortal)||'').trim(); if(/^https?:\/\//i.test(_ep)){ window.open(_ep,'_blank','noopener'); return; } }catch(e){}   // link-out: if the operator set their own portal URL, open that instead of Atlas's built-in preview
+    if(!id){ var b0=_bookings()[0]; id=b0&&b0.id; } if(!id){ toast('Create a booking first, then preview the portal'); return; } _portalBk=id; _portalView='home'; _renderPortal(); }
   function portalView(v){ _portalView=v; _renderPortal(); if(v==='sign') setTimeout(_initSigPad,40); }
   function _renderPortal(){ var b=_pBk(); if(!b){ closeModal(); return; } var p=_portal(b);
     var logo=S.brand.logo?('<img src="'+esc(S.brand.logo)+'" alt="business logo">'):esc(S.brand.initial);
