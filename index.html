@@ -4495,6 +4495,27 @@ const Atlas = (function(){
       {showTotal:false, empty:'No revenue in this period yet.'}); }
   function logIncome(){ logLedger('income'); }
   function logExpense(){ logLedger('expense'); }
+  // ---- Budgets: per-category MONTHLY spending ceiling vs this-month actual (from the expense ledger). Additive display + set-modal. ----
+  function _budgets(){ if(!S.budgets||typeof S.budgets!=='object') S.budgets={}; return S.budgets; }
+  function _monthStart(){ var d=new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); }
+  function _monthExpenseByCat(){ var from=_monthStart(), out={}; _activeExpenses().forEach(function(x){ var dt=Number(x.date)||0; if(dt>=from){ var c=x.category||'Other'; out[c]=(out[c]||0)+(Number(x.amount)||0); } }); return out; }
+  function _renderBudgetCard(){ var panel=document.querySelector('.panel[data-panel="analytics"]'); if(!panel)return;
+    var card=document.getElementById('budgetCard');
+    if(!card){ card=document.createElement('div'); card.id='budgetCard'; card.className='card'; card.style.marginBottom='16px';
+      var lb=document.getElementById('ledgerBody'), ref=lb&&lb.closest('.card'); if(ref&&ref.nextSibling) panel.insertBefore(card, ref.nextSibling); else panel.appendChild(card); }
+    var B=_budgets(), spent=_monthExpenseByCat();
+    var cats=EXP_CATS.filter(function(c){ return (+B[c]>0)||(+spent[c]>0); });
+    var monLabel=new Date().toLocaleDateString(undefined,{month:'long',year:'numeric'});
+    var rows=cats.length? cats.map(function(c){ var lim=+B[c]||0, sp=_r2(spent[c]||0), pct=lim>0?Math.min(100,Math.round(sp/lim*100)):0, over=lim>0&&sp>lim;
+      var barCol=over?'var(--danger)':(lim>0&&(sp/lim)>=0.8?'#C77D0A':'var(--brand)');
+      return '<div style="padding:9px 0;border-top:1px solid var(--line-2)"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="color:var(--ink);font-size:13px">'+esc(c)+'</b><span class="tnum" style="font-size:12.5px'+(over?';color:var(--danger);font-weight:700':';color:var(--muted)')+'">'+money(sp)+(lim>0?(' / '+money(lim)):' <span style="font-size:11px">(no budget)</span>')+'</span></div>'+(lim>0?('<div class="bar" style="margin-top:5px"><i style="width:'+pct+'%;background:'+barCol+'"></i></div>'+(over?('<div style="font-size:11px;color:var(--danger);margin-top:3px">Over by '+money(sp-lim)+'</div>'):'')):'')+'</div>'; }).join('') : '<div class="bk-lenhint" style="margin:0">Set a monthly budget for any expense category to track spend against it.</div>';
+    var totLim=cats.reduce(function(s,c){return s+(+B[c]||0);},0), totSp=cats.reduce(function(s,c){return s+_r2(spent[c]||0);},0);
+    card.innerHTML='<div class="card__head"><h3>Budgets <span style="font-size:12px;color:var(--muted);font-weight:600">'+esc(monLabel)+'</span></h3><button class="btn btn--ghost btn--sm" onclick="Atlas.openBudgets()">Set budgets</button></div><div class="card__body">'+rows+(totLim>0?('<div style="display:flex;justify-content:space-between;align-items:baseline;padding:10px 0 0;border-top:2px solid var(--line);margin-top:6px;font-weight:750"><span>Total</span><span class="tnum" style="'+(totSp>totLim?'color:var(--danger)':'color:var(--ink)')+'">'+money(totSp)+' / '+money(totLim)+'</span></div>'):'')+'</div>'; }
+  function openBudgets(){ if(!_canMod('analytics')&&!_canMod('settings')){ toast('You do not have access to this'); return; } var B=_budgets();
+    openModal('<div class="modal__head"><h3>Monthly budgets</h3>'+_xBtn()+'</div><div class="modal__body"><div class="bk-lenhint" style="margin:0 0 10px">Set a monthly ceiling per expense category. Blank = no budget. Tracked against this month\'s logged expenses.</div>'
+      +EXP_CATS.map(function(c,i){ return '<div class="field"><label>'+esc(c)+'</label><div class="rule-input" style="padding:0 12px"><span>$</span><input class="tnum" id="bud'+i+'" inputmode="decimal" style="width:auto;flex:1;text-align:left" value="'+((+B[c]>0)?(+B[c]):'')+'" placeholder="no budget"></div></div>'; }).join('')
+      +'<button class="btn btn--primary btn--full btn--lg" onclick="Atlas.saveBudgets()">Save budgets</button></div>'); }
+  function saveBudgets(){ var B={}; EXP_CATS.forEach(function(c,i){ var v=parseFloat(val('bud'+i)); if(v>0) B[c]=_r2(v); }); S.budgets=B; _logEvent('analytics','Updated monthly budgets',{}); save(); closeModal(); _renderBudgetCard(); toast('Budgets saved'); }
   function _ledgerCardHtml(){ var inc=_otherIncome(), exp=_totalExpenses(), rev=_bookingRevenue(), pay=_totalPayouts();
     return '<div class="mp" style="margin-bottom:14px">'
       +'<div class="mp-row" style="cursor:pointer" onclick="Atlas.drillKpi(\'rev\')"><span>Booking revenue</span><b class="tnum">'+money(rev)+'</b></div>'
@@ -6508,6 +6529,7 @@ const Atlas = (function(){
       <div class="util-row__t"><b>${i+1}. ${esc(o.a.name)}</b><small>${money(o.rev)} booked &middot; ${o.a.util}% ${_fterm('occ')}</small><div class="bar"><i style="width:${o.a.util}%"></i></div></div>
       <span class="util-row__pct tnum">${o.a.util}%</span></div>`).join('');
     var _lb=document.getElementById('ledgerBody'); if(_lb) _lb.innerHTML=_ledgerCardHtml();
+    _renderBudgetCard();
     renderPnl();
     var _fcCard=document.getElementById('anaForecastCard'); if(_fcCard){ if(_flags().betaForecast){ _fcCard.style.display=''; var _fb=document.getElementById('anaForecast'); if(_fb)_fb.innerHTML=_forecastHtml(); } else _fcCard.style.display='none'; }   // betaForecast owner flag now drives a real projection
     renderReports(); renderLog(); renderReviews();
@@ -11814,7 +11836,7 @@ const Atlas = (function(){
     setBookingCfg,catAddExtra,catSetExtra,catRemoveExtra,bkBuilderTour,addLocation,removeLocation,
     addVehicle,saveVehicle,vehFormHint,vehTypeChange,openAsset,saveAsset,delAsset,assetPhotoPick,assetPhotoRemove,assetPhotoAdd,assetPhotoRmGallery,assetLogService,saveService,assetRmService,assetAddDoc,assetDocOpen,assetRmDoc,promptUpgrade,doUpgrade,unlockAsset,relockAsset,openWebsite,
     importAssets,_impFile,previewImport,doImportAssets,exportSetup,exportMyData,importSetup,doImportSetup,
-    drillKpi,setOvRange,gsDismiss,drillLog,drillLedger,logLedger,saveLedger,rmLedger,editLedger,saveLedgerEdit,logIncome,logExpense,assetBlock,saveAssetBlock,assetUnblock,
+    drillKpi,setOvRange,gsDismiss,drillLog,drillLedger,logLedger,saveLedger,rmLedger,editLedger,saveLedgerEdit,logIncome,logExpense,openBudgets,saveBudgets,assetBlock,saveAssetBlock,assetUnblock,
     _ldPhotoPick,_ldPhotoClear,_ldRecToggle,pnlSetPeriod,pnlSetKind,pnlMarginDrill,renderPnl,
     renderWebsite,buildWebsite,setWebField,_webInlineEdit,_webInlineKey,toggleWebSection,setWebFont,setWebTemplate,setWebAccent,webFaqAdd,webFaqSet,webFaqRemove,webPostAdd,webPostSet,webPostRemove,webPostToggle,webPostAddFromForm,webPageAdd,webPageSet,webPageRemove,webPageToggle,webPageNavToggle,webPageSectionAdd,webPageSectionSet,webPageSectionRemove,webPageSectionMove,webPageSectionListSet,webPageSectionListAdd,webPageSectionListRemove,webPageAddFromForm,webPageStarterLanding,webEditPage,webPagesBack,webViewLegal,webBookNow,_wbQuote,webSubmitBooking,publishBookingSite,copyBookingLink,copyEmbed,webDomainMode,webRevertDomain,webConnectDomain,webVerifyDomain,webSearchDomain,webBuyDomain,confirmDomainBuy,webDomLoad,webDomManage,webDomCheckConn,webDomDns,webDomDnsReload,webDomDnsAdd,webDomDnsDel,webDomDnsSet,webDomDnsSave,buyWebsiteAddon,confirmWebsiteAddon,seoHealthLoad,seoHealthJump,
     setFleetType,setCustomNoun,demoBig,demoPick,fleetLoc,
