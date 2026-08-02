@@ -6385,8 +6385,33 @@ const Atlas = (function(){
       (DATA.customers.length ? DATA.customers.map((c,i)=>{ var _cs=_custStats(c.name,c.email); return `<tr><td><div class="cust"><span class="avatar">${esc(c.name[0])}</span><div><b>${esc(c.name)}</b><div style="font-size:12px;color:var(--muted)">${esc(c.email)}</div></div></div></td>
       <td class="tnum">${_cs.trips}</td><td class="tnum"><b>${money(_cs.spent)}</b></td><td class="tnum">${c.last} ago</td>
       <td><button class="btn btn--ghost btn--sm" onclick="Atlas.viewCustomer(${i})">View</button></td></tr>`; }).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:22px 8px">No ${esc(_custNoun(true))} yet &mdash; they appear here automatically after their first booking.</td></tr>`)+`</tbody>`;
-    _renderWaitCard();
+    _renderLeadCard(); _renderWaitCard();
   }
+  // ---- Leads pipeline: capture prospects who asked but have not booked; work them New->Contacted->Quoted->Won/Lost. ----
+  var LEAD_STAGES=['New','Contacted','Quoted','Won','Lost'];
+  function _leads(){ if(!S.leads) S.leads=[]; return S.leads; }
+  function _leadColor(s){ return {New:'#B57912',Contacted:'#2A6F97',Quoted:'#7A5AF8',Won:'#1E6E4E',Lost:'#B0342A'}[s]||'#6B7660'; }
+  function _renderLeadCard(){ var panel=document.querySelector('.panel[data-panel="customers"]'); if(!panel)return;
+    var card=document.getElementById('leadCard');
+    if(!card){ card=document.createElement('div'); card.id='leadCard'; card.className='card'; card.style.marginBottom='16px';
+      var ref=document.getElementById('waitCard')||(function(){var t=document.getElementById('custTbl');return t&&t.closest('.card');})(); if(ref) panel.insertBefore(card,ref); else panel.appendChild(card); }
+    var ls=_leads();
+    var rows=ls.length? ls.map(function(l){ return '<div style="display:flex;align-items:center;gap:9px;padding:10px 0;border-top:1px solid var(--line-2);flex-wrap:wrap"><span class="avatar" style="background:'+_leadColor(l.stage)+'22;color:'+_leadColor(l.stage)+'">'+esc((l.name||'?')[0])+'</span><div style="flex:1;min-width:120px"><b style="color:var(--ink)">'+esc(l.name)+'</b><div style="font-size:12px;color:var(--muted)">'+(l.contact?esc(l.contact):'no contact')+(l.asset?(' &middot; '+esc(l.asset)):'')+(l.note?(' &middot; '+esc(l.note)):'')+'</div></div><select class="select" style="width:auto;flex:none" onchange="Atlas.leadStage(\''+l.id+'\',this.value)">'+LEAD_STAGES.map(function(s){return '<option'+(l.stage===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select><button class="btn btn--primary btn--sm" onclick="Atlas.leadToBooking(\''+l.id+'\')">Book</button><button class="icon-btn" style="color:var(--danger)" title="Remove" onclick="Atlas.rmLead(\''+l.id+'\')">'+_rmSvg()+'</button></div>'; }).join('') : '<div class="bk-lenhint" style="margin:0">No leads yet. Capture people who asked about renting but have not booked &mdash; then work them through the stages.</div>';
+    var open=ls.filter(function(l){return l.stage!=='Won'&&l.stage!=='Lost';}).length;
+    card.innerHTML='<div class="card__head"><h3>Leads'+(open?(' <span style="font-size:12px;color:var(--muted);font-weight:600">'+open+' open</span>'):'')+'</h3><button class="btn btn--ghost btn--sm" onclick="Atlas.addLead()">+ Add</button></div><div class="card__body">'+rows+'</div>'; }
+  function addLead(){ if(!_guard('bookEdit','Managing leads'))return;
+    openModal('<div class="modal__head"><h3>Add a lead</h3>'+_xBtn()+'</div><div class="modal__body">'
+      +'<div class="field"><label>Name</label><input class="input" id="ldName" placeholder="Who reached out"></div>'
+      +'<div class="field"><label>Email or phone</label><input class="input" id="ldContact" placeholder="Best way to reach them"></div>'
+      +'<div class="field"><label>Interested in</label><select class="select" id="ldAsset"><option value="">Any '+esc(S.fleet.noun)+'</option>'+(DATA.assets||[]).map(function(a){return '<option>'+esc(a.name)+'</option>';}).join('')+'</select></div>'
+      +'<div class="field"><label>Note</label><input class="input" id="ldNote" placeholder="Dates, budget, where they came from..."></div>'
+      +'<button class="btn btn--primary btn--full btn--lg" onclick="Atlas.saveLead()">Add lead</button></div>'); }
+  function saveLead(){ var nm=(val('ldName')||'').trim(); if(!nm){ toast('Add a name'); return; }
+    _leads().unshift({id:'ld'+Date.now().toString(36), name:nm, contact:(val('ldContact')||'').trim(), asset:(val('ldAsset')||'').trim(), note:(val('ldNote')||'').trim(), stage:'New', at:Date.now()});
+    _logEvent('customer','Added lead '+nm,{}); save(); closeModal(); _renderLeadCard(); toast(nm+' added to leads'); }
+  function leadStage(id,stage){ var l=_leads().filter(function(x){return x.id===id;})[0]; if(!l)return; l.stage=stage; save(); _renderLeadCard(); }
+  function leadToBooking(id){ var l=_leads().filter(function(x){return x.id===id;})[0]; if(!l)return; l.stage='Won'; save(); _renderLeadCard(); try{ newBooking(); }catch(e){} toast('Lead marked Won -- create the booking for '+(l.name||'')+(l.contact?(' ('+l.contact+')'):'')); }
+  function rmLead(id){ if(!_guard('bookEdit'))return; S.leads=_leads().filter(function(x){return x.id!==id;}); save(); _renderLeadCard(); }
   // ---- Waitlist: capture demand for booked-out assets, and auto-surface it when a booking cancels ----
   function _waitlist(){ if(!S.waitlist) S.waitlist=[]; return S.waitlist; }
   function _renderWaitCard(){ var panel=document.querySelector('.panel[data-panel="customers"]'); if(!panel)return;
@@ -11780,7 +11805,7 @@ const Atlas = (function(){
     setBrandName,setBrandColor,setBrandColorHex,setLogo,renderSetSoft,toggleRule,setRule,removeRule,addRule,setSmartPricing,spAddSeason,spSetSeason,spRmSeason,obRefresh,setField,revOptApply,revOptAsk,setAutoPrice,autoPriceRevertAll,autoPriceRevertOne,
     goAuth,authSubmit,authTogglePass,logout,deleteAccount,deleteAccountConfirm,_doAccountDelete,_stepUpPrompt,_stepUpSubmit,policyAccept,verifyContinue,verifyResend,verifyStartOver,forgotPassword,sendResetLink,goHome,leadSubmit,subscribe,confirmSubscribe,cancelPlan,billingPortal,_openWeb,openPlans,openCredits,buyCredits,buyAddon,removeAddon,paywallUpdatePayment,paywallChoosePlan,paywallStartTrial,paywallRetryPayment,paywallCancelPlan,showSignupPlans,_hideSignupPlans,_signupPickPlan,
     mfaSubmit,mfaResend,mfaToggleBackup,mfaCancel,
-    newBooking,editBooking,bkPreview,createBooking,openBooking,setBookingStatus,deleteBooking,bkReqCharge,bkReqDone,bkFilter,bkSetView,bkCalNav,exportBkIcs,viewCustomer,saveCustNote,emailCustomer,sendCustEmail,addWaitlist,saveWaitlist,editWaitlist,saveWaitlistEdit,rmWait,waitToBooking,bkAddCondition,bkRmCondition,bkCompareCondition,bkAddCharge,sendCharge,bkRmCharge,portalPayCharge,
+    newBooking,editBooking,bkPreview,createBooking,openBooking,setBookingStatus,deleteBooking,bkReqCharge,bkReqDone,bkFilter,bkSetView,bkCalNav,exportBkIcs,viewCustomer,saveCustNote,emailCustomer,sendCustEmail,addWaitlist,saveWaitlist,editWaitlist,saveWaitlistEdit,rmWait,waitToBooking,addLead,saveLead,leadStage,leadToBooking,rmLead,bkAddCondition,bkRmCondition,bkCompareCondition,bkAddCharge,sendCharge,bkRmCharge,portalPayCharge,
     bkLogIncident,saveIncident,bkIncidentCharge,bkRmIncident,bkCancelFlow,doCancel,bkVoidFlow,doVoid,unvoidBooking,bkVoidReport,bkPortalLink,bkRepeat,doRepeat,bkToggleVerify,bkRejectVerify,bkClearVerify,bkPaymentPlan,savePlan,bkPlanPaid,_ppTypeChange,_ppAddRow,_ppRmRow,_ppEdit,bkMeter,saveMeter,bkMeterBill,_mtHint,_mtOverage,bkFuel,saveFuel,_flHint,bkLate,saveLate,_ltHint,bkDriver,saveDriver,bkRmDriver,bkInsurance,saveInsurance,bkBlacklistToggle,holdAuth,holdRelease,holdCapture,doCapture,
     bkClaimOpen,bkClaimEdit,saveClaim,bkClaimStatus,bkClaimRemove,bkClaimPacket,
     issueGift,saveGift,deleteGift,giftCert,giftEdit,saveGiftEdit,bkApplyGift,bkRemoveGift,
