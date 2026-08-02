@@ -5557,6 +5557,12 @@ const Atlas = (function(){
       +'<div class="cond-sec"><div class="cond-hd"><span>Usage / metered billing</span><button class="btn btn--ghost btn--sm" onclick="Atlas.bkMeter(\''+b.id+'\')">'+(b.meter?'Update':'Record usage')+'</button></div>'
         +'<div class="cond-sub">Bill exact hours or miles used &mdash; ideal for generators, tools and hourly gear.</div>'
         +_meterHtml(b)+'</div>'
+      +'<div class="cond-sec"><div class="cond-hd"><span>Fuel charge</span><button class="btn btn--ghost btn--sm" onclick="Atlas.bkFuel(\''+b.id+'\')">Add fuel</button></div>'
+        +'<div class="cond-sub">Bill for fuel not replaced &mdash; the level sent out vs returned.</div>'
+        +_fuelHtml(b)+'</div>'
+      +'<div class="cond-sec"><div class="cond-hd"><span>Late-return fee</span><button class="btn btn--ghost btn--sm" onclick="Atlas.bkLate(\''+b.id+'\')">Add late fee</button></div>'
+        +'<div class="cond-sub">Grace window, then hourly &mdash; capped at the daily rate.</div>'
+        +_lateHtml(b)+'</div>'
       +((b.portal&&b.portal.requests&&b.portal.requests.length)?('<div class="cond-sec"><div class="cond-hd"><span>Requests from the customer</span></div><div class="cond-sub" style="margin-bottom:2px">They asked for a change from their portal. Turn it into a charge to collect, or dismiss it.</div>'+b.portal.requests.map(function(rq,ri){ var pend=(rq.status==='requested'||!rq.status); return '<div class="cond-sub" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:7px'+(pend?'':';opacity:.55')+'"><span>'+(rq.type==='addon'?'Add-on':'Extension')+': <b>'+esc(rq.extra||'change')+'</b>'+(rq.note?(' &mdash; '+esc(rq.note)):'')+'</span>'+(pend?('<span style="white-space:nowrap;flex:none"><button class="btn btn--ghost btn--sm" onclick="Atlas.bkReqCharge(\''+b.id+'\','+ri+')">Turn into charge</button> <button class="btn btn--ghost btn--sm" onclick="Atlas.bkReqDone(\''+b.id+'\','+ri+')">Dismiss</button></span>'):('<span class="chip chip--muted" style="flex:none">'+esc(rq.status)+'</span>'))+'</div>'; }).join('')+'</div>'):'')
       +'<div style="display:flex;gap:10px;flex-wrap:wrap">'+a+'</div>'
       +'<div style="display:flex;gap:10px;margin-top:10px"><button class="btn btn--ghost btn--full btn--sm" onclick="Atlas.openReceipt(\''+b.id+'\')">Receipt</button><button class="btn btn--ghost btn--full btn--sm" onclick="Atlas.openPortal(\''+b.id+'\')">Customer portal</button></div></div>');
@@ -5771,6 +5777,62 @@ const Atlas = (function(){
       if(h) h.innerHTML='Driven <b>'+driven+' '+esc(unit)+'</b> &middot; included '+inc+' &middot; overage <b>'+over+'</b>'+(over>0?(' &rarr; charges '+money(over*rate)):' &mdash; within allowance');
       if(typeof _mtHint==='function') _mtHint(); }
     else if(h) h.innerHTML=''; }
+  // ---- Return-time charges: FUEL (level out-vs-in) + LATE return (grace + $/hr, capped at the daily rate). Both bill through b.charges (generic, editable rates on S.money). ----
+  var _FUEL_LEVELS=['Empty','1/8','1/4','3/8','1/2','5/8','3/4','7/8','Full'];   // index = eighths of a tank 0..8
+  function _fuelIdx(v){ return _FUEL_LEVELS.indexOf(v); }
+  function _fuelCharge(sentOut, returned, ratePerEighth){ var o=_fuelIdx(sentOut), r=_fuelIdx(returned); if(o<0||r<0) return {short:0,amount:0,ok:false}; var short=Math.max(0,o-r); return {short:short, amount:_r2(short*(Number(ratePerEighth)||0)), ok:true}; }
+  function _fuelRate(){ return _r2((S.money&&+S.money.fuelRate>0)?+S.money.fuelRate:15); }   // $ per 1/8 tank (default $15/eighth = $30/quarter); owner-editable in the modal
+  function _fuelHtml(b){ var c=_charges(b).filter(function(x){return x.kind==='fuel';}).slice(-1)[0];
+    if(!c) return '<div class="bk-lenhint" style="margin:0">Charge for fuel not replaced &mdash; the level sent out vs returned.</div>';
+    return '<div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid var(--line-2)"><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:13px">'+esc(c.label)+'</b><div style="font-size:11.5px;color:var(--muted)">'+_stamp(c.at)+(c.paidAt?' &middot; paid':'')+'</div></div><span class="chip '+(c.paidAt?'chip--ok':'chip--warn')+'"><span class="dot"></span>'+money(c.amount)+'</span></div>'; }
+  function bkFuel(id){ if(!_guard('bookEdit'))return; var b=_getBooking(id); if(!b)return; var rate=_fuelRate();
+    var opts=function(sel){ return _FUEL_LEVELS.slice().reverse().map(function(l){ return '<option'+(l===sel?' selected':'')+'>'+l+'</option>'; }).join(''); };
+    openModal('<div class="modal__head"><h3>Fuel charge</h3>'+_xBtn()+'</div><div class="modal__body">'
+      +'<div class="bk-lenhint" style="margin:0 0 10px">Bill for fuel not replaced. Charge = eighths short &times; the rate.</div>'
+      +'<div class="row2"><div class="field"><label>Level sent out</label><select class="select" id="flOut" onchange="Atlas._flHint()">'+opts('Full')+'</select></div>'
+      +'<div class="field"><label>Level returned</label><select class="select" id="flIn" onchange="Atlas._flHint()">'+opts('Full')+'</select></div></div>'
+      +'<div class="field"><label>Rate per 1/8 tank</label><div class="rule-input" style="padding:0 12px"><span>$</span><input class="tnum" id="flRate" inputmode="decimal" style="width:auto;flex:1;text-align:left" value="'+rate+'" oninput="Atlas._flHint()"></div></div>'
+      +'<div class="bk-lenhint" id="flHint" style="margin:0 0 12px"></div>'
+      +'<button class="btn btn--primary btn--full btn--lg" onclick="Atlas.saveFuel(\''+id+'\')">Add fuel charge</button></div>');
+    setTimeout(_flHint,20); }
+  function _flHint(){ var o=val('flOut'), r=val('flIn'), rate=parseFloat(val('flRate'))||0, h=document.getElementById('flHint'); if(!h)return; var f=_fuelCharge(o,r,rate); h.innerHTML=f.short>0?('Short <b>'+f.short+'/8</b> tank &rarr; charges <b>'+money(f.amount)+'</b>'):'Returned full or fuller &mdash; no fuel charge.'; }
+  function saveFuel(id){ var b=_getBooking(id); if(!b)return; var o=val('flOut'), r=val('flIn'), rate=parseFloat(val('flRate'))||0; var f=_fuelCharge(o,r,rate);
+    if(!f.ok||f.short<=0||f.amount<=0){ toast('No fuel shortfall to charge'); return; }
+    if(+rate>0){ S.money.fuelRate=_r2(rate); }
+    b.charges=_charges(b).filter(function(c){ return !(c.kind==='fuel'&&!c.paidAt); });   // replace a prior UNPAID fuel charge so a re-calc re-bills instead of stacking duplicates
+    b.charges.push({id:_chId(), kind:'fuel', label:'Fuel: returned '+r+' (out '+o+'), '+f.short+'/8 short', amount:f.amount, at:Date.now(), paidAt:null});
+    _upsertBooking(b); _logEvent('booking','Fuel charge '+money(f.amount)+' on '+b.id,{booking:b.id}); save(); closeModal(); openBooking(id); toast('Fuel charge added ('+money(f.amount)+')'); }
+  function _lateFee(schedMs, actualMs, graceHrs, hourlyRate, dailyRate){ if(!schedMs||!actualMs) return {hrsLate:0,amount:0,note:''}; var diffH=(actualMs-schedMs)/3600000, g=Number(graceHrs)||0;
+    if(diffH<=g) return {hrsLate:Math.max(0,_r2(diffH)),amount:0,note:diffH>0?(Math.round(diffH*60)+' min late -- within '+g+'h grace (no charge)'):'On time'};
+    var billH=diffH-g, billHc=Math.ceil(billH), hourly=_r2(billHc*(Number(hourlyRate)||0)), fee=hourly, note=billHc+' hr'+(billHc!==1?'s':'')+' x '+money(hourlyRate)+'/hr after '+g+'h grace';
+    if(+dailyRate>0 && hourly>=+dailyRate){ var xd=Math.ceil(billH/24); fee=_r2(xd*+dailyRate); note=xd+' extra day'+(xd!==1?'s':'')+' @ '+money(dailyRate)+'/day (hourly would exceed the daily rate)'; }
+    return {hrsLate:_r2(diffH), amount:_r2(fee), note:note}; }
+  function _lateGrace(){ return (S.money&&S.money.lateGraceHrs!=null&&+S.money.lateGraceHrs>=0)?+S.money.lateGraceHrs:1; }   // hours of grace (default 1); owner-editable
+  function _lateRate(){ return _r2((S.money&&+S.money.lateRate>0)?+S.money.lateRate:25); }   // $ per hour late (default 25); owner-editable
+  function _bkPeriodRate(b){ return (b&&b.rate!=null)?+b.rate:((S.money&&+S.money.baseRate)||0); }
+  function _bkSchedReturnMs(b){ if(+b.endTs>0) return +b.endTs; var s=+b.startTs||0; if(s>0) return s+_bkPeriods(b)*_periodMsOf((S.money&&S.money.rateModel)||'day'); return 0; }
+  function _lateHtml(b){ var c=_charges(b).filter(function(x){return x.kind==='late';}).slice(-1)[0];
+    if(!c) return '<div class="bk-lenhint" style="margin:0">Fee for a late return after a grace window &mdash; hourly, capped at the daily rate.</div>';
+    return '<div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid var(--line-2)"><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:13px">'+esc(c.label)+'</b><div style="font-size:11.5px;color:var(--muted)">'+_stamp(c.at)+(c.paidAt?' &middot; paid':'')+'</div></div><span class="chip '+(c.paidAt?'chip--ok':'chip--warn')+'"><span class="dot"></span>'+money(c.amount)+'</span></div>'; }
+  function bkLate(id){ if(!_guard('bookEdit'))return; var b=_getBooking(id); if(!b)return; var sched=_bkSchedReturnMs(b);
+    var daily=(((S.money&&S.money.rateModel)||'day')==='day')?_bkPeriodRate(b):0;   // only cap at the daily rate for day-model rentals (hourly stays purely hourly)
+    var schedStr=sched?new Date(sched).toLocaleString():'not set';
+    var pad=function(n){return (n<10?'0':'')+n;}, d=new Date(), defActual=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+    openModal('<div class="modal__head"><h3>Late-return fee</h3>'+_xBtn()+'</div><div class="modal__body">'
+      +'<div class="bk-lenhint" style="margin:0 0 10px">Scheduled return: <b>'+esc(schedStr)+'</b>. Enter when it actually came back.</div>'
+      +'<div class="field"><label>Actual return</label><input class="input" type="datetime-local" id="ltActual" value="'+defActual+'" oninput="Atlas._ltHint('+sched+','+daily+')"></div>'
+      +'<div class="row2"><div class="field"><label>Grace (hours)</label><input class="input tnum" id="ltGrace" inputmode="decimal" value="'+_lateGrace()+'" oninput="Atlas._ltHint('+sched+','+daily+')"></div>'
+      +'<div class="field"><label>Rate per hour</label><div class="rule-input" style="padding:0 12px"><span>$</span><input class="tnum" id="ltRate" inputmode="decimal" style="width:auto;flex:1;text-align:left" value="'+_lateRate()+'" oninput="Atlas._ltHint('+sched+','+daily+')"></div></div></div>'
+      +'<div class="bk-lenhint" id="ltHint" style="margin:0 0 12px"></div>'
+      +'<button class="btn btn--primary btn--full btn--lg" onclick="Atlas.saveLate(\''+id+'\','+sched+','+daily+')">Add late fee</button></div>');
+    setTimeout(function(){ _ltHint(sched,daily); },20); }
+  function _ltHint(sched,daily){ var a=val('ltActual'), am=a?new Date(a).getTime():0, g=parseFloat(val('ltGrace'))||0, hr=parseFloat(val('ltRate'))||0, h=document.getElementById('ltHint'); if(!h)return; var f=_lateFee(sched,am,g,hr,daily); h.innerHTML=f.amount>0?('<b>'+f.hrsLate+'h</b> late &middot; '+esc(f.note)+' &rarr; charges <b>'+money(f.amount)+'</b>'):esc(f.note||'Enter the actual return time.'); }
+  function saveLate(id,sched,daily){ var b=_getBooking(id); if(!b)return; var a=val('ltActual'), am=a?new Date(a).getTime():0, g=parseFloat(val('ltGrace'))||0, hr=parseFloat(val('ltRate'))||0;
+    var f=_lateFee(sched,am,g,hr,daily); if(f.amount<=0){ toast(f.note||'No late fee to charge'); return; }
+    S.money.lateGraceHrs=g; if(+hr>0) S.money.lateRate=_r2(hr);
+    b.charges=_charges(b).filter(function(c){ return !(c.kind==='late'&&!c.paidAt); });   // replace a prior UNPAID late fee so a re-calc re-bills instead of stacking duplicates
+    b.charges.push({id:_chId(), kind:'late', label:'Late return: '+f.note, amount:f.amount, at:Date.now(), paidAt:null});
+    _upsertBooking(b); _logEvent('booking','Late fee '+money(f.amount)+' on '+b.id,{booking:b.id}); save(); closeModal(); openBooking(id); toast('Late fee added ('+money(f.amount)+')'); }
   // ---- Refundable deposit hold: authorize -> capture (damage) or release (clean) ----
   function _holdHtml(b){ var h=b.hold, q=b.quote||{}, sug=_r2(q.hold||0);
     if(!h||!h.status||h.status==='none'){ return '<div class="bk-lenhint" style="margin:0 0 8px">'+(sug?('Suggested hold: <b>'+money(sug)+'</b> (from your money rules).'):'Authorize a refundable hold to cover damage or fuel.')+'</div><button class="btn btn--ghost btn--sm" onclick="Atlas.holdAuth(\''+b.id+'\')">Authorize hold</button>'; }
@@ -11659,7 +11721,7 @@ const Atlas = (function(){
     goAuth,authSubmit,authTogglePass,logout,deleteAccount,deleteAccountConfirm,_doAccountDelete,_stepUpPrompt,_stepUpSubmit,policyAccept,verifyContinue,verifyResend,verifyStartOver,forgotPassword,sendResetLink,goHome,leadSubmit,subscribe,confirmSubscribe,cancelPlan,billingPortal,_openWeb,openPlans,openCredits,buyCredits,buyAddon,removeAddon,paywallUpdatePayment,paywallChoosePlan,paywallStartTrial,paywallRetryPayment,paywallCancelPlan,showSignupPlans,_hideSignupPlans,_signupPickPlan,
     mfaSubmit,mfaResend,mfaToggleBackup,mfaCancel,
     newBooking,editBooking,bkPreview,createBooking,openBooking,setBookingStatus,deleteBooking,bkReqCharge,bkReqDone,bkFilter,bkSetView,bkCalNav,viewCustomer,saveCustNote,emailCustomer,sendCustEmail,addWaitlist,saveWaitlist,editWaitlist,saveWaitlistEdit,rmWait,waitToBooking,bkAddCondition,bkRmCondition,bkCompareCondition,bkAddCharge,sendCharge,bkRmCharge,portalPayCharge,
-    bkLogIncident,saveIncident,bkIncidentCharge,bkRmIncident,bkCancelFlow,doCancel,bkVoidFlow,doVoid,unvoidBooking,bkVoidReport,bkPortalLink,bkRepeat,doRepeat,bkToggleVerify,bkRejectVerify,bkClearVerify,bkPaymentPlan,savePlan,bkPlanPaid,_ppTypeChange,_ppAddRow,_ppRmRow,_ppEdit,bkMeter,saveMeter,bkMeterBill,_mtHint,_mtOverage,holdAuth,holdRelease,holdCapture,doCapture,
+    bkLogIncident,saveIncident,bkIncidentCharge,bkRmIncident,bkCancelFlow,doCancel,bkVoidFlow,doVoid,unvoidBooking,bkVoidReport,bkPortalLink,bkRepeat,doRepeat,bkToggleVerify,bkRejectVerify,bkClearVerify,bkPaymentPlan,savePlan,bkPlanPaid,_ppTypeChange,_ppAddRow,_ppRmRow,_ppEdit,bkMeter,saveMeter,bkMeterBill,_mtHint,_mtOverage,bkFuel,saveFuel,_flHint,bkLate,saveLate,_ltHint,holdAuth,holdRelease,holdCapture,doCapture,
     bkClaimOpen,bkClaimEdit,saveClaim,bkClaimStatus,bkClaimRemove,bkClaimPacket,
     issueGift,saveGift,deleteGift,giftCert,giftEdit,saveGiftEdit,bkApplyGift,bkRemoveGift,
     setProtection,protAddPlan,protSetPlan,protRmPlan,bkSetProtection,protectionDoc,
