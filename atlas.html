@@ -5458,6 +5458,7 @@ const Atlas = (function(){
       if(_ao.maxLen>0 && w.periods>_ao.maxLen && !confirm(esc(asset)+' has a '+_ao.maxLen+'-'+_u+' maximum. Book '+w.periods+' anyway?')) return; }
     var _cf=_availabilityConflict(asset, w.startTs, w.endTs, editId);   // warn on double-book / blackout; owner can knowingly override
     if(_cf && !confirm(esc(asset)+' is '+(_cf.type==='blackout'?('blocked off for those dates ('+_cf.reason+')'):(_cf.type==='maintenance'?('marked out of service ('+_cf.reason+')'):('already booked for those dates ('+_cf.reason+')')))+'.\n\nBook it anyway?')) return;
+    var _blE=val('bkEmail'); if(_blE && _isBlacklisted(_blE)){ var _bm=_custMeta(String(_blE).toLowerCase()); if(!confirm('\u26d4 '+(cust||_blE)+' is on your blacklist'+(_bm.blacklistReason?(' -- '+_bm.blacklistReason):'')+'.\n\nBook anyway?')) return; }   // #blacklist: warn (owner can override), never hard-block
     var q=calcQuote(mEff,{periods:w.periods,addons:0,extras:extras,discount:disc,startsAt:w.startTs});
     var b= editId? _getBooking(editId) : {id:_nextBkId(), createdAt:Date.now()};
     b.cust=cust; b.custEmail=val('bkEmail'); b.asset=asset; b.assetId=(_ao&&_ao.id)||b.assetId||undefined; b.rate=mEff.baseRate;   // #367: stamp the STABLE asset id so the conflict check survives a rename (name kept as the fallback)
@@ -5501,6 +5502,7 @@ const Atlas = (function(){
     var contact=esc(b.custEmail||''); if(b.phone) contact+=(contact?' &middot; ':'')+esc(b.phone);
     openModal('<div class="modal__head"><h3>'+b.id+'</h3>'+_xBtn()+'</div><div class="modal__body">'
       +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><span class="avatar">'+esc((b.cust||'?')[0])+'</span><div style="flex:1;min-width:0"><b style="color:var(--ink)">'+esc(b.cust)+'</b><div style="font-size:12.5px;color:var(--muted)">'+contact+'</div></div>'+statusChip(b.status)+'</div>'
+      +((b.custEmail&&_isBlacklisted(b.custEmail))?('<div style="background:rgba(176,52,42,.1);border:1px solid rgba(176,52,42,.4);border-radius:10px;padding:9px 12px;margin-bottom:14px;font-size:12.5px;color:var(--danger)">&#9940; This customer is on your blacklist'+(function(){var _m=_custMeta(String(b.custEmail).toLowerCase());return _m.blacklistReason?(' &mdash; '+esc(_m.blacklistReason)):'';})()+'</div>'):'')
       +(function(){ var v=b.idVerified, rj=b.idRejected&&!v; var chipCls=v?'chip--ok':rj?'chip--danger':'chip--warn', chipTxt=v?'ID verified':rj?'ID rejected':'ID not verified';
         var sub=v?('Verified '+_stamp(b.idVerifiedAt)):rj?('Rejected '+_stamp(b.idRejectedAt)+' \u2014 renter must re-submit'):'Check the renter\u2019s license before pickup';
         var btns=v?('<button class="btn btn--ghost btn--sm" onclick="Atlas.bkClearVerify(\''+b.id+'\')">Undo</button>')
@@ -5563,6 +5565,12 @@ const Atlas = (function(){
       +'<div class="cond-sec"><div class="cond-hd"><span>Late-return fee</span><button class="btn btn--ghost btn--sm" onclick="Atlas.bkLate(\''+b.id+'\')">Add late fee</button></div>'
         +'<div class="cond-sub">Grace window, then hourly &mdash; capped at the daily rate.</div>'
         +_lateHtml(b)+'</div>'
+      +'<div class="cond-sec"><div class="cond-hd"><span>Authorized drivers</span><button class="btn btn--ghost btn--sm" onclick="Atlas.bkDriver(\''+b.id+'\')">Add driver</button></div>'
+        +'<div class="cond-sub">Everyone allowed to operate it &mdash; name + license, with an optional fee.</div>'
+        +_driversHtml(b)+'</div>'
+      +'<div class="cond-sec"><div class="cond-hd"><span>Insurance / coverage</span><button class="btn btn--ghost btn--sm" onclick="Atlas.bkInsurance(\''+b.id+'\')">'+((b.insurance&&(b.insurance.carrier||b.insurance.waiverAccepted))?'Update':'Add')+'</button></div>'
+        +'<div class="cond-sub">Renter coverage or damage-waiver acceptance, on the record.</div>'
+        +_insHtml(b)+'</div>'
       +((b.portal&&b.portal.requests&&b.portal.requests.length)?('<div class="cond-sec"><div class="cond-hd"><span>Requests from the customer</span></div><div class="cond-sub" style="margin-bottom:2px">They asked for a change from their portal. Turn it into a charge to collect, or dismiss it.</div>'+b.portal.requests.map(function(rq,ri){ var pend=(rq.status==='requested'||!rq.status); return '<div class="cond-sub" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:7px'+(pend?'':';opacity:.55')+'"><span>'+(rq.type==='addon'?'Add-on':'Extension')+': <b>'+esc(rq.extra||'change')+'</b>'+(rq.note?(' &mdash; '+esc(rq.note)):'')+'</span>'+(pend?('<span style="white-space:nowrap;flex:none"><button class="btn btn--ghost btn--sm" onclick="Atlas.bkReqCharge(\''+b.id+'\','+ri+')">Turn into charge</button> <button class="btn btn--ghost btn--sm" onclick="Atlas.bkReqDone(\''+b.id+'\','+ri+')">Dismiss</button></span>'):('<span class="chip chip--muted" style="flex:none">'+esc(rq.status)+'</span>'))+'</div>'; }).join('')+'</div>'):'')
       +'<div style="display:flex;gap:10px;flex-wrap:wrap">'+a+'</div>'
       +'<div style="display:flex;gap:10px;margin-top:10px"><button class="btn btn--ghost btn--full btn--sm" onclick="Atlas.openReceipt(\''+b.id+'\')">Receipt</button><button class="btn btn--ghost btn--full btn--sm" onclick="Atlas.openPortal(\''+b.id+'\')">Customer portal</button></div></div>');
@@ -5581,6 +5589,10 @@ const Atlas = (function(){
   function _voidEnabled(){ try{ return !(S&&S.flags&&S.flags.voidContract===false); }catch(e){ return true; } }   // default ON; kill-switch: S.flags.voidContract=false
   function _blacklistAdd(email,name,reason){ try{ var key=String(email||'').toLowerCase(); if(!key) return false; var m=_custMeta(key); m.blacklisted=true; m.blacklistedAt=Date.now(); m.blacklistReason=String(reason||'').slice(0,300); if(name) m.blacklistName=name; return true; }catch(e){ return false; } }
   function _isBlacklisted(email){ try{ var key=String(email||'').toLowerCase(); return !!(key&&S.custMeta&&S.custMeta[key]&&S.custMeta[key].blacklisted); }catch(e){ return false; } }
+  function _blacklistRemove(email){ try{ var key=String(email||'').toLowerCase(); if(key&&S.custMeta&&S.custMeta[key]){ delete S.custMeta[key].blacklisted; delete S.custMeta[key].blacklistedAt; delete S.custMeta[key].blacklistReason; } return true; }catch(e){ return false; } }
+  function bkBlacklistToggle(i){ if(!_canCap('customersEdit')){ toast('Editing customers is not in your access'); return; } var c=DATA.customers[i]; if(!c)return; var key=String(c.email||'').toLowerCase(); if(!key){ toast('This customer has no email to blacklist'); return; }
+    if(_isBlacklisted(key)){ _blacklistRemove(key); _logEvent('customer','Removed '+(c.name||key)+' from blacklist',{}); save(); viewCustomer(i); toast('Removed from blacklist'); }
+    else { var r=prompt('Blacklist '+(c.name||key)+'? Future bookings for this customer will warn you. Reason (optional):'); if(r===null) return; _blacklistAdd(key, c.name, r||'Manually blacklisted'); _logEvent('customer','Blacklisted '+(c.name||key)+(r?(' -- '+r):''),{}); save(); viewCustomer(i); toast('Added to blacklist'); } }
   function bkVoidFlow(id){ if(!_guard('bookEdit','Voiding bookings'))return; if(!_voidEnabled()){ toast('Void is turned off.'); return; }
     var b=_getBooking(id); if(!b)return; if(b.status==='Voided'){ toast('This '+_fterm('book')+' is already voided.'); return; }
     var earned=_bkEarned(b), hold=b.hold, holdAmt=(hold&&hold.status==='authorized')?_r2(hold.amount||0):0;
@@ -5833,6 +5845,38 @@ const Atlas = (function(){
     b.charges=_charges(b).filter(function(c){ return !(c.kind==='late'&&!c.paidAt); });   // replace a prior UNPAID late fee so a re-calc re-bills instead of stacking duplicates
     b.charges.push({id:_chId(), kind:'late', label:'Late return: '+f.note, amount:f.amount, at:Date.now(), paidAt:null});
     _upsertBooking(b); _logEvent('booking','Late fee '+money(f.amount)+' on '+b.id,{booking:b.id}); save(); closeModal(); openBooking(id); toast('Late fee added ('+money(f.amount)+')'); }
+  // ---- Additional authorized drivers (named + optional per-driver fee via b.charges) + renter INSURANCE / coverage capture (legal record). ----
+  function _driversHtml(b){ var ds=b.drivers||[]; if(!ds.length) return '<div class="bk-lenhint" style="margin:0">Add anyone else allowed to operate the '+esc(S.fleet.noun)+' &mdash; name + license, on the record.</div>';
+    return ds.map(function(d,ix){ return '<div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid var(--line-2)"><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:13px">'+esc(d.name||'Driver')+'</b><div style="font-size:11.5px;color:var(--muted)">'+(d.license?('Lic '+esc(d.license)):'no license on file')+(+d.fee>0?(' &middot; '+money(d.fee)):'')+'</div></div><button class="btn btn--ghost btn--sm" onclick="Atlas.bkRmDriver(\''+b.id+'\','+ix+')">Remove</button></div>'; }).join(''); }
+  function bkDriver(id){ if(!_guard('bookEdit'))return; var b=_getBooking(id); if(!b)return;
+    openModal('<div class="modal__head"><h3>Add authorized driver</h3>'+_xBtn()+'</div><div class="modal__body">'
+      +'<div class="field"><label>Full name</label><input class="input" id="drName" placeholder="Second driver name"></div>'
+      +'<div class="field"><label>License number <span style="color:var(--muted);font-weight:400">(optional)</span></label><input class="input" id="drLic" placeholder="DL #"></div>'
+      +'<div class="field"><label>Additional-driver fee <span style="color:var(--muted);font-weight:400">(optional &mdash; bills the customer)</span></label><div class="rule-input" style="padding:0 12px"><span>$</span><input class="tnum" id="drFee" inputmode="decimal" style="width:auto;flex:1;text-align:left" placeholder="0"></div></div>'
+      +'<button class="btn btn--primary btn--full btn--lg" onclick="Atlas.saveDriver(\''+id+'\')">Add driver</button></div>'); }
+  function saveDriver(id){ var b=_getBooking(id); if(!b)return; var nm=(val('drName')||'').trim(); if(!nm){ toast('Enter the driver name'); return; }
+    var lic=(val('drLic')||'').trim(), fee=_r2(Math.max(0,parseFloat(val('drFee'))||0));
+    if(!b.drivers) b.drivers=[]; b.drivers.push({name:nm, license:lic, fee:fee, at:Date.now()});
+    if(fee>0) _charges(b).push({id:_chId(), kind:'driver', label:'Additional driver: '+nm, amount:fee, at:Date.now(), paidAt:null});
+    _upsertBooking(b); _logEvent('booking','Authorized driver added on '+b.id+' ('+nm+')'+(fee>0?(' -- '+money(fee)):''),{booking:b.id}); save(); closeModal(); openBooking(id); toast('Driver added'+(fee>0?(' -- '+money(fee)+' charge'):'')); }
+  function bkRmDriver(id,ix){ var b=_getBooking(id); if(!b||!b.drivers||!b.drivers[ix])return; var d=b.drivers[ix];
+    if(!confirm('Remove authorized driver '+(d.name||'')+'?'))return;
+    b.drivers.splice(ix,1);
+    if(+d.fee>0){ b.charges=_charges(b).filter(function(c){ return !(c.kind==='driver'&&!c.paidAt&&c.label==='Additional driver: '+d.name&&c.amount===_r2(d.fee)); }); }   // pull the matching UNPAID driver fee back off
+    _upsertBooking(b); _logEvent('booking','Authorized driver removed on '+b.id,{booking:b.id}); save(); openBooking(id); toast('Driver removed'); }
+  function _insHtml(b){ var n=b.insurance; if(!n||(!n.carrier&&!n.policy&&!n.waiverAccepted)) return '<div class="bk-lenhint" style="margin:0">Record the renter\'s own coverage, or that they accepted your damage waiver.</div>';
+    var bits=[]; if(n.carrier) bits.push('Carrier <b>'+esc(n.carrier)+'</b>'); if(n.policy) bits.push('Policy '+esc(n.policy)); if(n.exp) bits.push('exp '+esc(n.exp)); if(n.waiverAccepted) bits.push('<span style="color:var(--brand)">waiver accepted</span>');
+    return '<div style="padding:9px 0;border-top:1px solid var(--line-2);font-size:12.5px;color:var(--ink)">'+bits.join(' &middot; ')+(n.at?('<div style="font-size:11.5px;color:var(--muted)">'+_stamp(n.at)+'</div>'):'')+'</div>'; }
+  function bkInsurance(id){ if(!_guard('bookEdit'))return; var b=_getBooking(id); if(!b)return; var n=b.insurance||{};
+    openModal('<div class="modal__head"><h3>Insurance / coverage</h3>'+_xBtn()+'</div><div class="modal__body">'
+      +'<div class="field"><label>Renter insurance carrier</label><input class="input" id="inCar" value="'+esc(n.carrier||'')+'" placeholder="e.g. State Farm"></div>'
+      +'<div class="row2"><div class="field"><label>Policy number</label><input class="input" id="inPol" value="'+esc(n.policy||'')+'" placeholder="Policy #"></div>'
+      +'<div class="field"><label>Expires</label><input class="input" type="date" id="inExp" value="'+esc(n.exp||'')+'"></div></div>'
+      +'<label style="display:flex;align-items:center;gap:9px;padding:10px 0;font-size:13.5px;color:var(--ink);border-top:1px solid var(--line-2)"><input type="checkbox" id="inWaiver"'+(n.waiverAccepted?' checked':'')+'> Renter accepted the damage waiver</label>'
+      +'<button class="btn btn--primary btn--full btn--lg" onclick="Atlas.saveInsurance(\''+id+'\')">Save coverage</button></div>'); }
+  function saveInsurance(id){ var b=_getBooking(id); if(!b)return;
+    b.insurance={ carrier:(val('inCar')||'').trim(), policy:(val('inPol')||'').trim(), exp:val('inExp')||'', waiverAccepted:!!(document.getElementById('inWaiver')&&document.getElementById('inWaiver').checked), at:Date.now() };
+    _upsertBooking(b); _logEvent('booking','Insurance/coverage saved on '+b.id,{booking:b.id}); save(); closeModal(); openBooking(id); toast('Coverage saved'); }
   // ---- Refundable deposit hold: authorize -> capture (damage) or release (clean) ----
   function _holdHtml(b){ var h=b.hold, q=b.quote||{}, sug=_r2(q.hold||0);
     if(!h||!h.status||h.status==='none'){ return '<div class="bk-lenhint" style="margin:0 0 8px">'+(sug?('Suggested hold: <b>'+money(sug)+'</b> (from your money rules).'):'Authorize a refundable hold to cover damage or fuel.')+'</div><button class="btn btn--ghost btn--sm" onclick="Atlas.holdAuth(\''+b.id+'\')">Authorize hold</button>'; }
@@ -6391,7 +6435,8 @@ const Atlas = (function(){
     openModal('<div class="modal__head"><h3>'+esc(c.name)+'</h3>'+_xBtn()+'</div><div class="modal__body">'
       +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><span class="avatar" style="width:44px;height:44px;font-size:18px">'+esc((c.name||'?')[0])+'</span><div style="min-width:0"><div style="font-size:13px;color:var(--muted)">'+esc(c.email||'')+'</div>'+(c.phone?('<div style="font-size:13px;color:var(--muted)">'+esc(c.phone)+'</div>'):'')+'</div></div>'
       +'<div style="display:flex;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px 6px;margin-bottom:16px">'+stat(cap(_fterm('books')),trips)+stat('Spent',money(spent))+stat('Codes',String(Object.keys(codes).length))+'</div>'
-      +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px">'+(verified?'<span class="chip chip--ok"><span class="dot"></span>ID verified</span>':'<span class="chip chip--muted">Not ID-verified</span>')+'</div>'
+      +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px">'+(verified?'<span class="chip chip--ok"><span class="dot"></span>ID verified</span>':'<span class="chip chip--muted">Not ID-verified</span>')+(_isBlacklisted(key)?'<span class="chip chip--danger"><span class="dot"></span>Blacklisted</span>':'')+(key?('<button class="btn btn--ghost btn--sm" style="margin-left:auto'+(_isBlacklisted(key)?'':';color:var(--danger)')+'" onclick="Atlas.bkBlacklistToggle('+i+')">'+(_isBlacklisted(key)?'Remove from blacklist':'Blacklist')+'</button>'):'')+'</div>'
+      +((_isBlacklisted(key)&&cmeta.blacklistReason)?('<div class="bk-lenhint" style="margin:-6px 0 12px;color:var(--danger)">Blacklisted: '+esc(cmeta.blacklistReason)+'</div>'):'')
       +'<div class="field"><label>Private notes <span style="color:var(--muted);font-weight:400">(only you see these)</span></label><textarea class="input" id="custNote" rows="2" placeholder="VIP, prefers weekends, damage history, tags..." onblur="Atlas.saveCustNote('+i+')">'+esc(cmeta.notes||'')+'</textarea></div>'
       +(_loy().on?_custLoyaltyHtml(c,i):'')
       +_custGiftHtml(c)
@@ -11721,7 +11766,7 @@ const Atlas = (function(){
     goAuth,authSubmit,authTogglePass,logout,deleteAccount,deleteAccountConfirm,_doAccountDelete,_stepUpPrompt,_stepUpSubmit,policyAccept,verifyContinue,verifyResend,verifyStartOver,forgotPassword,sendResetLink,goHome,leadSubmit,subscribe,confirmSubscribe,cancelPlan,billingPortal,_openWeb,openPlans,openCredits,buyCredits,buyAddon,removeAddon,paywallUpdatePayment,paywallChoosePlan,paywallStartTrial,paywallRetryPayment,paywallCancelPlan,showSignupPlans,_hideSignupPlans,_signupPickPlan,
     mfaSubmit,mfaResend,mfaToggleBackup,mfaCancel,
     newBooking,editBooking,bkPreview,createBooking,openBooking,setBookingStatus,deleteBooking,bkReqCharge,bkReqDone,bkFilter,bkSetView,bkCalNav,viewCustomer,saveCustNote,emailCustomer,sendCustEmail,addWaitlist,saveWaitlist,editWaitlist,saveWaitlistEdit,rmWait,waitToBooking,bkAddCondition,bkRmCondition,bkCompareCondition,bkAddCharge,sendCharge,bkRmCharge,portalPayCharge,
-    bkLogIncident,saveIncident,bkIncidentCharge,bkRmIncident,bkCancelFlow,doCancel,bkVoidFlow,doVoid,unvoidBooking,bkVoidReport,bkPortalLink,bkRepeat,doRepeat,bkToggleVerify,bkRejectVerify,bkClearVerify,bkPaymentPlan,savePlan,bkPlanPaid,_ppTypeChange,_ppAddRow,_ppRmRow,_ppEdit,bkMeter,saveMeter,bkMeterBill,_mtHint,_mtOverage,bkFuel,saveFuel,_flHint,bkLate,saveLate,_ltHint,holdAuth,holdRelease,holdCapture,doCapture,
+    bkLogIncident,saveIncident,bkIncidentCharge,bkRmIncident,bkCancelFlow,doCancel,bkVoidFlow,doVoid,unvoidBooking,bkVoidReport,bkPortalLink,bkRepeat,doRepeat,bkToggleVerify,bkRejectVerify,bkClearVerify,bkPaymentPlan,savePlan,bkPlanPaid,_ppTypeChange,_ppAddRow,_ppRmRow,_ppEdit,bkMeter,saveMeter,bkMeterBill,_mtHint,_mtOverage,bkFuel,saveFuel,_flHint,bkLate,saveLate,_ltHint,bkDriver,saveDriver,bkRmDriver,bkInsurance,saveInsurance,bkBlacklistToggle,holdAuth,holdRelease,holdCapture,doCapture,
     bkClaimOpen,bkClaimEdit,saveClaim,bkClaimStatus,bkClaimRemove,bkClaimPacket,
     issueGift,saveGift,deleteGift,giftCert,giftEdit,saveGiftEdit,bkApplyGift,bkRemoveGift,
     setProtection,protAddPlan,protSetPlan,protRmPlan,bkSetProtection,protectionDoc,
