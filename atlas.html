@@ -4075,7 +4075,7 @@ const Atlas = (function(){
     hit=_navAllowed().filter(function(n){ return n[0].indexOf(q)>=0 || (n[1]||'').toLowerCase().indexOf(q)>=0 || _navLabelFor(n).toLowerCase().indexOf(q)>=0; })[0];
     return hit?hit[0]:null; }
   function _navLabelFor(n){ var c=_navCfg(); if(c.labels[n[0]]) return c.labels[n[0]]; return n[0]==='fleet'?cap(S.fleet.nouns):(n[0]==='bookings'?cap(_fterm('books')):n[1]); }
-  function _refreshNavBadges(){ try{ var na=(DATA.assets||[]).length, nb=(DATA.bookings||[]).filter(function(b){return b.status!=='Completed'&&b.status!=='Cancelled';}).length;
+  function _refreshNavBadges(){ try{ var na=(DATA.assets||[]).length, nb=(DATA.bookings||[]).filter(function(b){return b.status!=='Completed'&&b.status!=='Cancelled'&&b.status!=='Voided';}).length;
     ['fleetBadge','m_fleetBadge'].forEach(function(id){ var e=document.getElementById(id); if(e)e.textContent=na; });
     ['bookBadge','m_bookBadge'].forEach(function(id){ var e=document.getElementById(id); if(e)e.textContent=nb; }); }catch(e){} }
   function _renderNavs(){ var all=_navAllowed(), cfg=_navCfg();
@@ -4572,7 +4572,7 @@ const Atlas = (function(){
     try{ _renderRevOpt(); }catch(e){}   // Smart Pricing Increment 2: data-driven pricing suggestions, computed fresh from the util/bookings just recomputed above
     setTimeout(()=>drawRevChart(),30);
   }
-  function statusChip(s){const m={'Confirmed':'info','On rent':'ok','Returned':'warn','Completed':'muted','Pending':'warn','Cancelled':'danger'};return `<span class="chip chip--${m[s]||'muted'}"><span class="dot"></span>${s}</span>`;}
+  function statusChip(s){const m={'Confirmed':'info','On rent':'ok','Returned':'warn','Completed':'muted','Pending':'warn','Cancelled':'danger','Voided':'danger'};return `<span class="chip chip--${m[s]||'muted'}"><span class="dot"></span>${s}</span>`;}
   var _fleetLocFilter=null;
   function _assetLocs(){ if(!DATA.assets.some(function(a){return a.loc;})) return null; var g={}; DATA.assets.forEach(function(a){ var L=a.loc||'Unassigned'; (g[L]=g[L]||[]).push(a); }); return g; }
   function fleetLoc(L){ _fleetLocFilter=(_fleetLocFilter===L)?null:L; renderFleet(); }
@@ -4930,12 +4930,12 @@ const Atlas = (function(){
     }
   }
   /* ---- Bookings module (persisted per-tenant collection, priced by the money engine) ---- */
-  const BK_STATUSES=['Pending','Confirmed','On rent','Returned','Completed','Cancelled'];   // G3: 'Returned' = came back, awaiting close-out (inspect / resolve deposit / final charges). Asset stays RESERVED (availability excludes only Completed+Cancelled) until you mark Completed, which frees it.
+  const BK_STATUSES=['Pending','Confirmed','On rent','Returned','Completed','Cancelled','Voided'];   // G3: 'Returned' = came back, awaiting close-out (inspect / resolve deposit / final charges). Asset stays RESERVED (availability excludes only Completed+Cancelled+Voided) until you mark Completed, which frees it. #void: 'Voided' = early-terminated, KEEPS revenue, frees the asset same-day, reversible.
   var _bkFilter='all';
   var _bkView='list', _bkCalOff=0;
   function bkSetView(m){ _bkView=(m==='calendar'?'calendar':'list'); renderBookings(); }
   function bkCalNav(d){ if(d===0)_bkCalOff=0; else _bkCalOff+=d; _renderBkCal(); }
-  var _bkStColor={'Pending':'#B57912','Confirmed':'#2A6F97','On rent':'#1E6E4E','Returned':'#C77D0A','Completed':'#6B7660','Cancelled':'#B0342A'};
+  var _bkStColor={'Pending':'#B57912','Confirmed':'#2A6F97','On rent':'#1E6E4E','Returned':'#C77D0A','Completed':'#6B7660','Cancelled':'#B0342A','Voided':'#7A0000'};
   function _renderBkCal(){ var tbl=document.getElementById('bookTblFull'); var card=tbl&&tbl.closest('.card'); if(!card)return;
     var cal=document.getElementById('bkCal'); if(!cal){ cal=document.createElement('div'); cal.id='bkCal'; cal.className='bkcal'; card.appendChild(cal); }
     cal.style.display='';
@@ -5382,7 +5382,7 @@ const Atlas = (function(){
     if(a && a.status==='Maintenance') return {type:'maintenance', reason:'in maintenance'};   // fix: a unit marked out of service is not bookable (owner can still knowingly override the confirm in createBooking)
     if(a && a.blackouts){ for(var i=0;i<a.blackouts.length;i++){ var bl=a.blackouts[i], f=Number(bl.from)||0, t=Number(bl.to)||0; if(t<f){var x=f;f=t;t=x;}
       if(_rangesOverlap(startTs,endTs,f,t+86400000)) return {type:'blackout', reason:(bl.reason||'blocked dates')}; } }   // blackout is a day range -> include the whole end day
-    var c=(DATA.bookings||[]).filter(function(b){ return b.id!==excludeId && ((_aid&&b.assetId)?(String(b.assetId)===_aid):(b.asset===assetName)) && b.status!=='Cancelled' && b.status!=='Completed'; })
+    var c=(DATA.bookings||[]).filter(function(b){ return b.id!==excludeId && ((_aid&&b.assetId)?(String(b.assetId)===_aid):(b.asset===assetName)) && b.status!=='Cancelled' && b.status!=='Completed' && b.status!=='Voided'; })   // #void: a voided (early-terminated) trip frees the asset the same day
       .filter(function(b){ var s=Number(b.startTs)||0, e=Number(b.endTs)||(s+_periodMs()); if(e<=s)e=s+_periodMs(); return _rangesOverlap(startTs,endTs,s,e); })[0];
     if(c) return {type:'booking', reason:c.id+(c.cust?(' \u2014 '+c.cust):'')};
     return null; }
@@ -5485,11 +5485,16 @@ const Atlas = (function(){
   }
   function openBooking(id){ var b=_getBooking(id); if(!b) return;
     var q=b.quote||calcQuote(S.money,{periods:b.periods,addons:b.addons,extras:b.extras,discount:b.discount}); var a='';
-    if(b.status!=='Cancelled'&&b.status!=='Completed'){
+    if(b.status!=='Cancelled'&&b.status!=='Completed'&&b.status!=='Voided'){
       var nx={'Pending':['Confirmed','Confirm'],'Confirmed':['On rent','Start rental'],'On rent':['Returned','Complete return'],'Returned':['Completed','Close out']}[b.status];   // #5: the one-click flow now routes through Returned (asset stays reserved for close-out) -> Close out frees it
       if(nx) a+='<button class="btn btn--primary btn--sm" onclick="Atlas.setBookingStatus(\''+b.id+'\',\''+nx[0]+'\')">'+nx[1]+'</button>';
       a+='<button class="btn btn--ghost btn--sm" onclick="Atlas.editBooking(\''+b.id+'\')">Edit</button>';
       a+='<button class="btn btn--sm btn--danger" onclick="Atlas.bkCancelFlow(\''+b.id+'\')">Cancel</button>';
+      if(_voidEnabled()) a+='<button class="btn btn--sm" style="border-color:rgba(176,52,42,.5);color:#B0342A;background:transparent" onclick="Atlas.bkVoidFlow(\''+b.id+'\')" title="End the contract early &mdash; keep the money, free the '+esc(S.fleet.noun)+', reversible">Void</button>';
+    } else if(b.status==='Voided'){
+      a+='<button class="btn btn--ghost btn--sm" onclick="Atlas.bkVoidReport(\''+b.id+'\')">Legal report</button>';
+      a+='<button class="btn btn--ghost btn--sm" onclick="Atlas.unvoidBooking(\''+b.id+'\')">Un-void</button>';
+      a+='<button class="btn btn--sm btn--danger" onclick="Atlas.deleteBooking(\''+b.id+'\')">Delete</button>';
     } else { a+='<button class="btn btn--ghost btn--sm" onclick="Atlas.editBooking(\''+b.id+'\')">Edit</button><button class="btn btn--sm btn--danger" onclick="Atlas.deleteBooking(\''+b.id+'\')">Delete</button>'; }
     a+='<button class="btn btn--ghost btn--sm" onclick="Atlas.bkRepeat(\''+b.id+'\')"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" style="vertical-align:-2px"><path d="M3 8a5 5 0 019-3M13 8a5 5 0 01-9 3M11 2v3H8M5 14v-3h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Repeat</button>';
     a+='<button class="btn btn--ghost btn--sm" onclick="Atlas.bkPortalLink(\''+b.id+'\')" title="Copy this customer\'s signing + payment link"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" style="vertical-align:-2px"><path d="M6.6 9.4l2.8-2.8M7 4.6l.8-.8a2.4 2.4 0 013.4 3.4l-.8.8M9 11.4l-.8.8a2.4 2.4 0 01-3.4-3.4l.8-.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg> Portal link</button>';
@@ -5557,13 +5562,87 @@ const Atlas = (function(){
       +'<div style="display:flex;gap:10px;margin-top:10px"><button class="btn btn--ghost btn--full btn--sm" onclick="Atlas.openReceipt(\''+b.id+'\')">Receipt</button><button class="btn btn--ghost btn--full btn--sm" onclick="Atlas.openPortal(\''+b.id+'\')">Customer portal</button></div></div>');
   }
   function setBookingStatus(id,st){ if(!_guard('bookEdit','Updating bookings'))return; var b=_getBooking(id); if(!b)return; b.status=st; if(st==='Completed'){ try{ _loyOnComplete(b); }catch(e){} } _upsertBooking(b); _logEvent('booking','Booking '+b.id+' marked '+st,{booking:b.id,status:st}); closeModal(); renderOverview(); renderBookings(); renderCustomers();   // fix: refresh Customers panel (Trips/Spent/last-active) live
-    var bb=document.getElementById('bookBadge'); if(bb)bb.textContent=_bookings().filter(function(x){return x.status!=='Completed'&&x.status!=='Cancelled';}).length; toast('Booking '+st.toLowerCase()); }
+    var bb=document.getElementById('bookBadge'); if(bb)bb.textContent=_bookings().filter(function(x){return x.status!=='Completed'&&x.status!=='Cancelled'&&x.status!=='Voided';}).length; toast('Booking '+st.toLowerCase()); }
   function deleteBooking(id){ if(!_guard('bookEdit','Deleting bookings'))return; if(!confirm('Delete this booking permanently?'))return; _delBooking(id); closeModal(); renderOverview(); renderBookings(); renderCustomers(); _bkBadge(); toast('Booking deleted'); }   // fix: refresh Customers panel live
   // Booking G2: act on a customer's portal change-request in-app (was only visible in an email). Turn it into a charge (reuses Send a charge) or dismiss it.
   function bkReqCharge(id,ri){ if(!_guard('bookEdit'))return; var b=_getBooking(id); if(!b||!b.portal||!b.portal.requests||!b.portal.requests[ri])return; var rq=b.portal.requests[ri]; rq.status='charged'; _upsertBooking(b); save(); bkAddCharge(id); setTimeout(function(){ var l=document.getElementById('chLabel'); if(l) l.value=(rq.extra||'Requested change'); },60); }
   function bkReqDone(id,ri){ if(!_guard('bookEdit'))return; var b=_getBooking(id); if(!b||!b.portal||!b.portal.requests||!b.portal.requests[ri])return; b.portal.requests[ri].status='dismissed'; _upsertBooking(b); save(); openBooking(id); toast('Request dismissed'); }
   // ---- Cancellation-policy engine: cancel with a smart fee (kept via the reconciled portal-charge model) ----
   function _cxWindow(){ return (S.money&&S.money.cancelWindowHrs!=null)?S.money.cancelWindowHrs:48; }
+  // === VOID / early-termination: contract broken -> KEEP earnings (+ any captured deposit) as revenue, free the asset the
+  //     SAME DAY, legal record, optional blacklist. Additive + fully reversible (nothing deleted). Generic across every rental type.
+  //     Unlike Cancel, void fires NO refund; revenue stays because _isCommitted() counts every non-Cancelled/non-Pending status. ===
+  function _voidEnabled(){ try{ return !(S&&S.flags&&S.flags.voidContract===false); }catch(e){ return true; } }   // default ON; kill-switch: S.flags.voidContract=false
+  function _blacklistAdd(email,name,reason){ try{ var key=String(email||'').toLowerCase(); if(!key) return false; var m=_custMeta(key); m.blacklisted=true; m.blacklistedAt=Date.now(); m.blacklistReason=String(reason||'').slice(0,300); if(name) m.blacklistName=name; return true; }catch(e){ return false; } }
+  function _isBlacklisted(email){ try{ var key=String(email||'').toLowerCase(); return !!(key&&S.custMeta&&S.custMeta[key]&&S.custMeta[key].blacklisted); }catch(e){ return false; } }
+  function bkVoidFlow(id){ if(!_guard('bookEdit','Voiding bookings'))return; if(!_voidEnabled()){ toast('Void is turned off.'); return; }
+    var b=_getBooking(id); if(!b)return; if(b.status==='Voided'){ toast('This '+_fterm('book')+' is already voided.'); return; }
+    var earned=_bkEarned(b), hold=b.hold, holdAmt=(hold&&hold.status==='authorized')?_r2(hold.amount||0):0;
+    openModal('<div class="modal__head"><h3>Void '+esc(b.id)+'</h3>'+_xBtn()+'</div><div class="modal__body">'
+      +'<div class="bk-lenhint" style="margin:0 0 12px">End this contract early because it was broken. You <b>keep the '+money(earned)+' already earned</b> as revenue, the '+esc(S.fleet.noun)+' is <b>freed today</b> so you can re-book it, and nothing is deleted &mdash; un-void anytime.'+(holdAmt>0?(' The '+money(holdAmt)+' security deposit stays on hold &mdash; capture or release it with the deposit controls after voiding.'):'')+'</div>'
+      +'<div class="field"><label>Why was the contract voided? (recorded on the legal report)</label><textarea class="input" id="vdReason" rows="3" placeholder="e.g. renter no-show, terms breached, '+esc(S.fleet.noun)+' recovered early"></textarea></div>'
+      +'<label style="display:flex;align-items:center;gap:9px;padding:10px 0;font-size:13.5px;color:var(--ink);border-top:1px solid var(--line-2)"><input type="checkbox" id="vdBlacklist"> Add this customer to the blacklist (flags future bookings)</label>'
+      +'<button class="btn btn--danger btn--full btn--lg" style="margin-top:10px" onclick="Atlas.doVoid(\''+esc(b.id)+'\')">&#9940; Void contract &mdash; keep the money</button></div>');
+    setTimeout(function(){ try{ document.getElementById('vdReason').focus(); }catch(e){} },30); }
+  function doVoid(id){ var b=_getBooking(id); if(!b)return; var reason=(val('vdReason')||'').trim();
+    if(!reason){ toast('Please enter why the contract was voided.'); try{ document.getElementById('vdReason').focus(); }catch(e){} return; }
+    var doBl=!!(document.getElementById('vdBlacklist')&&document.getElementById('vdBlacklist').checked);
+    b._preVoidStatus=b.status; b.status='Voided'; b.voidReason=reason.slice(0,1000); b.voidedAt=Date.now(); b.voidedBy=_sessEmail()||'owner'; b.endedEarly=true; b._t=Date.now();
+    b._history=(b._history||[]).concat([{at:Date.now(),by:b.voidedBy,note:'Voided (was '+b._preVoidStatus+'): '+reason.slice(0,140)}]);
+    if(doBl) _blacklistAdd(b.custEmail,b.cust,'Contract voided: '+reason.slice(0,120));
+    _upsertBooking(b); _logEvent('booking','Contract VOIDED on '+b.id+' -- money kept, '+(b.asset||'asset')+' freed'+(doBl?' + blacklisted':''),{booking:b.id}); save(); closeModal();
+    try{ renderOverview(); renderBookings(); renderCustomers(); _refreshNavBadges(); }catch(e){}
+    toast('\u26d4 Contract voided -- '+(b.asset||'asset')+' freed, money kept.');
+    setTimeout(function(){ if(confirm('Contract voided. Open the legal termination report now?')) _voidLegalReport(id); },250); }
+  function unvoidBooking(id){ if(!_guard('bookEdit'))return; var b=_getBooking(id); if(!b||b.status!=='Voided')return;
+    var back=b._preVoidStatus||'Confirmed';
+    if(!confirm('Un-void this '+_fterm('book')+'? It returns to "'+back+'" and the '+(b.asset||'asset')+' is scheduled again. Nothing is deleted.'))return;
+    b.status=back; b.endedEarly=false; b._t=Date.now();
+    b._history=(b._history||[]).concat([{at:Date.now(),by:_sessEmail()||'owner',note:'Un-voided -> '+back}]);
+    _upsertBooking(b); _logEvent('booking','Booking '+b.id+' un-voided (-> '+back+')',{booking:b.id}); save(); closeModal();
+    try{ renderOverview(); renderBookings(); renderCustomers(); _refreshNavBadges(); }catch(e){}
+    toast('Restored from voided.'); }
+  function bkVoidReport(id){ _voidLegalReport(id); }
+  function _voidLegalReport(id){ var b=_getBooking(id); if(!b){ toast('Booking not found.'); return; }
+    var E=function(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+    var mny=function(n){ return money(_r2(Number(n)||0)); };
+    var when=function(ms){ if(!ms)return '&mdash;'; try{ return E(_stamp(ms)); }catch(e){ return '&mdash;'; } };
+    var rk=function(k,v){ return '<tr><td class="k">'+k+'</td><td class="v">'+(v==null||v===''?'&mdash;':v)+'</td></tr>'; };
+    var p=_portal(b)||{}, tr=b.sigTrail||{};
+    var paid=_charges(b).filter(function(c){ return c&&c.paidAt; });
+    var payRows=paid.length?paid.map(function(c){ return '<tr><td>'+when(c.paidAt)+'</td><td>'+E(c.label||'Charge')+'</td><td class="r">'+mny(c.amount)+'</td></tr>'; }).join(''):'<tr><td colspan="3" class="muted">No itemized charges on file.</td></tr>';
+    var earned=_bkEarned(b);
+    var holdInfo=b.hold?(b.hold.status==='captured'?('Captured '+mny(b.hold.captured||b.hold.amount)):b.hold.status==='authorized'?('On hold '+mny(b.hold.amount)+' (not yet captured)'):b.hold.status==='released'?('Released '+mny(b.hold.amount)):'&mdash;'):'&mdash;';
+    var sigHtml=(p&&p.sig)?(p.sig.type==='draw'?('<img src="'+E(p.sig.data)+'" alt="signature"/>'):('<b>'+E(p.sig.data)+'</b>')):(p&&p.signerName?('<b>'+E(p.signerName)+'</b>'):'<span class="muted">No signature on file</span>');
+    var verify=b.idVerified?('Verified '+when(b.idVerifiedAt)):(b.idRejected?'Rejected':'<span class="muted">Not verified</span>');
+    var brand=(S.brand&&S.brand.name)||'Rental';
+    var ref=b.id||'';
+    var H='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Void Legal Record '+E(ref)+'</title><style>'
+     +'*{box-sizing:border-box}body{font-family:Georgia,\'Times New Roman\',serif;color:#111;background:#f2f2f2;margin:0;padding:24px;line-height:1.5}'
+     +'.doc{max-width:760px;margin:0 auto;background:#fff;padding:40px 44px;box-shadow:0 2px 14px rgba(0,0,0,.14)}'
+     +'.hd{border-bottom:3px solid #111;padding-bottom:14px;margin-bottom:20px}.brand{font-size:20px;font-weight:700;letter-spacing:.04em}'
+     +'.title{font-size:15px;font-weight:700;margin-top:6px;color:#7a0000;letter-spacing:.06em}.gen{font-size:11px;color:#666;margin-top:6px}'
+     +'h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#7a0000;border-bottom:1px solid #ddd;padding-bottom:5px;margin:26px 0 10px}'
+     +'table{width:100%;border-collapse:collapse;font-size:13px}td{padding:5px 8px;vertical-align:top;border-bottom:1px solid #eee}'
+     +'td.k{width:38%;color:#555;font-weight:700}.r{text-align:right}.muted{color:#999}'
+     +'.reason{white-space:pre-wrap;background:#faf6f6;border:1px solid #e6d5d5;border-radius:6px;padding:12px;font-size:13px}'
+     +'img{max-width:300px;max-height:110px;border:1px solid #ccc;background:#fff;padding:4px}'
+     +'.tot{font-weight:700}.ft{margin-top:30px;border-top:1px solid #ddd;padding-top:12px;font-size:11px;color:#777}'
+     +'.no-print{margin:0 0 18px}.no-print button{font:inherit;font-size:13px;background:#111;color:#fff;border:0;border-radius:6px;padding:9px 16px;cursor:pointer}'
+     +'@media print{body{background:#fff;padding:0}.doc{box-shadow:none;max-width:none;padding:24px}.no-print{display:none}@page{margin:14mm}}'
+     +'</style></head><body><div class="doc">'
+     +'<div class="hd"><div class="brand">'+E(brand)+'</div><div class="title">Contract Termination / Void &mdash; Legal Record</div><div class="gen">Generated '+when(Date.now())+' &middot; Reference '+E(ref)+'</div></div>'
+     +'<div class="no-print"><button onclick="window.print()">Print / Save as PDF</button></div>'
+     +'<h2>Agreement</h2><table>'+rk('Renter',E(b.cust||''))+rk('Email / Phone',E((b.custEmail||'')+(b.phone?('  &middot;  '+b.phone):'')))+rk(cap(S.fleet.noun),E(b.asset||''))+rk('When',E(_bkWhen(b)))+rk('Length',E(b.periods+' '+_perUnit()))+'</table>'
+     +'<h2>Termination</h2><table>'+rk('Status','<b style="color:#7a0000">VOIDED / ENDED EARLY</b>')+rk('Voided on',when(b.voidedAt))+rk('Voided by',E(b.voidedBy||'owner'))+'</table>'
+     +'<div style="margin-top:8px"><div class="k" style="color:#555;font-weight:700;font-size:13px;margin-bottom:5px">Reason (verbatim)</div><div class="reason">'+E(b.voidReason||'')+'</div></div>'
+     +'<h2>Signature &amp; Identity</h2><table>'+rk('Signature',sigHtml)+rk('Signed on',p&&p.signedAt?when(p.signedAt):'&mdash;')+rk('Signer',E((p&&p.signerName)||''))+rk('Signer IP',E(tr.ip||'')||'<span class="muted">not recorded</span>')+rk('ID verification',verify)+'</table>'
+     +'<h2>Payments received (proof)</h2><table><tr><td><b>Date</b></td><td><b>Item</b></td><td class="r"><b>Amount</b></td></tr>'+payRows+'</table>'
+     +'<h2>Retained as revenue (non-refundable)</h2><table>'+rk('Realized revenue kept','<span class="r" style="display:block">'+mny(earned)+'</span>')+rk('Security deposit',holdInfo)+'<tr class="tot"><td class="k">Total retained</td><td class="v"><span class="r" style="display:block">'+mny(earned)+'</span></td></tr></table>'
+     +'<div class="ft">Business record generated by '+E(brand)+' documenting the early termination of the above rental agreement. Signature, timestamps, IP (where captured) and payment records are reproduced from the booking on file. Realized revenue already includes any captured security deposit. Reference '+E(ref)+'.</div>'
+     +'</div></body></html>';
+    var w=window.open('','_blank'); if(!w){ toast('Allow pop-ups to open the legal report.'); return; }
+    w.document.open(); w.document.write(H); w.document.close(); try{ w.focus(); }catch(e){} }
   function bkCancelFlow(id){ if(!_guard('bookEdit','Cancelling bookings'))return; var b=_getBooking(id); if(!b)return;
     var q=b.quote||calcQuote(S.money,{periods:b.periods,addons:b.addons,extras:b.extras,discount:b.discount});
     var dep=_r2(q.dueNow||0), half=_r2((q.total||0)*0.5), win=_cxWindow();
@@ -5584,7 +5663,7 @@ const Atlas = (function(){
     b.status='Cancelled'; b.cancelledAt=Date.now(); b.cancelFee=fee;
     if(fee>0) _charges(b).push({id:_chId(), label:'Cancellation fee', amount:fee, at:Date.now(), paidAt:Date.now()});   // kept from money already collected -> shows as retained revenue (server books it as revenue_cents=keepCents)
     _upsertBooking(b); _logEvent('booking','Booking '+b.id+' cancelled'+(fee?(' -- kept '+money(fee)):' (full refund)'),{booking:b.id}); save(); closeModal();
-    renderOverview(); renderBookings(); renderCustomers(); var bb=document.getElementById('bookBadge'); if(bb)bb.textContent=_bookings().filter(function(x){return x.status!=='Completed'&&x.status!=='Cancelled';}).length;   // fix: refresh Customers panel live
+    renderOverview(); renderBookings(); renderCustomers(); var bb=document.getElementById('bookBadge'); if(bb)bb.textContent=_bookings().filter(function(x){return x.status!=='Completed'&&x.status!=='Cancelled'&&x.status!=='Voided';}).length;   // fix: refresh Customers panel live
     // CORE-LOOP: issue the REAL Stripe refund (keep the policy fee, refund the rest of what was captured; release any deposit hold) -- was local-only, so "full refund" refunded nothing.
     if(ATLAS_BACKEND && _apiCsrf && !_isDemoTenant()){
       toast(fee?('Cancelling \u2014 keeping '+money(fee)+'\u2026'):'Cancelling \u2014 refunding\u2026');
@@ -5620,7 +5699,7 @@ const Atlas = (function(){
       delete nb.conditionMedia; delete nb.claim; delete nb.hold; delete nb.meter; delete nb.plan; delete nb.giftRedemptions; delete nb.idVerified; delete nb.idVerifiedAt; delete nb.idRejected; delete nb.idRejectedAt;   // fix: a clone must not inherit the prior rental's photos/claim/hold/meter/plan/gift/ID-verification
       _upsertBooking(nb); made++; }
     _logEvent('booking','Created '+made+' recurring bookings from '+b.id+(skipped?(' ('+skipped+' skipped -- dates unavailable)'):''),{booking:b.id}); save(); closeModal(); renderOverview(); renderBookings();
-    var bb=document.getElementById('bookBadge'); if(bb)bb.textContent=_bookings().filter(function(x){return x.status!=='Completed'&&x.status!=='Cancelled';}).length; toast(made+' recurring bookings created'+(skipped?(' \u2014 '+skipped+' skipped (dates unavailable)'):'')); }
+    var bb=document.getElementById('bookBadge'); if(bb)bb.textContent=_bookings().filter(function(x){return x.status!=='Completed'&&x.status!=='Cancelled'&&x.status!=='Voided';}).length; toast(made+' recurring bookings created'+(skipped?(' \u2014 '+skipped+' skipped (dates unavailable)'):'')); }
   // ---- Booking-level ID verification ----
   function bkToggleVerify(id){ if(!_guard('bookEdit'))return; var b=_getBooking(id); if(!b)return; b.idVerified=true; b.idVerifiedAt=Date.now(); b.idRejected=false; delete b.idRejectedAt;
     _upsertBooking(b); _logEvent('booking','ID verified for '+b.id,{booking:b.id}); save(); openBooking(id); toast('ID marked verified'); }
@@ -5719,7 +5798,7 @@ const Atlas = (function(){
   /* ---- small shared helpers ---- */
   function val(id){ var e=document.getElementById(id); return e?e.value:''; }
   function _perUnitOne(){ return S.money.rateModel==='hour'?'hour':(S.money.rateModel==='week'?'week':(S.money.rateModel==='month'?'month':'day')); }
-  function _bkBadge(){ var el=document.getElementById('bookBadge'); if(el) el.textContent=_bookings().filter(function(x){return x.status!=='Completed'&&x.status!=='Cancelled';}).length; }
+  function _bkBadge(){ var el=document.getElementById('bookBadge'); if(el) el.textContent=_bookings().filter(function(x){return x.status!=='Completed'&&x.status!=='Cancelled'&&x.status!=='Voided';}).length; }
   function _extrasCatalog(){ return (S.money && S.money.extras && S.money.extras.length) ? S.money.extras : DEFAULT_EXTRAS; }
   function _extrasCatalogFor(name){ var a=(DATA.assets||[]).filter(function(x){return x.name===name;})[0]; if(a && Array.isArray(a.extraIds)){ var set={}; a.extraIds.forEach(function(id){set[id]=1;}); return _extrasCatalog().filter(function(e){return set[e.id];}); } return _extrasCatalog(); }   // per-asset offered extras = subset of the global catalog; no a.extraIds means inherit every extra
   function _bkReadDiscount(){ var t=val('bkDiscType')||'none', v=parseFloat(val('bkDiscVal'))||0; return {type:t,value:v}; }
@@ -11580,7 +11659,7 @@ const Atlas = (function(){
     goAuth,authSubmit,authTogglePass,logout,deleteAccount,deleteAccountConfirm,_doAccountDelete,_stepUpPrompt,_stepUpSubmit,policyAccept,verifyContinue,verifyResend,verifyStartOver,forgotPassword,sendResetLink,goHome,leadSubmit,subscribe,confirmSubscribe,cancelPlan,billingPortal,_openWeb,openPlans,openCredits,buyCredits,buyAddon,removeAddon,paywallUpdatePayment,paywallChoosePlan,paywallStartTrial,paywallRetryPayment,paywallCancelPlan,showSignupPlans,_hideSignupPlans,_signupPickPlan,
     mfaSubmit,mfaResend,mfaToggleBackup,mfaCancel,
     newBooking,editBooking,bkPreview,createBooking,openBooking,setBookingStatus,deleteBooking,bkReqCharge,bkReqDone,bkFilter,bkSetView,bkCalNav,viewCustomer,saveCustNote,emailCustomer,sendCustEmail,addWaitlist,saveWaitlist,editWaitlist,saveWaitlistEdit,rmWait,waitToBooking,bkAddCondition,bkRmCondition,bkCompareCondition,bkAddCharge,sendCharge,bkRmCharge,portalPayCharge,
-    bkLogIncident,saveIncident,bkIncidentCharge,bkRmIncident,bkCancelFlow,doCancel,bkPortalLink,bkRepeat,doRepeat,bkToggleVerify,bkRejectVerify,bkClearVerify,bkPaymentPlan,savePlan,bkPlanPaid,_ppTypeChange,_ppAddRow,_ppRmRow,_ppEdit,bkMeter,saveMeter,bkMeterBill,_mtHint,_mtOverage,holdAuth,holdRelease,holdCapture,doCapture,
+    bkLogIncident,saveIncident,bkIncidentCharge,bkRmIncident,bkCancelFlow,doCancel,bkVoidFlow,doVoid,unvoidBooking,bkVoidReport,bkPortalLink,bkRepeat,doRepeat,bkToggleVerify,bkRejectVerify,bkClearVerify,bkPaymentPlan,savePlan,bkPlanPaid,_ppTypeChange,_ppAddRow,_ppRmRow,_ppEdit,bkMeter,saveMeter,bkMeterBill,_mtHint,_mtOverage,holdAuth,holdRelease,holdCapture,doCapture,
     bkClaimOpen,bkClaimEdit,saveClaim,bkClaimStatus,bkClaimRemove,bkClaimPacket,
     issueGift,saveGift,deleteGift,giftCert,giftEdit,saveGiftEdit,bkApplyGift,bkRemoveGift,
     setProtection,protAddPlan,protSetPlan,protRmPlan,bkSetProtection,protectionDoc,
