@@ -2074,6 +2074,9 @@ const Atlas = (function(){
     local.forEach(function(x){ if(x&&x.id&&!byId[x.id]){ byId[x.id]=x; order.push(x.id); if(x._t) _seenT(x._t); } });
     rows.forEach(function(row){ var srv=_srvUnshape(kind,row); if(!srv||!srv.id) return; _seenT(srv._t); var loc=byId[srv.id];   // #294: feed the monotonic clock so our next local stamp is after the server's newest
       if(!loc){ byId[srv.id]=srv; order.push(srv.id); } else if((srv._t||0)>(loc._t||0)){ byId[srv.id]=srv; }
+      else if(kind==='bookings' && Array.isArray(srv.extensions) && Array.isArray(loc.extensions)){   // #extfix: local booking wins by _t, but never drop a server-recorded extension SIGNATURE (mirrors the worker _graftServerPay)
+        var _sx={}; srv.extensions.forEach(function(e){ if(e&&e.id!=null&&e.signedAt) _sx[String(e.id)]=e; });
+        loc.extensions.forEach(function(e){ if(e&&e.id!=null){ var s=_sx[String(e.id)]; if(s&&!e.signedAt){ e.signedAt=s.signedAt; if(s.signerName!=null)e.signerName=s.signerName; if(s.sigId!=null)e.sigId=s.sigId; } } }); }
       _pushedHash[kind+':'+srv.id]=JSON.stringify(byId[srv.id]); });
     _lsSet(lsKey, order.map(function(id){ return byId[id]; })); }
   function _srvMergeProfile(tid,prof){ _profileHydrated=true;   // #294 Gap 6: a valid server profile was received -> the profile push is now safe to run
@@ -3616,6 +3619,15 @@ const Atlas = (function(){
     if(reseed){ DATA.assets.forEach(function(a,i){ a.name = t.sample[i] || (cap(t.noun)+' '+('0'+(i+1)).slice(-2)); }); _saveAssets(); }
     buildApp(); goSettings('branding'); toast('Now set up for '+t.nouns);
   }
+  // Post-onboarding multi-type: a tenant who started with (say) Cars can ADD other things they rent -- a rental property, a boat,
+  // equipment -- all under this one account, WITHOUT changing their main type/labels. Toggles the extra types in S.fleet.also; each
+  // added type then shows a Type picker in Add-Asset (already wired for multi-type fleets), keeps its own default rate, and every
+  // asset/unit + any new location it needs counts against the SAME plan (units = sum of qty; locations = hard per-tier cap).
+  function fleetAlsoToggle(id){ if(!_canMod('settings'))return; if(!id||id===(S.fleet&&S.fleet.id))return; if(!FLEET_TYPES.find(function(x){return x.id===id;}))return;
+    S.fleet.also=Array.isArray(S.fleet.also)?S.fleet.also:[]; var i=S.fleet.also.indexOf(id);
+    if(i>=0) S.fleet.also.splice(i,1); else S.fleet.also.push(id);
+    save(); try{ goSettings('branding'); }catch(e){} try{ if(typeof renderFleet==='function' && document.getElementById('assetGrid')) renderFleet(); }catch(e){}
+    toast(i>=0?'Removed a rental type':'Added \u2014 tag your new items to it in Add '+cap((S.fleet&&S.fleet.noun)||'asset')); }
   function setCustomNoun(which,val){ val=(val||'').replace(/[<>&"']/g,'').trim().slice(0,40); if(!val)return; S.fleet[which]=val;   // SECURITY: strip HTML-breakout chars + cap length at the ONLY noun write path, so a custom fleet noun can never carry a script payload into the toast / AI-chat innerHTML sinks (fleet-noun stored-XSS; manager-tier -> owner priv-esc chain)
     if(which==='noun'){ if(!S.fleet.nouns||S.fleet.nouns==='assets') S.fleet.nouns=(/(ss|x|z|ch|sh)$/i.test(val)?val+'es':(/[^aeiou]y$/i.test(val)?val.slice(0,-1)+'ies':(/s$/.test(val)?val:val+'s'))); if(!S.fleet.label||S.fleet.label==='Something else') S.fleet.label=cap(val); }   // off-the-wall nouns: box->boxes, dress->dresses, watch->watches, party->parties, canopy->canopies; already-plural (tools) kept (was naive +'s')
     save(); if(S.onboarded){ buildApp(); goSettings('branding'); }   // in-onboarding: just persist (navigating to Settings would break the flow)
@@ -5037,7 +5049,7 @@ const Atlas = (function(){
     (_bookings()||[]).forEach(function(b){
       if(!_isCommitted(b)||b.asset!==a.name) return;
       var s=Number(b.startTs)||Number(b.createdAt)||0; if(!s) return;
-      var e=Number(b.endTs)||(s+(Number(b.periods)||1)*pm);
+      var e=_bkEffectiveEndTs(b)||(s+(Number(b.periods)||1)*pm);   // #extfix: utilization counts the effective (extended) occupancy
       var lo=Math.max(s,from), hi=Math.min(e,now);
       if(hi>lo) booked+=(hi-lo);
     });
@@ -5821,7 +5833,7 @@ const Atlas = (function(){
   // ---- Metered / run-hour billing: bill exact hours or miles used at return ----
   function _meterHtml(b){ var m=b.meter; if(!m) return '<div class="bk-lenhint" style="margin:0">For usage-based assets (generators, tools, hourly gear) &mdash; bill the exact hours or miles used.</div>';
     var amt=_r2(m.units*m.rate); return '<div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid var(--line-2)"><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:13px">'+m.units+' '+esc(m.unit)+' &times; '+money(m.rate)+'</b><div style="font-size:11.5px;color:var(--muted)">'+_stamp(m.at)+(m.charged?(' &middot; billed'):'')+'</div></div>'+(m.charged?'<span class="chip chip--ok"><span class="dot"></span>Billed '+money(amt)+'</span>':'<button class="btn btn--primary btn--sm" onclick="Atlas.bkMeterBill(\''+b.id+'\')">Bill '+money(amt)+'</button>')+'</div>'; }
-  function bkMeter(id){ if(!_guard('bookEdit'))return; var b=_getBooking(id); if(!b)return; var _oa=_bkAssetObj(b), _op=_bkPeriods(b), _ou=(_oa&&_oa.usageUnit)||_svcUnitWord();
+  function bkMeter(id){ if(!_guard('bookEdit'))return; var b=_getBooking(id); if(!b)return; var _oa=_bkAssetObj(b), _op=_bkPeriods(b)+_bkExtPeriods(b), _ou=(_oa&&_oa.usageUnit)||_svcUnitWord();   // #extfix: included allowance scales with the EFFECTIVE length (base + paid extensions) so an extended rental isn't over-charged on overage
     openModal('<div class="modal__head"><h3>Usage / metered billing</h3>'+_xBtn()+'</div><div class="modal__body">'
       +((_oa && +_oa.usageAllow>0 && +_oa.overageRate>0)?('<div style="font-size:13px;font-weight:750;color:var(--ink);margin:0 0 8px">'+cap(_ou)+' overage</div><div class="bk-lenhint" style="margin:0 0 8px">Included: <b>'+((+_oa.usageAllow)*_op)+' '+esc(_ou)+'</b> ('+(+_oa.usageAllow)+'/'+esc(S.money.rateModel)+' x '+_op+') &middot; '+money(+_oa.overageRate)+'/'+esc(_ou.replace(/s$/,""))+' over. Enter the readings and the overage fills in below, then Record + Bill it.</div><div class="row2"><div class="field"><label>'+cap(_ou)+' out</label><input class="input tnum" id="mtOdoOut" inputmode="numeric" value="'+((+_oa.odometer>0)?(+_oa.odometer):"")+'" oninput="Atlas._mtOverage('+_op+','+(+_oa.usageAllow)+','+(+_oa.overageRate)+',\''+esc(_ou)+'\')"></div><div class="field"><label>'+cap(_ou)+' in</label><input class="input tnum" id="mtOdoIn" inputmode="numeric" oninput="Atlas._mtOverage('+_op+','+(+_oa.usageAllow)+','+(+_oa.overageRate)+',\''+esc(_ou)+'\')"></div></div><div class="bk-lenhint" id="mtOvHint" style="margin:0 0 12px"></div>'):'')
       +'<div class="row2"><div class="field"><label>Units used</label><input class="input tnum" id="mtUnits" inputmode="decimal" placeholder="e.g. 18" oninput="Atlas._mtHint&&Atlas._mtHint()"></div>'
@@ -5877,7 +5889,7 @@ const Atlas = (function(){
   function _lateGrace(){ return (S.money&&S.money.lateGraceHrs!=null&&+S.money.lateGraceHrs>=0)?+S.money.lateGraceHrs:1; }   // hours of grace (default 1); owner-editable
   function _lateRate(){ return _r2((S.money&&+S.money.lateRate>0)?+S.money.lateRate:25); }   // $ per hour late (default 25); owner-editable
   function _bkPeriodRate(b){ return (b&&b.rate!=null)?+b.rate:((S.money&&+S.money.baseRate)||0); }
-  function _bkSchedReturnMs(b){ if(+b.endTs>0) return +b.endTs; var s=+b.startTs||0; if(s>0) return s+_bkPeriods(b)*_periodMsOf((S.money&&S.money.rateModel)||'day'); return 0; }
+  function _bkSchedReturnMs(b){ var base=(+b.endTs>0)?+b.endTs:0; if(!base){ var s=+b.startTs||0; if(s>0) base=s+_bkPeriods(b)*_periodMsOf((S.money&&S.money.rateModel)||'day'); } return base>0?(base+_bkExtPeriods(b)*_periodMs()):0; }   // #extfix: the scheduled return is the EFFECTIVE end (incl. paid extensions) -> a customer who extended and returned on time is never wrongly billed a late fee
   function _lateHtml(b){ var c=_charges(b).filter(function(x){return x.kind==='late';}).slice(-1)[0];
     if(!c) return '<div class="bk-lenhint" style="margin:0">Fee for a late return after a grace window &mdash; hourly, capped at the daily rate.</div>';
     return '<div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid var(--line-2)"><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:13px">'+esc(c.label)+'</b><div style="font-size:11.5px;color:var(--muted)">'+_stamp(c.at)+(c.paidAt?' &middot; paid':'')+'</div></div><span class="chip '+(c.paidAt?'chip--ok':'chip--warn')+'"><span class="dot"></span>'+money(c.amount)+'</span></div>'; }
@@ -6003,12 +6015,12 @@ const Atlas = (function(){
     if(_cf && _cf.type==='booking' && !confirm(esc(b.asset)+' is already booked in that window ('+_cf.reason+').\n\nExtend anyway?')) return;
     if(_cf && (_cf.type==='blackout'||_cf.type==='maintenance') && !confirm(esc(b.asset)+' is '+(_cf.type==='blackout'?('blocked off ('+_cf.reason+')'):'in maintenance')+' during the extension.\n\nExtend anyway?')) return;
     var now=Date.now(), by=(function(){ var a=_actor(); return a?(a.name||a.email||'owner'):'owner'; })(), chId=_chId();
-    _charges(b).push({ id:chId, kind:'extension', label:'Extension: +'+n+' '+_perUnit()+(note?(' \u2014 '+note):''), amount:amt, at:now, paidAt:collected?now:null, taxable:(S.money.tax||0)>0 });
+    _charges(b).push({ id:chId, kind:'extension', label:'Extension: +'+n+' '+(n===1?_perUnit().replace(/s$/,''):_perUnit())+(note?(' \u2014 '+note):''), amount:amt, at:now, paidAt:collected?now:null, taxable:(S.money.tax||0)>0 });
     _bkExtensions(b).push({ id:'EX'+now.toString(36)+Math.random().toString(36).slice(2,6), at:now, by:by, addedPeriods:n, rate:_extRate(b), charge:amt, chargeId:chId, prevEndTs:prevEnd, newEndTs:newEnd, note:note, _deleted:false });
     if(b.status==='Returned'||b.status==='Completed') b.status='On rent';   // extending a returned/closed rental re-opens it (the asset is back out on the road)
     _upsertBooking(b); _logEvent('booking','Extended '+b.id+' by '+n+' '+_perUnit()+' ('+money(amt)+(collected?', collected':', to portal')+')',{booking:b.id});
     save(); try{ renderOverview(); renderBookings(); }catch(e){}
-    closeModal(); openBooking(id); toast('Extended to '+_fmtDate(newEnd)+' \u2014 '+money(amt)+(collected?' collected':' sent to the portal')); }
+    closeModal(); openBooking(id); toast('Extended to '+_fmtDate(newEnd)+' \u2014 '+money(amt)+(collected?' collected':' added to their portal \u2014 use Portal link to send it')); }
   function bkExtRemove(id,extId){ if(!_guard('bookEdit'))return; var b=_getBooking(id); if(!b)return; var e=_bkExtensions(b).filter(function(x){return x.id===extId;})[0]; if(!e||e._deleted)return;
     var ch=(b.charges||[]).filter(function(c){return c.id===e.chargeId;})[0];
     if(ch && ch.paidAt){ if(!confirm('That extension\u2019s '+money(ch.amount)+' charge was already collected. Remove the extension anyway? Refund the charge itself from the Charges section.')) return; }
@@ -6019,7 +6031,7 @@ const Atlas = (function(){
   function _extensionsOwnerHtml(b){ var xs=_bkActiveExt(b); if(!xs.length) return '<div class="bk-lenhint" style="margin:0">No extensions yet &mdash; extend the rental to move the return date and bill the extra time.</div>';
     return '<div class="mp-row" style="border:0;padding:2px 0 8px"><span>Return moved to</span><span class="tnum" style="color:var(--ink);font-weight:650">'+_fmtWhen(_bkEffectiveEndTs(b),!!b.time)+'</span></div>'
       + xs.map(function(e){ var ch=(b.charges||[]).filter(function(c){return c.id===e.chargeId;})[0], paid=!!(ch&&ch.paidAt);
-        return '<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line-2)"><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:13px">+'+e.addedPeriods+' '+esc(_perUnit())+'</b> <span class="chip '+(paid?'chip--ok':'chip--muted')+'" style="margin-left:4px"><span class="dot"></span>'+(paid?'Paid':'Unpaid')+'</span>'+(e.signedAt?' <span class="chip chip--ok" style="margin-left:4px"><span class="dot"></span>Signed</span>':' <span class="chip chip--muted" style="margin-left:4px">Awaiting signature</span>')+'<div style="font-size:11.5px;color:var(--muted)">'+money(e.charge)+' &middot; to '+_fmtDate(e.newEndTs)+(e.note?(' &middot; '+esc(e.note)):'')+' &middot; '+_stamp(e.at)+(e.signedAt&&e.signerName?(' &middot; signed by '+esc(e.signerName)):'')+'</div></div><button class="icon-btn" style="color:var(--danger)" title="Remove extension" onclick="Atlas.bkExtRemove(\''+b.id+'\',\''+e.id+'\')"><svg viewBox="0 0 18 18" fill="none" width="15" height="15"><path d="M5 5l8 8M13 5l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>'; }).join(''); }
+        return '<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line-2)"><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:13px">+'+e.addedPeriods+' '+esc(e.addedPeriods===1?_perUnit().replace(/s$/,''):_perUnit())+'</b> <span class="chip '+(paid?'chip--ok':'chip--muted')+'" style="margin-left:4px"><span class="dot"></span>'+(paid?'Paid':'Unpaid')+'</span>'+(e.signedAt?' <span class="chip chip--ok" style="margin-left:4px"><span class="dot"></span>Signed</span>':' <span class="chip chip--muted" style="margin-left:4px">Awaiting signature</span>')+'<div style="font-size:11.5px;color:var(--muted)">'+money(e.charge)+' &middot; to '+_fmtDate(e.newEndTs)+(e.note?(' &middot; '+esc(e.note)):'')+' &middot; '+_stamp(e.at)+(e.signedAt&&e.signerName?(' &middot; signed by '+esc(e.signerName)):'')+'</div></div><button class="icon-btn" style="color:var(--danger)" title="Remove extension" onclick="Atlas.bkExtRemove(\''+b.id+'\',\''+e.id+'\')"><svg viewBox="0 0 18 18" fill="none" width="15" height="15"><path d="M5 5l8 8M13 5l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>'; }).join(''); }
   /* ---- small shared helpers ---- */
   function val(id){ var e=document.getElementById(id); return e?e.value:''; }
   function _perUnitOne(){ return S.money.rateModel==='hour'?'hour':(S.money.rateModel==='week'?'week':(S.money.rateModel==='month'?'month':'day')); }
@@ -6691,7 +6703,7 @@ const Atlas = (function(){
   function _icsEsc(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n'); }
   function _icsDate(ms){ var d=new Date(ms); function p(n){return (n<10?'0':'')+n;} return d.getUTCFullYear()+p(d.getUTCMonth()+1)+p(d.getUTCDate())+'T'+p(d.getUTCHours())+p(d.getUTCMinutes())+p(d.getUTCSeconds())+'Z'; }
   function _bkIcs(){ var now=_icsDate(Date.now()); var L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Atlas Rental.io//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:'+_icsEsc(((S.brand&&S.brand.name)||'Atlas')+' bookings')];
-    (DATA.bookings||[]).forEach(function(b){ if(b.status==='Cancelled') return; var s=Number(b.startTs)||Number(b.createdAt); if(!s) return; var e=Number(b.endTs)||(s+(Number(b.periods)||1)*_periodMs());
+    (DATA.bookings||[]).forEach(function(b){ if(b.status==='Cancelled') return; var s=Number(b.startTs)||Number(b.createdAt); if(!s) return; var e=_bkEffectiveEndTs(b)||(s+(Number(b.periods)||1)*_periodMs());
       L.push('BEGIN:VEVENT'); L.push('UID:'+_icsEsc(b.id)+'@atlasrental.io'); L.push('DTSTAMP:'+now); L.push('DTSTART:'+_icsDate(s)); L.push('DTEND:'+_icsDate(Math.max(e,s+3600000)));
       L.push('SUMMARY:'+_icsEsc((b.asset||_fterm('book'))+' - '+(b.cust||''))); L.push('DESCRIPTION:'+_icsEsc('Status: '+(b.status||'')+(b.custEmail?(' | '+b.custEmail):'')+(b.phone?(' | '+b.phone):'')+' | '+money(_bkTotal(b))+' | '+b.id)); L.push('STATUS:'+((b.status==='Confirmed'||b.status==='On rent'||b.status==='Returned'||b.status==='Completed')?'CONFIRMED':'TENTATIVE')); L.push('END:VEVENT'); });
     L.push('END:VCALENDAR'); return L.join('\r\n'); }
@@ -7640,7 +7652,11 @@ const Atlas = (function(){
         <div class="field" style="margin:0"><label>Your customer portal URL</label><input class="input" value="${esc((S.brand&&S.brand.externalPortal)||'')}" onchange="Atlas.S().brand.externalPortal=this.value.trim();Atlas.save2();Atlas.renderSet()" placeholder="https://yourbusiness.com/portal"><div class="desc" style="margin-top:4px">When set, &ldquo;Preview portal&rdquo; and your portal link open your own portal.</div>${(S.brand&&/^https?:\/\//i.test(S.brand.externalPortal||''))?`<a class="btn btn--ghost btn--sm" href="${esc(S.brand.externalPortal)}" target="_blank" rel="noopener noreferrer" style="margin-top:8px;display:inline-block">Open my portal</a>`:''}</div>
       </div>
       <div class="set-block"><h3>What you rent</h3><div class="desc">Atlas Rental.io relabels your whole dashboard &mdash; KPIs, charts and every label &mdash; to match. Cars, properties, yachts, aircraft, equipment &mdash; or anything you name yourself.</div>
-        <div class="field"><label>Asset type</label><select class="select" onchange="Atlas.setFleetType(this.value)">${FLEET_TYPES.map(t=>`<option value="${t.id}" ${S.fleet.id===t.id?'selected':''}>${t.emoji} ${t.label}</option>`).join('')}</select></div>
+        <div class="field"><label>Main type <span style="color:var(--muted);font-weight:400;font-size:12px">(sets your labels)</span></label><select class="select" onchange="Atlas.setFleetType(this.value)">${FLEET_TYPES.map(t=>`<option value="${t.id}" ${S.fleet.id===t.id?'selected':''}>${t.emoji} ${t.label}</option>`).join('')}</select></div>
+        <div class="field"><label>Also rent <span style="color:var(--muted);font-weight:400;font-size:12px">(optional &mdash; rent more than one kind of thing)</span></label>
+          <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:2px">${FLEET_TYPES.filter(t=>t.id!==S.fleet.id).map(t=>{var sel=((S.fleet.also||[]).indexOf(t.id)>=0);return `<button type="button" onclick="Atlas.fleetAlsoToggle('${t.id}')" style="display:inline-flex;align-items:center;gap:5px;border:1.5px solid ${sel?'var(--brand)':'var(--line)'};background:${sel?'var(--brand-050)':'var(--surface)'};color:var(--ink);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer">${t.emoji} ${esc(t.label)}${sel?' <b style="color:var(--brand-700)">&#10003;</b>':''}</button>`;}).join('')}</div>
+          <div class="bk-lenhint" style="margin:7px 0 0">Started with one thing and want to add another? Tap it &mdash; a rental property, a boat, equipment, anything &mdash; all under this one account. Each type you add gets a <b>Type</b> picker in Add ${esc(cap(S.fleet.noun))}, keeps its own default rate, and its <b>units</b> + any new <b>locations</b> count toward your plan (${esc(_tierCap(_curTier()))}).</div>
+        </div>
         ${S.fleet.id==='custom'?`<div class="row2"><div class="field"><label>Name it (singular)</label><input class="input" value="${esc(S.fleet.noun)}" placeholder="villa" onchange="Atlas.setCustomNoun('noun',this.value)"></div><div class="field"><label>Plural</label><input class="input" value="${esc(S.fleet.nouns)}" placeholder="villas" onchange="Atlas.setCustomNoun('nouns',this.value)"></div></div>`:''}
         <div class="bk-lenhint" style="margin:0">Now: <b>${esc(cap(S.fleet.nouns))}</b> &middot; KPIs read &ldquo;${esc(_fterm('active'))}&rdquo; &amp; &ldquo;${esc(_fterm('util'))}&rdquo; &middot; plans read &ldquo;${esc(_tierCap(_curTier()))}&rdquo;.</div>
       </div>
@@ -10007,7 +10023,7 @@ const Atlas = (function(){
   // --- Vehicles: cannot exceed the plan's cap; trying prompts an upgrade ---
   function addVehicle(){ if(!_guard('fleetEdit','Adding '+S.fleet.nouns))return; if(_vehCap()!==Infinity && _fleetUnits() >= _vehCap()){ promptUpgrade('vehicles'); return; } _vehicleForm(); }   // packaging(1): gate on total UNITS (sum of qty), not asset rows
   function _vehicleForm(){ var capT=(_vehCap()===Infinity?'unlimited':_vehCap()), locLbl=cap(_fterm('loc'));
-    var locs=[]; DATA.assets.forEach(function(a){ if(a.loc && locs.indexOf(a.loc)<0) locs.push(a.loc); });
+    var locs=[]; (typeof _locList==='function'?_locList():[]).forEach(function(L){ var n=(L&&L.name)||L; if(n && locs.indexOf(n)<0) locs.push(n); }); DATA.assets.forEach(function(a){ if(a.loc && locs.indexOf(a.loc)<0) locs.push(a.loc); });   // include the owner's AUTHORED locations (Settings > Locations, plan-capped) alongside ad-hoc tags, so a new asset can be grouped under a real location (e.g. a rental property)
     var _multi=_fleetSel().length>1, _pid=_fleetSel()[0];   // #129: pick which of the owner's types this asset is
     var _typeField=_multi? ('<div class="field"><label>Type</label><select class="select" id="vType" onchange="Atlas.vehTypeChange()">'+_fleetSel().map(function(id){ var t=_typeById(id); return '<option value="'+esc(id)+'">'+esc(t.label)+(id===S.fleet.id?' (main)':'')+'</option>'; }).join('')+'</select></div>') : '';
     openModal('<div class="modal__head"><h3>'+(_multi?'Add to your fleet':('Add '+esc(S.fleet.nouns)))+'</h3>'+_xBtn()+'</div><div class="modal__body">'
@@ -11931,7 +11947,7 @@ const Atlas = (function(){
     drillKpi,setOvRange,gsDismiss,drillLog,drillLedger,logLedger,saveLedger,rmLedger,editLedger,saveLedgerEdit,logIncome,logExpense,openBudgets,saveBudgets,assetBlock,saveAssetBlock,assetUnblock,
     _ldPhotoPick,_ldPhotoClear,_ldRecToggle,pnlSetPeriod,pnlSetKind,pnlMarginDrill,renderPnl,
     renderWebsite,buildWebsite,setWebField,_webInlineEdit,_webInlineKey,toggleWebSection,setWebFont,setWebTemplate,setWebAccent,webFaqAdd,webFaqSet,webFaqRemove,webPostAdd,webPostSet,webPostRemove,webPostToggle,webPostAddFromForm,webPageAdd,webPageSet,webPageRemove,webPageToggle,webPageNavToggle,webPageSectionAdd,webPageSectionSet,webPageSectionRemove,webPageSectionMove,webPageSectionListSet,webPageSectionListAdd,webPageSectionListRemove,webPageAddFromForm,webPageStarterLanding,webEditPage,webPagesBack,webViewLegal,webBookNow,_wbQuote,webSubmitBooking,publishBookingSite,copyBookingLink,copyEmbed,webDomainMode,webRevertDomain,webConnectDomain,webVerifyDomain,webSearchDomain,webBuyDomain,confirmDomainBuy,webDomLoad,webDomManage,webDomCheckConn,webDomDns,webDomDnsReload,webDomDnsAdd,webDomDnsDel,webDomDnsSet,webDomDnsSave,buyWebsiteAddon,confirmWebsiteAddon,seoHealthLoad,seoHealthJump,
-    setFleetType,setCustomNoun,demoBig,demoPick,fleetLoc,
+    setFleetType,fleetAlsoToggle,setCustomNoun,demoBig,demoPick,fleetLoc,
     openPerm,setRolePreset,setPerm,setMemberField,inviteMember,saveInvite,copyInviteLink,removeMember,previewAs,exitPreview,addShift,saveShift,rmShift,schedBuildAI,editShift,saveShiftEdit,
     search,searchGo,_searchClose,
     setLegalField,buildDoc,reviewDoc,viewDoc,saveDoc,uploadDoc,_uploadDocFile,uploadDocSave,regenDoc,deleteDoc,sendAgreement,uploadSigned,genWebLegal,setTheme,toggleMenu,closeMenu,
