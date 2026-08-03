@@ -1758,8 +1758,8 @@ const Atlas = (function(){
       if(a.pass!==_passHash(pass)) return {err:'Incorrect password.'};
       _lsSet(SK,{email:k,tenantId:a.tenantId}); return {ok:true}; },
     logout(){ try{ localStorage.removeItem(SK); }catch(e){} },
-    loadTenant(){ var s=store.session(); return s? _lsGet('atlas_tenant_'+s.tenantId,null) : null; },
-    saveTenant(t){ var s=store.session(); if(s) _lsSet('atlas_tenant_'+s.tenantId,t); _srvSyncSoon(); },
+    loadTenant(){ var s=store.session(); if(!s) return null; var t=_lsGet('atlas_tenant_'+s.tenantId,null); if(t&&t._tid&&t._tid!==s.tenantId) return null; return t; },   // #isolation: never hand back a blob stamped for a DIFFERENT tenant, even if a key were ever mislabeled
+    saveTenant(t){ var s=store.session(); if(s){ try{ if(t&&typeof t==='object') t._tid=s.tenantId; }catch(e){} _lsSet('atlas_tenant_'+s.tenantId,t); } _srvSyncSoon(); },   // stamp the owning tenant so loadTenant can enforce it
     // Bookings live in their OWN per-tenant collection -> maps to a D1 `bookings` table with targeted,
     // paginated queries (WHERE tenant_id=?), never a whole-node read. Kept out of the tenant profile blob.
     bookings(){ var s=store.session(); return s? _lsGet('atlas_bookings_'+s.tenantId,[]) : []; },
@@ -3113,8 +3113,16 @@ const Atlas = (function(){
     else if(S && S.onboardStarted){ applyBrand(); step=Math.min(S.onboardStep||0,STEPS.length-1); show('onboarding'); renderStep(); }
     else { startTrial(); }
   }
-  function logout(){ store.logout(); S=null;
-    var e=document.getElementById('authEmail'), p=document.getElementById('authPass'); if(e)e.value=''; if(p)p.value='';
+  function logout(){ try{ store.logout(); }catch(e){}   // drop the session pointer first
+    // #isolation (SECURITY): a hard reload to a clean URL guarantees NO prior-tenant state survives into the next
+    // account -- not S, not DATA, not the applied brand CSS variables, not any cached array or module flag. Without this,
+    // switching accounts on a shared device could briefly show the previous tenant's vehicles/branding. One account must
+    // NEVER see another's data. (Belt-and-suspenders in-memory clear below in case the reload is blocked.)
+    try{ S=null; DATA={}; }catch(e){}
+    try{ _selfActor=null; }catch(e){}
+    try{ if(typeof _demo!=='undefined'&&_demo){ _demo.on=false; if(_demo.timer)clearTimeout(_demo.timer); } }catch(e){}
+    try{ location.replace(location.pathname); return; }catch(e){}
+    var e2=document.getElementById('authEmail'), p2=document.getElementById('authPass'); if(e2)e2.value=''; if(p2)p2.value='';
     show('landing'); }
   // Self-service account deletion -- deliberately quiet (a small link at the bottom of Settings), but always findable.
   // Soft-delete on the server (deactivate + cancel billing + sign out), reversible by support; typed-confirm gated.
