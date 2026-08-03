@@ -5434,7 +5434,7 @@ const Atlas = (function(){
     if(a && a.blackouts){ for(var i=0;i<a.blackouts.length;i++){ var bl=a.blackouts[i], f=Number(bl.from)||0, t=Number(bl.to)||0; if(t<f){var x=f;f=t;t=x;}
       if(_rangesOverlap(startTs,endTs,f,t+86400000)) return {type:'blackout', reason:(bl.reason||'blocked dates')}; } }   // blackout is a day range -> include the whole end day
     var c=(DATA.bookings||[]).filter(function(b){ return b.id!==excludeId && ((_aid&&b.assetId)?(String(b.assetId)===_aid):(b.asset===assetName)) && b.status!=='Cancelled' && b.status!=='Completed' && b.status!=='Voided'; })   // #void: a voided (early-terminated) trip frees the asset the same day
-      .filter(function(b){ var s=Number(b.startTs)||0, e=Number(b.endTs)||(s+_periodMs()); if(e<=s)e=s+_periodMs(); return _rangesOverlap(startTs,endTs,s,e); })[0];
+      .filter(function(b){ var s=Number(b.startTs)||0, e=_bkEffectiveEndTs(b); if(!(e>s))e=s+_periodMs(); return _rangesOverlap(startTs,endTs,s,e); })[0];   // occupancy runs to the EFFECTIVE end (incl. active extensions) so an extended rental blocks the added time
     if(c) return {type:'booking', reason:c.id+(c.cust?(' \u2014 '+c.cust):'')};
     return null; }
   function _bookingForm(existing){
@@ -5541,6 +5541,7 @@ const Atlas = (function(){
       var nx={'Pending':['Confirmed','Confirm'],'Confirmed':['On rent','Start rental'],'On rent':['Returned','Complete return'],'Returned':['Completed','Close out']}[b.status];   // #5: the one-click flow now routes through Returned (asset stays reserved for close-out) -> Close out frees it
       if(nx) a+='<button class="btn btn--primary btn--sm" onclick="Atlas.setBookingStatus(\''+b.id+'\',\''+nx[0]+'\')">'+nx[1]+'</button>';
       a+='<button class="btn btn--ghost btn--sm" onclick="Atlas.editBooking(\''+b.id+'\')">Edit</button>';
+      a+='<button class="btn btn--ghost btn--sm" onclick="Atlas.bkExtendFlow(\''+b.id+'\')" title="Add time to this rental and bill the extra '+esc(_perUnit())+'"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" style="vertical-align:-2px"><path d="M8 4.2V8l2.6 1.5M14 8A6 6 0 112 8a6 6 0 0112 0z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Extend</button>';
       a+='<button class="btn btn--sm btn--danger" onclick="Atlas.bkCancelFlow(\''+b.id+'\')">Cancel</button>';
       if(_voidEnabled()) a+='<button class="btn btn--sm" style="border-color:rgba(176,52,42,.5);color:#B0342A;background:transparent" onclick="Atlas.bkVoidFlow(\''+b.id+'\')" title="End the contract early &mdash; keep the money, free the '+esc(S.fleet.noun)+', reversible">Void</button>';
     } else if(b.status==='Voided'){
@@ -5562,7 +5563,7 @@ const Atlas = (function(){
         return '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:14px"><span class="chip '+chipCls+'"><span class="dot"></span>'+chipTxt+'</span><span style="flex:1;min-width:0;font-size:12px;color:var(--muted)">'+sub+'</span>'+btns+'</div>'; })()
       +'<div class="mp" style="margin-bottom:14px">'
       +'<div class="mp-row"><span>'+cap(S.fleet.noun)+'</span><span style="color:var(--ink);font-weight:600">'+esc(b.asset)+'</span></div>'
-      +'<div class="mp-row"><span>'+(b.endTs?'When':'Dates')+'</span><span class="tnum" style="text-align:right;max-width:62%">'+_bkWhen(b)+'</span></div>'
+      +'<div class="mp-row"><span>'+(b.endTs?'When':'Dates')+'</span><span class="tnum" style="text-align:right;max-width:62%">'+_bkWhen(b)+(_bkExtPeriods(b)>0?(' <span style="color:var(--brand-600);font-weight:600">(+'+_bkExtPeriods(b)+' '+_perUnit()+')</span>'):'')+'</span></div>'
       +'<div class="mp-row"><span>Length</span><span class="tnum">'+b.periods+' '+_perUnit()+'</span></div>'
       +(b.pickupTime?('<div class="mp-row"><span>Pickup time</span><span class="tnum">'+esc(b.pickupTime)+'</span></div>'):'')
       +(b.deliveryAddr?('<div class="mp-row"><span>Delivery</span><span class="tnum" style="text-align:right;max-width:62%">'+esc(b.deliveryAddr)+'</span></div>'):'')
@@ -5578,6 +5579,9 @@ const Atlas = (function(){
       +(function(){ var p=S.money.payout||{}; if(!p.enabled||!p.value) return ''; var base=(p.base==='total')?(q.total||0):(q.subtotal||q.total||0); var amt=(p.kind==='percent'?base*(p.value||0)/100:(p.value||0)); var net=Math.max(0,(q.total||0)-(q.taxAmt||0)-amt);
         return '<div class="mp-row mp-ok"><span>'+esc(p.label||'Payout')+'</span><span class="tnum">&minus;'+money(amt)+'</span></div><div class="mp-row"><span style="font-weight:650;color:var(--ink)">Your net</span><span class="tnum" style="font-weight:750">'+money(net)+'</span></div>'; })()
       +'</div>'
+      +'<div class="cond-sec"><div class="cond-hd"><span>Extensions</span><button class="btn btn--ghost btn--sm" onclick="Atlas.bkExtendFlow(\''+b.id+'\')">+ Extend rental</button></div>'
+        +'<div class="cond-sub">Add time to this rental &mdash; it moves the return date, keeps the '+esc(S.fleet.noun)+' reserved for the new dates and bills the extra '+esc(_perUnit())+' to '+esc((b.cust||'the customer').split(' ')[0])+'\u2019s portal to pay.</div>'
+        +_extensionsOwnerHtml(b)+'</div>'
       +(b.notes?'<div class="field" style="margin-bottom:14px"><label>Notes</label><div style="font-size:13px;color:var(--body);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;white-space:pre-wrap">'+esc(b.notes)+'</div></div>':'')
       +'<div class="cond-sec"><div class="cond-hd"><span>Condition at pickup &mdash; photos &amp; video</span><button class="btn btn--ghost btn--sm" onclick="Atlas.bkAddCondition(\''+b.id+'\',\'pickup\')">+ Add pickup media</button></div>'
         +'<div class="cond-sub">Captured before pickup and time-stamped automatically. Shown to '+esc((b.cust||'the customer').split(' ')[0])+' in their portal &mdash; documents the condition for both sides, on every rental type.</div>'
@@ -5952,6 +5956,70 @@ const Atlas = (function(){
     function _book(){ b.hold.status='captured'; b.hold.captured=cap; b.hold.capturedAt=Date.now(); _charges(b).push({id:_chId(), label:'Deposit captured (damage/fuel)', amount:cap, at:Date.now(), paidAt:Date.now()}); _upsertBooking(b); _logEvent('booking','Captured '+money(cap)+' from the hold on '+b.id,{booking:b.id}); save(); try{ renderOverview(); renderBookings(); }catch(e){} openBooking(id); }
     if(ATLAS_BACKEND && _apiCsrf && !_isDemoTenant()){ closeModal(); _api('/api/pay/capture',{method:'POST',body:{booking:id,kind:'security',amountCents:Math.round(cap*100)}}).then(function(res){ if(res.json&&res.json.ok){ _book(); toast('Captured '+money(cap)+' from the deposit'); } else { toast('Nothing captured \u2014 '+((res.json&&(res.json.message||res.json.reason))||'no online deposit hold on this booking')); } }).catch(function(){ toast('Nothing captured \u2014 network error'); }); return; }
     _book(); closeModal(); toast('Captured '+money(cap)+' (recorded)'); }   // demo/offline: record locally
+  /* ---- Booking EXTENSION: extend the rental (move the return date + bill the extra time). Money-safe & synced. ----
+     The base booking (b.periods / b.endTs / b.quote) stays the ORIGINAL rental, so a later Edit reprices only the base and can
+     NEVER double-count an extension. Each extension is a record in b.extensions[] (schedule + who/when + the linked charge id);
+     the MONEY rides the proven charge rail -- a kind:'extension' entry in b.charges, counted in revenue when collected, shown
+     in the customer portal to pay, and exported to tax/QuickBooks. The asset's occupied window uses the EFFECTIVE end (original
+     end + active extension periods) so the calendar and the double-book guard block the added time. Reversible: remove an
+     extension -> tombstone it + pull its UNPAID charge (a paid one is kept, refund from Charges), and the return date moves back
+     in. Works for every tenant / rate model (hour|day|week|month), fully synced via the booking blob (/api/data). */
+  function _bkExtensions(b){ if(!b.extensions) b.extensions=[]; return b.extensions; }
+  function _bkActiveExt(b){ return (b&&b.extensions?b.extensions:[]).filter(function(e){ return e && !e._deleted; }); }
+  function _bkExtPeriods(b){ return _bkActiveExt(b).reduce(function(s,e){ return s+(Number(e.addedPeriods)||0); },0); }
+  function _bkBaseEndTs(b){ return Number(b.endTs)||((Number(b.startTs)||0)+(Math.max(1,Number(b.periods)||1))*_periodMs()); }
+  function _bkEffectiveEndTs(b){ if(!b) return 0; return _bkBaseEndTs(b) + _bkExtPeriods(b)*_periodMs(); }   // original end + active extension periods -> what the asset is actually occupied until
+  function _extRate(b){ var r=(b&&b.rate!=null)?b.rate:((_moneyFor(b&&b.asset)||S.money).baseRate||S.money.baseRate||0); return Number(r)||0; }   // the booking's LOCKED rate (falls back to the asset's current rate)
+  function _extSuggest(b,n){ n=Math.max(1,parseInt(n,10)||1); var m=_moneyFor(b&&b.asset)||S.money; var mult=_smartRateMult(m,_bkEffectiveEndTs(b),n,m.rateModel||S.money.rateModel); var pre=_r2(_extRate(b)*n*mult); var t=(S.money.tax||0)/100; return {pre:pre, tax:_r2(pre*t), total:_r2(pre*(1+t))}; }   // pre-tax rental for the added periods + tax -> tax-inclusive total (charges store the tax-inclusive amount, tax is extracted for reporting)
+  var _extAmtEdited=false;
+  function bkExtendFlow(id){ if(!_guard('bookEdit','Extending bookings'))return; var b=_getBooking(id); if(!b)return;
+    if(b.status==='Cancelled'||b.status==='Voided'){ toast('Reopen this booking before extending it'); return; }
+    _extAmtEdited=false; var unit=_perUnit(), s=_extSuggest(b,1);
+    openModal('<div class="modal__head"><h3>Extend rental</h3>'+_xBtn()+'</div><div class="modal__body">'
+      +'<div class="bk-lenhint" style="margin:0 0 12px">Add time to <b>'+esc(b.id)+'</b> ('+esc(b.asset||'')+'). This moves the return date, keeps the '+esc(S.fleet.noun)+' reserved for the new dates, and bills the extra '+esc(unit)+' &mdash; it appears in '+esc((b.cust||'the customer').split(' ')[0])+'\u2019s portal to pay.</div>'
+      +'<div class="mp" style="margin-bottom:12px"><div class="mp-row"><span>Currently returns</span><span class="tnum">'+_fmtWhen(_bkEffectiveEndTs(b),!!b.time)+'</span></div><div class="mp-row"><span>Rate</span><span class="tnum">'+money(_extRate(b))+' / '+esc(_perUnitOne())+'</span></div></div>'
+      +'<div class="row2"><div class="field"><label>Add '+esc(unit)+'</label><input class="input tnum" id="exPeriods" type="number" min="1" step="1" value="1" oninput="Atlas.bkExtendPreview(\''+id+'\')"></div>'
+      +'<div class="field"><label>Charge (tax incl.)</label><div class="rule-input" style="padding:0 12px"><span>$</span><input class="tnum" id="exAmt" inputmode="decimal" style="width:auto;flex:1;text-align:left" value="'+s.total+'" oninput="Atlas.bkExtendAmt(\''+id+'\')"></div></div></div>'
+      +'<div class="field"><label>Note <span style="color:var(--muted);font-weight:500">(optional &mdash; shows on the charge)</span></label><input class="input" id="exNote" placeholder="e.g. keeping it through the weekend"></div>'
+      +'<label style="display:flex;align-items:center;gap:8px;margin:2px 0 12px;font-size:13px;color:var(--body);cursor:pointer"><input type="checkbox" id="exCollected"> Already collected (mark it paid now instead of sending it to the portal)</label>'
+      +'<div class="mp" id="exPrev" style="margin-bottom:14px"></div>'
+      +'<button class="btn btn--primary btn--full btn--lg" onclick="Atlas.bkExtendSave(\''+id+'\')">Extend &amp; bill</button></div>');
+    bkExtendPreview(id); }
+  function bkExtendAmt(id){ _extAmtEdited=true; bkExtendPreview(id); }
+  function bkExtendPreview(id){ var b=_getBooking(id); if(!b)return; var n=Math.max(1,parseInt(val('exPeriods'),10)||1); var s=_extSuggest(b,n); var amtEl=document.getElementById('exAmt');
+    if(amtEl && !_extAmtEdited) amtEl.value=s.total;   // keep the suggested amount in sync until the owner overrides it
+    var amt=_r2(parseFloat(amtEl?amtEl.value:s.total)||0); var t=(S.money.tax||0)/100; var embTax=(t>0)?_r2(amt-amt/(1+t)):0;
+    var newEnd=_bkEffectiveEndTs(b)+n*_periodMs(), el=document.getElementById('exPrev'); if(!el)return;
+    el.innerHTML='<div class="mp-row"><span>New return</span><span class="tnum" style="color:var(--ink);font-weight:650">'+_fmtWhen(newEnd,!!b.time)+'</span></div>'
+      +'<div class="mp-row mp-muted"><span>Suggested ('+money(_extRate(b))+' &times; '+n+' '+esc(_perUnit())+(s.tax>0?' + tax':'')+')</span><span class="tnum">'+money(s.total)+'</span></div>'
+      +'<div class="mp-row mp-total"><span>Charge</span><span class="tnum">'+money(amt)+'</span></div>'
+      +(embTax>0?('<div class="mp-row mp-muted"><span>includes sales tax</span><span class="tnum">'+money(embTax)+'</span></div>'):''); }
+  function bkExtendSave(id){ if(!_guard('bookEdit'))return; var b=_getBooking(id); if(!b)return;
+    var n=Math.max(1,parseInt(val('exPeriods'),10)||1), amt=_r2(parseFloat(val('exAmt'))||0);
+    if(amt<0){ toast('The charge can\u2019t be negative'); return; }
+    var note=(val('exNote')||'').trim(), collected=!!(document.getElementById('exCollected')&&document.getElementById('exCollected').checked);
+    var prevEnd=_bkEffectiveEndTs(b), newEnd=prevEnd+n*_periodMs();
+    var _cf=_availabilityConflict(b.asset,_bkBaseEndTs(b),newEnd,b.id);   // guard: the EXTENDED window can't silently double-book (owner may knowingly override)
+    if(_cf && _cf.type==='booking' && !confirm(esc(b.asset)+' is already booked in that window ('+_cf.reason+').\n\nExtend anyway?')) return;
+    if(_cf && (_cf.type==='blackout'||_cf.type==='maintenance') && !confirm(esc(b.asset)+' is '+(_cf.type==='blackout'?('blocked off ('+_cf.reason+')'):'in maintenance')+' during the extension.\n\nExtend anyway?')) return;
+    var now=Date.now(), by=(function(){ var a=_actor(); return a?(a.name||a.email||'owner'):'owner'; })(), chId=_chId();
+    _charges(b).push({ id:chId, kind:'extension', label:'Extension: +'+n+' '+_perUnit()+(note?(' \u2014 '+note):''), amount:amt, at:now, paidAt:collected?now:null, taxable:(S.money.tax||0)>0 });
+    _bkExtensions(b).push({ id:'EX'+now.toString(36)+Math.random().toString(36).slice(2,6), at:now, by:by, addedPeriods:n, rate:_extRate(b), charge:amt, chargeId:chId, prevEndTs:prevEnd, newEndTs:newEnd, note:note, _deleted:false });
+    if(b.status==='Returned'||b.status==='Completed') b.status='On rent';   // extending a returned/closed rental re-opens it (the asset is back out on the road)
+    _upsertBooking(b); _logEvent('booking','Extended '+b.id+' by '+n+' '+_perUnit()+' ('+money(amt)+(collected?', collected':', to portal')+')',{booking:b.id});
+    save(); try{ renderOverview(); renderBookings(); }catch(e){}
+    closeModal(); openBooking(id); toast('Extended to '+_fmtDate(newEnd)+' \u2014 '+money(amt)+(collected?' collected':' sent to the portal')); }
+  function bkExtRemove(id,extId){ if(!_guard('bookEdit'))return; var b=_getBooking(id); if(!b)return; var e=_bkExtensions(b).filter(function(x){return x.id===extId;})[0]; if(!e||e._deleted)return;
+    var ch=(b.charges||[]).filter(function(c){return c.id===e.chargeId;})[0];
+    if(ch && ch.paidAt){ if(!confirm('That extension\u2019s '+money(ch.amount)+' charge was already collected. Remove the extension anyway? Refund the charge itself from the Charges section.')) return; }
+    else if(!confirm('Remove this extension? The '+((ch&&money(ch.amount))||'')+' charge is pulled back and the return date moves in.')) return;
+    e._deleted=true; e.deletedAt=Date.now();
+    if(ch && !ch.paidAt) b.charges=(b.charges||[]).filter(function(c){return c.id!==e.chargeId;});   // pull the UNPAID charge; a paid one stays (owner refunds it explicitly)
+    _upsertBooking(b); _logEvent('booking','Removed an extension on '+b.id,{booking:b.id}); save(); try{ renderOverview(); renderBookings(); }catch(e2){} openBooking(id); toast('Extension removed'); }
+  function _extensionsOwnerHtml(b){ var xs=_bkActiveExt(b); if(!xs.length) return '<div class="bk-lenhint" style="margin:0">No extensions yet &mdash; extend the rental to move the return date and bill the extra time.</div>';
+    return '<div class="mp-row" style="border:0;padding:2px 0 8px"><span>Return moved to</span><span class="tnum" style="color:var(--ink);font-weight:650">'+_fmtWhen(_bkEffectiveEndTs(b),!!b.time)+'</span></div>'
+      + xs.map(function(e){ var ch=(b.charges||[]).filter(function(c){return c.id===e.chargeId;})[0], paid=!!(ch&&ch.paidAt);
+        return '<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line-2)"><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:13px">+'+e.addedPeriods+' '+esc(_perUnit())+'</b> <span class="chip '+(paid?'chip--ok':'chip--muted')+'" style="margin-left:4px"><span class="dot"></span>'+(paid?'Paid':'Unpaid')+'</span><div style="font-size:11.5px;color:var(--muted)">'+money(e.charge)+' &middot; to '+_fmtDate(e.newEndTs)+(e.note?(' &middot; '+esc(e.note)):'')+' &middot; '+_stamp(e.at)+'</div></div><button class="icon-btn" style="color:var(--danger)" title="Remove extension" onclick="Atlas.bkExtRemove(\''+b.id+'\',\''+e.id+'\')"><svg viewBox="0 0 18 18" fill="none" width="15" height="15"><path d="M5 5l8 8M13 5l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>'; }).join(''); }
   /* ---- small shared helpers ---- */
   function val(id){ var e=document.getElementById(id); return e?e.value:''; }
   function _perUnitOne(){ return S.money.rateModel==='hour'?'hour':(S.money.rateModel==='week'?'week':(S.money.rateModel==='month'?'month':'day')); }
@@ -11852,7 +11920,7 @@ const Atlas = (function(){
     goAuth,authSubmit,authTogglePass,logout,deleteAccount,deleteAccountConfirm,_doAccountDelete,_stepUpPrompt,_stepUpSubmit,policyAccept,verifyContinue,verifyResend,verifyStartOver,forgotPassword,sendResetLink,goHome,leadSubmit,subscribe,confirmSubscribe,cancelPlan,billingPortal,_openWeb,openPlans,openCredits,buyCredits,buyAddon,removeAddon,paywallUpdatePayment,paywallChoosePlan,paywallStartTrial,paywallRetryPayment,paywallCancelPlan,showSignupPlans,_hideSignupPlans,_signupPickPlan,
     mfaSubmit,mfaResend,mfaToggleBackup,mfaCancel,
     newBooking,editBooking,bkPreview,createBooking,openBooking,setBookingStatus,deleteBooking,bkReqCharge,bkReqDone,bkFilter,bkSetView,bkCalNav,exportBkIcs,viewCustomer,saveCustNote,emailCustomer,sendCustEmail,addWaitlist,saveWaitlist,editWaitlist,saveWaitlistEdit,rmWait,waitToBooking,addLead,saveLead,leadStage,leadToBooking,rmLead,bkAddCondition,bkRmCondition,bkCompareCondition,bkAddCharge,sendCharge,bkRmCharge,portalPayCharge,
-    bkLogIncident,saveIncident,bkIncidentCharge,bkRmIncident,bkCancelFlow,doCancel,bkVoidFlow,doVoid,unvoidBooking,bkVoidReport,bkPortalLink,bkRepeat,doRepeat,bkToggleVerify,bkRejectVerify,bkClearVerify,bkPaymentPlan,savePlan,bkPlanPaid,_ppTypeChange,_ppAddRow,_ppRmRow,_ppEdit,bkMeter,saveMeter,bkMeterBill,_mtHint,_mtOverage,bkFuel,saveFuel,_flHint,bkLate,saveLate,_ltHint,bkDriver,saveDriver,bkRmDriver,bkInsurance,saveInsurance,bkBlacklistToggle,holdAuth,holdRelease,holdCapture,doCapture,
+    bkLogIncident,saveIncident,bkIncidentCharge,bkRmIncident,bkCancelFlow,doCancel,bkVoidFlow,doVoid,unvoidBooking,bkVoidReport,bkPortalLink,bkExtendFlow,bkExtendAmt,bkExtendPreview,bkExtendSave,bkExtRemove,bkRepeat,doRepeat,bkToggleVerify,bkRejectVerify,bkClearVerify,bkPaymentPlan,savePlan,bkPlanPaid,_ppTypeChange,_ppAddRow,_ppRmRow,_ppEdit,bkMeter,saveMeter,bkMeterBill,_mtHint,_mtOverage,bkFuel,saveFuel,_flHint,bkLate,saveLate,_ltHint,bkDriver,saveDriver,bkRmDriver,bkInsurance,saveInsurance,bkBlacklistToggle,holdAuth,holdRelease,holdCapture,doCapture,
     bkClaimOpen,bkClaimEdit,saveClaim,bkClaimStatus,bkClaimRemove,bkClaimPacket,
     issueGift,saveGift,deleteGift,giftCert,giftEdit,saveGiftEdit,bkApplyGift,bkRemoveGift,
     setProtection,protAddPlan,protSetPlan,protRmPlan,bkSetProtection,protectionDoc,
