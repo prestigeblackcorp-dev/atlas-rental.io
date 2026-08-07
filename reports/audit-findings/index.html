@@ -1,0 +1,159 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Atlas - Audit Findings & F500 Readiness</title>
+<style>
+:root{--bg:#f6f6f3;--surface:#fff;--ink:#181b22;--mut:#5c6473;--line:#e5e6ea;--accent:#33408c;--accent2:#1f2a5e;--soft:#eef0fb}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1116;--surface:#161a21;--ink:#e8eaee;--mut:#9aa3b2;--line:#252b36;--accent:#93a4ff;--accent2:#b9c4ff;--soft:#1a2140}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.6}
+.wrap{max-width:900px;margin:0 auto;padding:34px 22px 90px}
+h1{font-family:Georgia,serif;font-size:clamp(26px,4.5vw,38px);letter-spacing:-.02em;margin:0 0 6px;color:var(--accent2)}
+h2{font-family:Georgia,serif;font-size:22px;margin:34px 0 6px}h3{font-size:16px;margin:20px 0 6px}h4{font-size:14px;margin:16px 0 4px;color:var(--mut)}
+p{margin:0 0 12px}ul{margin:6px 0 14px;padding-left:20px}li{margin:4px 0}code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em;background:var(--soft);padding:1px 5px;border-radius:5px}
+hr{border:0;border-top:1px solid var(--line);margin:26px 0}strong{color:var(--ink)}
+.twrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin:12px 0}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);background:var(--soft)}
+a.back{display:inline-block;margin-bottom:18px;color:var(--accent);font-size:13px;text-decoration:none}
+.masthead{border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:8px}
+.eyebrow{font:600 11.5px ui-monospace,monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+</style></head><body><div class="wrap">
+<a class="back" href="/admin.html">&larr; Back to Atlas HQ</a>
+<div class="masthead"><div class="eyebrow">Atlas Rental.io &middot; Compliance</div></div>
+<h1>Atlas Rental.io — Governance, Legal &amp; Compliance Doc Set: Final Audit Report</h1>
+<p><strong>Audit:</strong> 30-agent skeptic-verified review of the governance/legal/compliance document suite <strong>Date:</strong> 2026-08-06 · <strong>Lead auditor:</strong> Consolidated final report <strong>Scope:</strong> Vendor Register, AI Use Policy, BCDR Runbook, DSAR Procedure, PCI SAQ-A Note, Accessibility Statement, Compliance Roadmap / Command Center, DPA, Privacy Policy, ToS/MSA, Trust Center cluster (Trust Center, SOC2 workbook, Security Questionnaire, Legal Audit, README)</p>
+<hr>
+<h2>1. Executive Summary</h2>
+<p><strong>Overall honesty verdict: Substantially honest. The documents are candid drafts that consistently label themselves "DRAFT FOR COUNSEL REVIEW," disclose their own low governance scores, and make NO fabricated certification claims — no fake SOC 2, no invented auditor, no bound-insurance lie. There are ZERO critical fabrications. What exists instead is a bounded set of correctable overstatements (mostly present-tense claims about controls that are drafted-but-not-yet-shipped) and one materially incomplete artifact — the sub-processor / vendor register.</strong></p>
+<p>The single most important thing the founder should take away: <strong>the code and technical controls are genuinely strong; the gap to Fortune-500 readiness is almost entirely attestation (SOC 2, pen test, insurance, executed contracts) plus a handful of specific document corrections — not engineering work.</strong> PBKDF2-600k, AES-GCM-at-rest with AAD/key-versioning, server-side RBAC, hardened SSRF, CSRF/Origin gating, TOTP+backup MFA, real audit logging with retention, a working customer-erasure endpoint, and a mandatory automated CI deploy gate all verified against ground truth. Buyers, however, purchase *evidence and executed paper*, and that layer is draft-only or absent.</p>
+<p><strong>Fortune-500 readiness headline: 33 / 100</strong> (average of nine procurement-graded dimensions). This is a "strong-code, thin-governance" profile: engineering substrate would score in the 80s–90s, but independent attestation, executed contracts, and adopted policies-with-owners drag the composite to a D. It is a <strong>procurement blocker today</strong> and a <strong>fully closeable one</strong> — most gaps are buildable now and gated only on (a) the founder engaging external parties (auditor, pen-tester, insurer, counsel) and (b) a short list of owner-only workflow-file commits.</p>
+<p><strong>Three findings that fall BETWEEN the audit dimensions and every doc misses</strong> (surfaced here for the first time): (1) the <strong>PB / Prestige Black bridge sync</strong> (<code>/api/pb-sync</code> → Firebase + affiliate) is an undisclosed cross-company PII egress in NO doc; (2) a <strong>hidden Tier-2 super-admin + break-glass tools</strong> with no Privileged Access Management disclosure; (3) <strong>untrusted inbound email/SMS/ticket text flows verbatim into three LLMs</strong> with no prompt-injection governance. None are lies in the docs — they are *omissions of real data flows* that an enterprise privacy/security review will find.</p>
+<hr>
+<h2>2. False / Overstated Claim Ledger (confirmed only)</h2>
+<p>Skeptic-verified. Rejected/unconfirmed claims are excluded. <strong>0 critical fabrications; the two "critical" severities below are overstatements on the most sensitive data (a11y conformance summary and AI zero-retention), not invented facts.</strong></p>
+<div class="twrap"><table><thead><tr><th>#</th><th>Doc</th><th>Claim</th><th>Verdict</th><th>Exact correction</th><th>Severity</th></tr></thead><tbody>
+<tr><td>1</td><td>Vendor Register</td><td>Register enumerates all vendors receiving Atlas data (Square omitted)</td><td>FALSE</td><td>Add Square row (live BYO checkout at connect.squareup.com, PCI DSS L1 / SOC 2; optional per tenant)</td><td>High</td></tr>
+<tr><td>2</td><td>Vendor Register</td><td>Lists all third parties receiving personal data (proxycheck.io omitted)</td><td>FALSE</td><td>Add proxycheck.io row: IP reputation / anti-fraud, receives every visitor IP (GDPR personal data), always-on, US</td><td>High</td></tr>
+<tr><td>3</td><td>Vendor Register</td><td>Gemini governed by cloud.google.com Cloud DPA</td><td>OVERSTATED</td><td>Code calls generativelanguage.googleapis.com (Gemini Developer API); cite ai.google.dev/gemini-api/terms, not the Cloud DPA</td><td>Med</td></tr>
+<tr><td>4</td><td>Vendor Register</td><td>Lists all processors receiving query/content data (Brave omitted)</td><td>FALSE</td><td>Add Brave Search (api.search.brave.com) — receives AI-research query text</td><td>Med</td></tr>
+<tr><td>5</td><td>AI Use Policy §5</td><td>"Dreaming" is owner-toggleable, off unless enabled, costs tokens</td><td>FALSE</td><td>Deterministic dreaming is LLM-free (no token cost) and runs automatically for active tenants; no opt-out toggle exists. Don't claim off-by-default/toggleable/token-costing until a real toggle ships</td><td>High</td></tr>
+<tr><td>6</td><td>AI Use Policy §3</td><td>Requests hard-scoped to the single tenant</td><td>OVERSTATED</td><td>Tenant-assistant requests are tenant-scoped; the platform-owner Counsel + market research operate cross-tenant by design (no tenant sees another tenant's data)</td><td>High</td></tr>
+<tr><td>7</td><td>AI Use Policy §6/2</td><td>AI providers are disclosed sub-processors (incl. research)</td><td>OVERSTATED</td><td>Research-path processors Brave Search + proxycheck.io are undisclosed; complete the §6 disclosure for the research path</td><td>Med</td></tr>
+<tr><td>8</td><td>BCDR Runbook</td><td>Restore drill runnable in staging today; restore-drill.sh automates it</td><td>OVERSTATED</td><td>Staging D1 database_id is still <code>PASTE_YOUR_STAGING_D1_DATABASE_ID</code>; drill is aspirational until staging is provisioned. Add a one-time PREREQUISITE note</td><td>Med</td></tr>
+<tr><td>9</td><td>BCDR Runbook</td><td>/api/admin/backup is owner-gated</td><td>OVERSTATED</td><td>It is staff-gated (authorizes on _actor/_staffId; admin GET is a block-list, not owner-allow-list). Say "admin/staff-gated"</td><td>Low</td></tr>
+<tr><td>10</td><td>DSAR Procedure</td><td>Deletion = soft-delete then purge the individual's rows</td><td>OVERSTATED</td><td>Individual erase REDACTS in place + hard-deletes R2 ID scans; soft-delete→purge is the separate tenant-ACCOUNT path. Relabel the mechanism</td><td>Low</td></tr>
+<tr><td>11</td><td>Accessibility Stmt §2</td><td>Operable — "Supports" (keyboard-operable, no traps)</td><td>OVERSTATED</td><td>Change to "Partially Supports"; note portal star-rating widget is mouse-only (WCAG 2.1.1)</td><td>Critical</td></tr>
+<tr><td>12</td><td>Accessibility Stmt §2</td><td>Robust — "Supports" (name/role/value)</td><td>OVERSTATED</td><td>"Partially Supports"; star widget lacks role/name (WCAG 4.1.2)</td><td>High</td></tr>
+<tr><td>13</td><td>Accessibility Stmt</td><td>All interactive controls have :focus-visible outline</td><td>OVERSTATED</td><td>Scope to "all standard focusable controls"; the onclick star span never focuses. Fix the widget</td><td>High</td></tr>
+<tr><td>14</td><td>Accessibility Stmt §2</td><td>Understandable — "Supports" (form labels)</td><td>OVERSTATED</td><td>Reset-password labels lack for/id to #p1/#p2 (WCAG 1.3.1/4.1.2); fix + downgrade</td><td>Med</td></tr>
+<tr><td>15</td><td>Accessibility Stmt §2</td><td>Four-principle grid as conformance summary</td><td>OVERSTATED</td><td>Add header: "manual code review only — no axe/Lighthouse/AT testing; provisional self-assessment, not certified conformance"</td><td>High</td></tr>
+<tr><td>16</td><td>Accessibility Stmt §3</td><td>Gold #c9a962 contrast residual applies to served pages</td><td>OVERSTATED</td><td>No #c9a962 in worker.js; served pages use contrast-aware _inkFor. Reattribute to the out-of-scope dashboard</td><td>Low</td></tr>
+<tr><td>17</td><td>Compliance Roadmap</td><td>"33/33 findings resolved" / "All 33 fixed"</td><td>OVERSTATED</td><td>Its own callout defers 6 (1 med + 5 low). Reword: "~27 of 30 fixed (live/deploying); 6 deferred-by-design non-exploitable; 3 held under attack." No green 33/33</td><td>High</td></tr>
+<tr><td>18</td><td>Compliance Roadmap</td><td>Header: "live worker 2026.08.05e"</td><td>OVERSTATED</td><td>Same build is marked "Deploying" in the table (git HEAD was 05d). A build can't be live and deploying</td><td>Low</td></tr>
+<tr><td>19</td><td>Compliance Roadmap</td><td>Batch 1 = "6 High" incl profile per-cap gate</td><td>OVERSTATED</td><td>The profile-gate item is MEDIUM (sec #12); the row over-counts high work. Relabel</td><td>Low</td></tr>
+<tr><td>20</td><td>DPA</td><td>AI data = "Prompt content (zero-retention tier)"</td><td>OVERSTATED</td><td>Not verifiable from code (contractual); raw prompt/ticket bodies flow verbatim. Bracket it: "[confirm each AI provider is on a zero-retention/no-training tier]"</td><td>Critical</td></tr>
+<tr><td>21</td><td>DPA</td><td>Sub-processor annex complete as of Effective Date</td><td>OVERSTATED</td><td>proxycheck.io (always-on IP lookup, personal data) is missing — a disclosable Art. 28 sub-processor. Add it</td><td>High</td></tr>
+<tr><td>22</td><td>DPA</td><td>Annex implicitly complete for PII-touching processors</td><td>OVERSTATED</td><td>Dynadot, QuickBooks/Xero, PayPal all receive PII yet are absent (telematics "if enabled" is listed). Add them</td><td>Med</td></tr>
+<tr><td>23</td><td>DPA Annex II</td><td>Object storage served only via authenticated, capability-scoped URLs</td><td>OVERSTATED</td><td>Only ID/licence images get the auth gate; pickup/condition/return/general photos serve on the unguessable key alone (possession, not authentication). Qualify</td><td>Med</td></tr>
+<tr><td>24</td><td>Privacy Policy §6</td><td>ID docs &amp; geolocation retained only as long as necessary then deleted/de-identified</td><td>FALSE</td><td>Code has NO time-based deletion ("retain everything"); KYC/PII kept indefinitely, no de-identification path. State current reality + add a retention schedule</td><td>Critical</td></tr>
+<tr><td>25</td><td>Privacy Policy §7</td><td>"We honor opt-out preference signals (GPC)"</td><td>FALSE</td><td>No GPC handling exists; §8 itself brackets it as a to-do. Change to future tense until PR-03 ships</td><td>High</td></tr>
+<tr><td>26</td><td>Privacy Policy §4</td><td>Shared-provider categories cover all recipients</td><td>OVERSTATED</td><td>proxycheck.io (IPs) + Brave (queries) fit no category; no fraud/anti-abuse category exists. Add one</td><td>Med</td></tr>
+<tr><td>27</td><td>Privacy Policy §7</td><td>End-customers can exercise access/portability rights</td><td>OVERSTATED</td><td>/api/tenant/export is operator-only; no self-serve end-renter DSAR. Say rights are operator-mediated</td><td>Med</td></tr>
+<tr><td>28</td><td>Privacy Policy §2</td><td>E-signature records: "Signature, IP, timestamp"</td><td>OVERSTATED</td><td>Signatures table also stores signer_name, user-agent, doc_hash/doc_text. Enumerate them</td><td>Low</td></tr>
+<tr><td>29</td><td>MSA Exhibit B</td><td>99.9%/month uptime + tiered service-credit remedy</td><td>OVERSTATED</td><td>Atlas cannot measure its own platform uptime (only /api/health + tenant-site probe; no status page/on-call). Don't offer credit-bearing numbers until monitoring exists; soften to commercially-reasonable-efforts</td><td>High</td></tr>
+<tr><td>30</td><td>MSA §12</td><td>E&amp;O/Cyber insurance ≥ $1M/claim, $2M aggregate</td><td>OVERSTATED</td><td>No bound coverage; clause's own bracket says "[Confirm coverage bound before signing]". Keep bracketed until COI exists</td><td>High</td></tr>
+<tr><td>31</td><td>MSA Exhibit A</td><td>Atlas maintains "monitoring/alerting"</td><td>OVERSTATED</td><td>Actual alerting = rate-limited owner emails + health heartbeat; no continuous monitoring/on-call/status page</td><td>Med</td></tr>
+<tr><td>32</td><td>MSA Exhibit A</td><td>"Backups with point-in-time recovery"</td><td>OVERSTATED</td><td>PITR is Cloudflare D1 Time Travel (platform feature); Atlas's own backup exports only 6 admin tables, not bookings/customers/assets/charges/ledger. Clarify</td><td>Med</td></tr>
+<tr><td>33</td><td>Trust Center</td><td>App-security controls "independently audited"</td><td>OVERSTATED</td><td>Only internal AI red-team + AI readiness review; pen test + SOC 2 "in progress". Replace with "reviewed by internal adversarial red-team; independent pen test in progress"</td><td>High</td></tr>
+<tr><td>34</td><td>Trust Center</td><td>Tenant secrets "AES-GCM with per-tenant keys + rotation"</td><td>FALSE</td><td>Single shared ENC_KEY (+ optional ENC_KEY_2 version); per-tenant separation is via AAD binding, NOT per-tenant keys. Restate (Questionnaire DP-2 has it right)</td><td>High</td></tr>
+<tr><td>35</td><td>Trust Center</td><td>DPA "available / available for signature"</td><td>OVERSTATED</td><td>Company's own Legal Audit rates "no signable DPA" CRITICAL; README calls it a first draft. "DPA drafted (counsel review pending); on request"</td><td>High</td></tr>
+<tr><td>36</td><td>Trust Center</td><td>"We publish and keep current a list of subprocessors"</td><td>OVERSTATED</td><td>13-entry register omits proxycheck.io + Brave (and Square). List is incomplete</td><td>High</td></tr>
+<tr><td>37</td><td>Trust Center</td><td>"We provide export &amp; deletion, honor privacy rights (access/deletion/correction/opt-out)"</td><td>OVERSTATED</td><td>Export/erase are operator-level only (no self-serve end-renter DSAR); GPC not implemented. Qualify</td><td>Med</td></tr>
+<tr><td>38</td><td>Trust Center</td><td>PCI SAQ-A "self-attestation being finalized"</td><td>OVERSTATED</td><td>README/Command Center list it as an open, un-started to-do; Legal Audit says no signed AoC/SAQ on file. "Not yet attested"</td><td>Med</td></tr>
+<tr><td>39</td><td>Trust Center</td><td>Green "published/available" while URLs are "#" and page is an internal draft</td><td>OVERSTATED</td><td>Draftbar says "Internal draft — review before publishing" and subprocessor link is "#". Don't show green until published</td><td>Med</td></tr>
+</tbody></table></div>
+<p><strong>Severity tally:</strong> 2 Critical (both overstatements, not fabrications), 15 High, 13 Med, 6 Low. <strong>The PCI SAQ-A note and the core "PAN never touches Atlas" claim are TRUE and code-verified — no SAQ-A jeopardy.</strong></p>
+<hr>
+<h2>3. Coverage — What We Do / Plan That the Docs Miss</h2>
+<p>The doc set is honest about what it covers; the risk is <strong>completeness</strong>. An enterprise review buys the whole data-flow map, and these real, live (or one-flag-away) flows appear in NO governance doc:</p>
+<h3>3.1 Undisclosed / under-scoped data flows (add to Privacy Policy, DPA Annex III, sub-processor list, RoPA)</h3>
+<ul><li><strong>PB / Prestige Black bridge sync</strong> — <code>/api/pb-sync</code> (worker.js:9376) ships tenant/booking/customer PII to a <strong>separate affiliated company</strong> over a <strong>Firebase</strong>-backed bridge when <code>PB_BRIDGE_URL/SECRET</code> are set. Undisclosed everywhere; an affiliate/self-dealing transfer buyers scrutinize hard. Disclose Firebase/Google + the affiliate, add a DPA row, gate behind explicit tenant disclosure/consent — or document it as disabled with the env-var gate as the control.</li><li><strong>Cloudflare-for-SaaS custom-hostname / TLS provisioning</strong> — LIVE (<code>_cfAddHostname</code> etc., worker.js:3070-3107) but scoped nowhere; tenant domain/routing metadata leaves to CF's SaaS control plane. <strong>Ground-truth error:</strong> gt_feature-roadmap wrongly declared this ABSENT (a grep missed the function names). Correct the roadmap; name it as its own processing activity.</li><li><strong>Tenant-configurable OUTBOUND webhooks</strong> — <code>_fireWebhook</code> on booking.created/paid sends booking+customer PII to arbitrary tenant-set URLs. HMAC-signed (good) but never framed as a controller-directed PII egress or SSRF surface. Name it in the DPA security annex.</li><li><strong>Untrusted inbound → LLM</strong> — inbound email/SMS + ticket bodies flow <strong>verbatim</strong> into Claude/GPT/Gemini with only a system-prompt guard. No prompt-injection / untrusted-input governance anywhere.</li><li><strong>Hidden Tier-2 super-admin + break-glass tools</strong> — <code>OWNER_EMAIL_2</code> backup super-admin plus freeze/reset-creds/data-lock/delete/honeypot. No Privileged Access Management or break-glass disclosure (gap_governance only flagged generic single-founder SoD).</li></ul>
+<h3>3.2 Missing documents Fortune-500 review expects</h3>
+<div class="twrap"><table><thead><tr><th>Missing doc</th><th>Why F500 needs it</th><th>Owner</th></tr></thead><tbody>
+<tr><td>Privileged Access Management + Break-Glass Procedure</td><td>SOC 2 CC6 + every questionnaire ask about privileged/emergency access, hidden admin, break-glass logging/review</td><td>Claude</td></tr>
+<tr><td>Acceptable Use Policy + DMCA §512(c) designated-agent registration + takedown procedure</td><td>Atlas hosts tenant + AI-generated public sites; safe-harbor + platform-liability gap</td><td>You</td></tr>
+<tr><td>Network &amp; Data-Flow Architecture Diagram (systems + sub-processor egress)</td><td>The one artifact that would have surfaced PB/Firebase, CF-for-SaaS, outbound webhooks, and AI egress in one place</td><td>Claude</td></tr>
+<tr><td>AI Governance / Model-Risk Policy (prompt-injection, untrusted-input, opt-out, NIST AI RMF / ISO 42001 mapping)</td><td>Existing AI Use Policy is a use policy, not a governance framework</td><td>Claude</td></tr>
+<tr><td>Consolidated, published Sub-Processor List (incl. Firebase/PB bridge, CF-for-SaaS, Square, proxycheck.io, Brave)</td><td>Even the flagged sub-processor page still omits PB/Firebase + CF custom-hostname</td><td>Claude</td></tr>
+<tr><td>RoPA (Art. 30), DPIA (KYC + geolocation), data-retention schedule, InfoSec policy suite, IR plan, VPAT 2.4</td><td>Standard SOC 2 / GDPR / procurement evidence — all absent or draft-only</td><td>Claude/You</td></tr>
+</tbody></table></div>
+<h3>3.3 Unverified assumption underpinning multiple docs</h3>
+<ul><li><strong>D1 row-level hard-deletion on tenant purge was never actually confirmed</strong> (gt_data-privacy flagged follow-up; privacy G12 carries it), yet erasure/deletion attestations in the Privacy Policy and DPA rest on it. Verify before representing deletion completeness.</li></ul>
+<hr>
+<h2>4. Fortune-500 Readiness Scorecard</h2>
+<div class="twrap"><table><thead><tr><th>Dimension</th><th>Score</th><th>One-line gap</th></tr></thead><tbody>
+<tr><td>Security Certification &amp; Testing</td><td>28</td><td>Strong code, but NO SOC 2, NO pen test, NO SCA/SAST in CI — all controls self-asserted</td></tr>
+<tr><td>Privacy &amp; Data-Protection Program</td><td>38</td><td>Good technical substrate; no executed DPA, no RoPA/DPIA/retention schedule, + 2 false policy claims</td></tr>
+<tr><td>BC/DR &amp; Resilience</td><td>34</td><td>Restore never drilled, staging D1 unprovisioned, RTO/RPO are bracketed targets, no daily backup</td></tr>
+<tr><td>Third-Party / Vendor Risk (TPRM)</td><td>34</td><td>No executed DPAs on file, sub-processor page is a "#" placeholder, register omits real PII processors</td></tr>
+<tr><td>Accessibility (508 / WCAG 2.1 AA)</td><td>32</td><td>No real VPAT, zero automated/AT testing, 2 live WCAG failures, dashboard never assessed</td></tr>
+<tr><td>Availability, SLA &amp; Status</td><td>28</td><td>Unsigned placeholder SLA, no status page, no external monitor on Atlas's own control plane</td></tr>
+<tr><td>Incident Response &amp; Breach Notification</td><td>32</td><td>Good log primitives but no IR plan, no detection→trigger, breach SLA unresolved bracket</td></tr>
+<tr><td>Secure SDLC &amp; Change Management</td><td>44</td><td>Strong CI gates + secrets hygiene; no policy/approvals, solo direct-to-main, no security scanning</td></tr>
+<tr><td>Governance, Insurance &amp; Corporate</td><td>30</td><td>No bound cyber/E&amp;O insurance, no executed MSA, no adopted policy suite, entity unconfirmed</td></tr>
+<tr><td><strong>Average</strong></td><td><strong>33</strong></td><td><strong>Strong-code / thin-governance: engineering ~85, attestation ~15 → composite D</strong></td></tr>
+</tbody></table></div>
+<hr>
+<h2>5. Prioritized Roadmap</h2>
+<p>Closes <strong>both</strong> the false-claim corrections and the F500 gaps. Owner = <strong>You</strong> (founder decision/account/spend), <strong>Claude</strong> (drafting/build, no external dependency), <strong>External</strong> (auditor/pen-tester/insurer/counsel).</p>
+<h3>P0 — Deal-blockers (start now)</h3>
+<div class="twrap"><table><thead><tr><th>Item</th><th>Owner</th><th>Effort</th></tr></thead><tbody>
+<tr><td>Correct the 4 FALSE claims immediately: Privacy §6 retention wording, Privacy §7 GPC → future tense, Trust Center "per-tenant keys" → shared ENC_KEY+AAD, AI Policy §5 dreaming</td><td>Claude</td><td>Low (~1 day)</td></tr>
+<tr><td>Fix vendor register / DPA Annex III completeness: add Square, proxycheck.io, Brave, Dynadot, QuickBooks/Xero, PayPal; fix Gemini DPA link; bracket AI zero-retention</td><td>Claude</td><td>Low–Med (~1 day)</td></tr>
+<tr><td>Reword Compliance Roadmap "33/33 resolved" + header 05e; downgrade Accessibility §2 to "Partially Supports" + fix star widget &amp; reset labels</td><td>Claude</td><td>Low (~1 day)</td></tr>
+<tr><td>Engage a compliance platform (Vanta/Drata/Secureframe) + CPA firm → SOC 2 Type I, then keep window open for Type II</td><td>You + External</td><td>High ($8–25k/yr; Type I 6–8 wks)</td></tr>
+<tr><td>Scope + engage an independent penetration test (web-app + API + multi-tenant isolation); obtain NDA-shareable summary</td><td>External</td><td>Med ($5–15k; 2–3 wks)</td></tr>
+<tr><td>Bind Cyber + Tech E&amp;O insurance ($1M/claim, $2M agg to match MSA cap); obtain COI; fill MSA §12</td><td>You</td><td>1–3 wks (~$2–6k/yr)</td></tr>
+<tr><td>Finalize + execute DPA and MSA/Order Form: resolve all brackets, remove AI zero-retention assertion, counsel sign-off, publish signable DPA</td><td>External</td><td>2–4 wks (~$3–8k legal)</td></tr>
+<tr><td>Draft + adopt the InfoSec policy suite (from real gt_security controls) with owners + review cadence + acceptance log</td><td>Claude → You adopt</td><td>1–2 wks</td></tr>
+<tr><td>Author RoPA (Art. 30) from ground truth for every processing activity</td><td>Claude</td><td>Med</td></tr>
+<tr><td>Publish real sub-processor page (incl. PB/Firebase, CF-for-SaaS, Square, proxycheck.io, Brave) + change-notice subscribe; replace all "#" links</td><td>Claude</td><td>Med</td></tr>
+<tr><td>Provision staging D1 (<code>wrangler d1 create atlas-staging</code> → paste id) and run restore-drill.sh once; record real RTO/RPO</td><td>You</td><td>Med</td></tr>
+<tr><td>Stand up external uptime monitor on /api/health + public status page; commit an actual SLA number (recommend 99.5%, not 99.9%)</td><td>You</td><td>Small–Med</td></tr>
+<tr><td>Correct retention: author a documented retention schedule for ID images + geolocation; decide flag-gated auto-delete sweep vs. plainly disclosed indefinite retention</td><td>Claude builds / You decide</td><td>Med</td></tr>
+</tbody></table></div>
+<h3>P1 — High-value, mostly buildable now</h3>
+<div class="twrap"><table><thead><tr><th>Item</th><th>Owner</th><th>Effort</th></tr></thead><tbody>
+<tr><td>Add CI security scanning: CodeQL (SAST) + Dependabot (SCA, github-actions ecosystem) + document zero-runtime-dep posture (AS-7 evidence)</td><td>Claude (commit owner-gated)</td><td>Low</td></tr>
+<tr><td>Write Change-Management / Secure SDLC policy + compensating-control narrative for solo-founder; enable branch protection + CODEOWNERS</td><td>Claude + You</td><td>Low</td></tr>
+<tr><td>Draft written IR plan (SEV matrix, roles, lifecycle) + breach-notification runbook (GDPR 72h / Tex. §521.053 / CCPA); resolve DPA §7 bracket</td><td>Claude + External</td><td>Med</td></tr>
+<tr><td>Add detection layer: threshold rules over audit_log/attack_log → SEV-classified alerts to external sink with ack-or-escalate</td><td>Claude + You (provision sink)</td><td>Med–L</td></tr>
+<tr><td>Implement GPC handling on served public pages (read Sec-GPC / navigator.globalPrivacyControl) tied to consent banner</td><td>Claude</td><td>Med</td></tr>
+<tr><td>Draft DPIA for KYC ID-images + telematics geolocation (Art. 35 high-risk)</td><td>Claude → You sign</td><td>Med</td></tr>
+<tr><td>Author real VPAT 2.4 Rev; stand up axe/Lighthouse + pa11y in CI; run manual AT/keyboard pass incl. the dashboard</td><td>Claude + You</td><td>Med–L</td></tr>
+<tr><td>Confirm AI no-training/zero-retention tier with Anthropic/OpenAI/Google + file as DPA evidence; add pre-send scrubber for card/SSN/ID patterns on untrusted bodies</td><td>You + Claude</td><td>Med</td></tr>
+<tr><td>Add AI Governance / Model-Risk Policy (prompt-injection, untrusted-input, opt-out, NIST AI RMF mapping)</td><td>Claude</td><td>Med</td></tr>
+<tr><td>Draft Privileged Access Management + Break-Glass procedure (Tier-2 owner, emergency tools, 365d owner.* audit rows)</td><td>Claude</td><td>Low</td></tr>
+<tr><td>Stand up daily encrypted d1 export off-Cloudflare (removes single-vendor RPO dependency) + failover/continuity runbook</td><td>Claude + You</td><td>Med</td></tr>
+<tr><td>Bound-doc items: security-awareness training + records; confirm/form legal entity + EIN + good-standing; background-check policy</td><td>You + Claude</td><td>Low–Med</td></tr>
+<tr><td>Vendor governance: execute + file click-through DPAs; vendor-review log with SOC2/ISO expiry tracking</td><td>You</td><td>Med</td></tr>
+<tr><td>Publish live security@ inbox + /.well-known/security.txt + real VDP page</td><td>You + Claude</td><td>Low</td></tr>
+</tbody></table></div>
+<h3>P2 — Strengthen once P0/P1 land</h3>
+<div class="twrap"><table><thead><tr><th>Item</th><th>Owner</th><th>Effort</th></tr></thead><tbody>
+<tr><td>Swap in the stronger real-D1 money-integrity + concurrency CI gate (ci/deploy-worker.yml) over the live workflow</td><td>You (workflow-file commit)</td><td>Low</td></tr>
+<tr><td>SHA-pin all CI actions (@vN → commit SHA) — supply-chain hardening</td><td>You (commit)</td><td>Low</td></tr>
+<tr><td>Vulnerability-management policy + recurring authenticated DAST (OWASP ZAP baseline) + remediation log</td><td>Claude</td><td>Med</td></tr>
+<tr><td>Extend security-audit log retention toward 1yr / forward to append-only external immutable sink</td><td>Claude + You</td><td>Med</td></tr>
+<tr><td>Draft AUP + register DMCA §512(c) designated agent + takedown procedure (hosted UGC/AI sites)</td><td>You</td><td>Low–Med</td></tr>
+<tr><td>Post-incident-review / RCA template + tabletop cadence</td><td>Claude</td><td>Small</td></tr>
+<tr><td>Vendor SLA / status-page dependency register; accrue trailing 90-day uptime evidence</td><td>You</td><td>Small (time-gated)</td></tr>
+</tbody></table></div>
+<h3>P3 — Continuous / maturity</h3>
+<div class="twrap"><table><thead><tr><th>Item</th><th>Owner</th><th>Effort</th></tr></thead><tbody>
+<tr><td>SOC 2 Type II observation window to completion; annual pen-test cadence</td><td>External</td><td>Time-gated</td></tr>
+<tr><td>D&amp;O insurance; Business Impact Analysis; network/data-flow architecture diagram maintained</td><td>You + Claude</td><td>Med</td></tr>
+<tr><td>Verify D1 row-level hard-delete on purge; then re-attest deletion completeness in Privacy Policy + DPA</td><td>Claude</td><td>Low</td></tr>
+</tbody></table></div>
+<hr>
+<h2>6. Bottom Line for the Founder</h2>
+<ul><li><strong>Honesty:</strong> The docs do not lie about certifications. The failures are (a) present-tense claims about drafted-but-unshipped controls (GPC, retention deletion, per-tenant keys, "independently audited," "33/33 resolved," 99.9% SLA) and (b) an incomplete vendor/sub-processor list. All 39 are correctable with edits + a few small builds — no fabrication to unwind.</li><li><strong>Coverage:</strong> The doc set describes the product accurately but omits several real data flows (PB/Firebase affiliate bridge, CF-for-SaaS, outbound webhooks, untrusted-input-to-LLM, hidden super-admin). These are the items most likely to surface embarrassingly in a buyer's redline; disclose them proactively.</li><li><strong>F500 readiness (33/100):</strong> The number is low because it grades *attestation and executed paper*, which barely exist — not because the engineering is weak. The fastest movers of the composite are external and owner-gated: SOC 2 + pen test + bound insurance + executed DPA/MSA + a status page. Claude can immediately close the entire documentation and CI-tooling layer; the load-bearing lifts need the founder to engage the auditor, pen-tester, insurer, and counsel.</li></ul>
+</div></body></html>
