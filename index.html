@@ -6997,7 +6997,10 @@ const Atlas = (function(){
     var top=custs.slice().sort(function(a,b){return b.rev-a.rev;}).slice(0,5);
     var topHtml='<div style="font-size:12.5px;font-weight:650;color:var(--ink);margin:16px 0 6px">Top customers by value</div>'+top.map(function(c,i){
       return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-top:'+(i?'1px solid var(--line)':'0')+'"><div style="min-width:0"><b style="font-size:13.5px">'+(i+1)+'. '+esc(c.name||'Customer')+'</b><div style="font-size:11.5px;color:var(--muted)">'+c.n+' booking'+(c.n===1?'':'s')+'</div></div><div style="font-weight:700;color:var(--ink)" class="tnum">'+money(c.rev)+'</div></div>'; }).join('');
-    return kpis+grid+topHtml;
+    var _now=Date.now(), _DAY=86400000;
+    var lapsed=custs.map(function(c){ var last=c.bk.reduce(function(m,x){return Math.max(m,x.ts||0);},0); return {c:c,last:last}; }).filter(function(o){ return o.last>0 && (_now-o.last)>90*_DAY; }).sort(function(a,b){return b.c.rev-a.c.rev;}).slice(0,6);
+    var winHtml=lapsed.length?('<div style="font-size:12.5px;font-weight:650;color:var(--ink);margin:16px 0 6px">Win-back opportunities <span style="font-weight:500;color:var(--muted);font-size:11px">no booking in 90+ days</span></div>'+lapsed.map(function(o){ var days=Math.round((_now-o.last)/_DAY); return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--line)"><div style="min-width:0"><b style="font-size:13.5px">'+esc(o.c.name||'Customer')+'</b><div style="font-size:11.5px;color:var(--muted)">'+money(o.c.rev)+' lifetime &middot; last booked '+days+' days ago</div></div></div>'; }).join('')+'<div class="bk-lenhint" style="margin:8px 0 0">These high-value customers have gone quiet &mdash; a note through <b>Outreach</b> often brings them back.</div>'):'';
+    return kpis+grid+topHtml+winHtml;
   }
 
   function renderAnalytics(){
