@@ -9895,7 +9895,7 @@ const Atlas = (function(){
   // construction: the card only reports "on" when a provider can actually run, and the automated in-portal flow is Stripe.
   var _idvSrv={loaded:false,stripeConnected:false,connected:{}};
   function _idvCfg(){ var c=(S&&S.idv)||{}; return {enabled:!!c.enabled, provider:c.provider||'manual'}; }
-  function _idvStatusLoad(){ try{ if(!ATLAS_BACKEND||typeof _api!=='function') return; _api('/api/tenant/idv/status').then(function(j){ if(j&&j.ok){ _idvSrv={loaded:true,stripeConnected:!!j.stripeConnected,connected:j.connected||{}}; var el=document.getElementById('idvState'); if(el) el.innerHTML=_idvStateHtml(); } }).catch(function(){}); }catch(e){} }
+  function _idvStatusLoad(){ try{ if(!ATLAS_BACKEND||typeof _api!=='function') return; _api('/api/tenant/idv/status').then(function(r){ var j=r&&r.json; if(j&&j.ok){ _idvSrv={loaded:true,stripeConnected:!!j.stripeConnected,connected:j.connected||{}}; var el=document.getElementById('idvState'); if(el) el.innerHTML=_idvStateHtml(); } }).catch(function(){}); }catch(e){} }
   function _idvStateHtml(){
     var cfg=_idvCfg(), prov=cfg.provider, on=cfg.enabled;
     var stripeReady=_idvSrv.stripeConnected || !!(S.integrations&&S.integrations.stripe);
