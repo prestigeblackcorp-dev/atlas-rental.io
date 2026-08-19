@@ -1609,6 +1609,10 @@ body.trk-fs-on .trk-fs-exit{display:grid}
             <div class="card"><div class="card__head"><h3>Top Performers</h3></div><div class="card__body" id="topList"></div></div>
           </div>
           <div class="card" style="margin-top:18px">
+            <div class="card__head"><h3>Customer analytics</h3><span style="font-size:11px;color:var(--muted)">cohorts, retention &amp; lifetime value</span></div>
+            <div class="card__body" id="anaCohorts"></div>
+          </div>
+          <div class="card" style="margin-top:18px">
             <div class="card__head"><h3>Reviews &amp; Ratings</h3></div>
             <div class="card__body" id="reviewsBody"></div>
           </div>
@@ -2200,7 +2204,7 @@ const Atlas = (function(){
     document.body.appendChild(e); e.classList.add('on'); }
   const CREDIT_PACKS=[ {credits:500,price:25}, {credits:2000,price:80}, {credits:5000,price:175} ];  // Atlas.io top-ups (any tier)
   /* ---- app version + owner-only feature flags (in-app upgrades) ---- */
-  var APP_VERSION='2026.7.19v';
+  var APP_VERSION='2026.7.19w';
   var APP_CHANGELOG=[
     'Clearer sign-up &amp; sign-in: a show/hide password button, instant checks that tell you exactly what to fix, and the real 8-character password rule shown up front',
     'Atlas.io chat actions now also cover pricing, fees &amp; promo codes (Settings &gt; Owner console, beta): every change previews before/after and only applies when you tap Apply, with one-tap undo',
@@ -6954,6 +6958,48 @@ const Atlas = (function(){
     toast('Sending...'); _api('/api/outreach/send',{method:'POST',body:{subject:subj,body:body,recipients:[c.email]}}).then(function(res){
       if(res.json&&res.json.ok&&(res.json.sent>0)){ _logEvent('email','Emailed '+c.email+': '+subj,{to:c.email}); closeModal(); toast('Email sent'); }
       else { toast((res.json&&(res.json.error))||((res.json&&res.json.skipped)?'Not sent -- this customer is unsubscribed':'Could not send')); } }).catch(function(){ toast('Network error'); }); }
+  function _cohortHtml(){
+    var nc=(DATA.bookings||[]).filter(_isCommitted);
+    var key=function(b){ var e=(b.custEmail&&String(b.custEmail).toLowerCase())||''; if(e&&e.indexOf('@')>0)return e; var n=String(b.cust||'').toLowerCase().trim(); return n?('n:'+n):''; };
+    var by={};
+    nc.forEach(function(b){ var k=key(b); if(!k)return; var ts=Number(b.startTs)||Number(b.createdAt)||0; var rev=_bkEarned(b)||0;
+      var c=by[k]||(by[k]={first:(ts||Infinity),rev:0,n:0,name:(b.cust||b.custEmail||''),bk:[]}); c.rev+=rev; c.n++; if(ts){ c.bk.push({ts:ts,rev:rev}); if(ts<c.first)c.first=ts; } });
+    var custs=Object.keys(by).map(function(k){return by[k];});
+    if(custs.length<1) return '<div class="bk-lenhint" style="margin:0">No customer history yet. Once a few '+esc(_fterm('books'))+' come in, this shows who comes back, what a customer is worth, and how each month\u2019s new customers retain over time.</div>';
+    var totalRev=custs.reduce(function(s,c){return s+c.rev;},0);
+    var ltv=custs.length?totalRev/custs.length:0;
+    var avgBk=custs.length?(custs.reduce(function(s,c){return s+c.n;},0)/custs.length):0;
+    var repeat=custs.filter(function(c){return c.n>=2;}).length, repeatPct=custs.length?Math.round(repeat/custs.length*100):0;
+    var retRev=0; custs.forEach(function(c){ var s=c.bk.slice().sort(function(a,b){return a.ts-b.ts;}); for(var i=1;i<s.length;i++) retRev+=s[i].rev; });
+    var retPct=totalRev?Math.round(retRev/totalRev*100):0;
+    var kpis='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px;margin-bottom:16px">'
+      +[['Lifetime value',money(ltv),'avg revenue per customer'],['Bookings / customer',(Math.round(avgBk*10)/10).toString(),'lifetime average'],['Repeat rate',repeatPct+'%','book 2 or more times'],['From returning',retPct+'%','of revenue is repeat business']].map(function(x){
+        return '<div style="border:1px solid var(--line);border-radius:11px;padding:11px 13px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">'+x[0]+'</div><div style="font-size:20px;font-weight:800;color:var(--ink);margin:2px 0" class="tnum">'+x[1]+'</div><div style="font-size:11px;color:var(--muted)">'+x[2]+'</div></div>'; }).join('')+'</div>';
+    var mi=function(ts){ var d=new Date(ts); return d.getFullYear()*12+d.getMonth(); };
+    var mk=function(ts){ var d=new Date(ts); try{ return d.toLocaleString(undefined,{month:'short',year:'2-digit'}); }catch(e){ return (d.getMonth()+1)+'/'+d.getFullYear(); } };
+    var coh={};
+    Object.keys(by).forEach(function(k){ var c=by[k]; if(!isFinite(c.first))return; var ci=mi(c.first);
+      var h=coh[ci]||(coh[ci]={size:0,ci:ci,first:c.first,months:{}}); h.size++;
+      c.bk.forEach(function(x){ var off=mi(x.ts)-ci; if(off<0)return; (h.months[off]=h.months[off]||{})[k]=1; }); });
+    var ck=Object.keys(coh).map(Number).sort(function(a,b){return a-b;});
+    var maxOff=0; ck.forEach(function(ci){ Object.keys(coh[ci].months).forEach(function(o){ if(+o>maxOff)maxOff=+o; }); }); maxOff=Math.min(Math.max(maxOff,1),6);
+    var show=ck.slice(-8), grid='';
+    if(show.length){
+      var thead='<tr><th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--muted)">Joined</th><th style="padding:6px 8px;font-size:11px;color:var(--muted)">New</th>';
+      for(var o=0;o<=maxOff;o++) thead+='<th style="padding:6px 6px;font-size:11px;color:var(--muted)">M'+o+'</th>'; thead+='</tr>';
+      var body=show.map(function(ci){ var h=coh[ci]; var r='<tr><td style="text-align:left;padding:5px 8px;font-weight:600;white-space:nowrap">'+esc(mk(h.first))+'</td><td style="padding:5px 8px;text-align:center" class="tnum">'+h.size+'</td>';
+        for(var o=0;o<=maxOff;o++){ var cnt=h.months[o]?Object.keys(h.months[o]).length:0; var pct=h.size?Math.round(cnt/h.size*100):0;
+          var a=pct?(0.12+0.85*pct/100):0; var bg=pct?('rgba(20,132,86,'+a.toFixed(2)+')'):'transparent';
+          r+='<td style="padding:5px 6px;text-align:center;border-radius:5px;background:'+bg+';color:'+(pct>52?'#fff':'var(--muted)')+';font-size:12px" class="tnum">'+(o===0?String(h.size):(cnt?pct+'%':'&middot;'))+'</td>'; }
+        return r+'</tr>'; }).join('');
+      grid='<div style="font-size:12.5px;font-weight:650;color:var(--ink);margin:4px 0 6px">Retention by cohort</div><div style="overflow-x:auto"><table style="border-collapse:separate;border-spacing:3px;width:100%;min-width:340px">'+thead+body+'</table></div><div style="font-size:11px;color:var(--muted);margin:6px 0 0">Each row is the customers who first booked that month; M1 to M'+maxOff+' show the share who booked again that many months later.</div>';
+    }
+    var top=custs.slice().sort(function(a,b){return b.rev-a.rev;}).slice(0,5);
+    var topHtml='<div style="font-size:12.5px;font-weight:650;color:var(--ink);margin:16px 0 6px">Top customers by value</div>'+top.map(function(c,i){
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-top:'+(i?'1px solid var(--line)':'0')+'"><div style="min-width:0"><b style="font-size:13.5px">'+(i+1)+'. '+esc(c.name||'Customer')+'</b><div style="font-size:11.5px;color:var(--muted)">'+c.n+' booking'+(c.n===1?'':'s')+'</div></div><div style="font-weight:700;color:var(--ink)" class="tnum">'+money(c.rev)+'</div></div>'; }).join('');
+    return kpis+grid+topHtml;
+  }
+
   function renderAnalytics(){
     if(!document.getElementById('anaKpis')) return;   // only when the Analytics panel is mounted
     try{ _materializeRecurring(); }catch(e){}   // generate any recurring expenses due, prune stale/orphaned ones, before anything on this panel reads the ledger
@@ -6974,6 +7020,7 @@ const Atlas = (function(){
     _renderBudgetCard();
     renderPnl();
     var _fcCard=document.getElementById('anaForecastCard'); if(_fcCard){ if(_flags().betaForecast){ _fcCard.style.display=''; var _fb=document.getElementById('anaForecast'); if(_fb)_fb.innerHTML=_forecastHtml(); } else _fcCard.style.display='none'; }   // betaForecast owner flag now drives a real projection
+    var _cc=document.getElementById('anaCohorts'); if(_cc) _cc.innerHTML=_cohortHtml();
     renderReports(); renderLog(); renderReviews();
     setTimeout(()=>drawSrcChart(),30);
   }
