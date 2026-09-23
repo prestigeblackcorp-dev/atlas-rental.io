@@ -2110,15 +2110,20 @@ const Atlas = (function(){
   function _hidePolicyBanner(){ var b=document.getElementById('policyBanner'); if(b&&b.parentNode) b.parentNode.removeChild(b); }
   function policyAccept(){ if(!(ATLAS_BACKEND&&_apiCsrf)){ _hidePolicyBanner(); return; }
     _api('/api/policy/accept',{method:'POST',body:{}}).then(function(res){ if(res.json&&res.json.ok){ _hidePolicyBanner(); try{ var tid=store.session()&&store.session().tenantId; var _tb=_lsGet('atlas_tenant_'+tid,null); if(_tb){ _tb.tosVersion=res.json.version; _lsSet('atlas_tenant_'+tid,_tb); } }catch(e){} toast('Thank you -- your acceptance is recorded'); } else { toast('Could not record acceptance'); } }).catch(function(){ toast('Network error - please try again'); }); }
-  function _srvMergeColl(lsKey,kind,rows){ if(!rows) return; var local=_lsGet(lsKey,[])||[]; var byId={}, order=[];
+  function _srvMergeColl(lsKey,kind,rows){ if(!rows) return; var local=_lsGet(lsKey,[])||[]; var byId={}, order=[], _srvIds={};
     local.forEach(function(x){ if(x&&x.id&&!byId[x.id]){ byId[x.id]=x; order.push(x.id); if(x._t) _seenT(x._t); } });
-    rows.forEach(function(row){ var srv=_srvUnshape(kind,row); if(!srv||!srv.id) return; _seenT(srv._t); var loc=byId[srv.id];   // #294: feed the monotonic clock so our next local stamp is after the server's newest
+    rows.forEach(function(row){ var srv=_srvUnshape(kind,row); if(!srv||!srv.id) return; _srvIds[String(srv.id)]=1; _seenT(srv._t); var loc=byId[srv.id];   // #294: feed the monotonic clock so our next local stamp is after the server's newest; #19: record the COMPLETE server id set (rows come from _apiAll -> all pages) for the pb-mirror prune below
       if(!loc){ byId[srv.id]=srv; order.push(srv.id); _pushedHash[kind+':'+srv.id]=JSON.stringify(srv); }   // audit HIGH #16: adopted from server -> matches server, mark synced
       else if((srv._t||0)>(loc._t||0)){ byId[srv.id]=srv; _pushedHash[kind+':'+srv.id]=JSON.stringify(srv); }   // server newer -> adopt + mark synced
       else if(kind==='bookings' && Array.isArray(srv.extensions) && Array.isArray(loc.extensions)){   // #extfix: local booking wins by _t, but never drop a server-recorded extension SIGNATURE (mirrors the worker _graftServerPay)
         var _sx={}; srv.extensions.forEach(function(e){ if(e&&e.id!=null&&e.signedAt) _sx[String(e.id)]=e; });
         loc.extensions.forEach(function(e){ if(e&&e.id!=null){ var s=_sx[String(e.id)]; if(s&&!e.signedAt){ e.signedAt=s.signedAt; if(s.signerName!=null)e.signerName=s.signerName; if(s.sigId!=null)e.sigId=s.sigId; } } }); }
       });   // audit HIGH #16: when LOCAL wins, do NOT touch _pushedHash -> the local edit stays dirty and the next _srvSyncPush actually sends it (was set unconditionally to the LOCAL blob -> the edit was marked already-synced and silently never reached the server = cross-device data loss)
+    // audit #19: PB-sync PRUNES stale pb-mirror rows server-side (DELETE), but this merge is a pure UNION, so a pruned
+    // pb-mirror booking/asset lingered locally as a PHANTOM (calendar / KPIs / reports). Drop ONLY a server-origin
+    // pb-mirror row (read-only; the client never authors these) that is absent from the COMPLETE server set. A native or
+    // local row absent from the server set is KEPT -- never drop a local edit or a not-yet-pushed booking (no data loss).
+    order = order.filter(function(id){ if(_srvIds[String(id)]) return true; var x=byId[id]; var _pbm = x && (x.source==='pb-mirror' || (x.mirror && x.mirror.source==='pb') || (x.data && x.data.source==='pb-mirror')); if(_pbm){ delete byId[id]; return false; } return true; });
     _lsSet(lsKey, order.map(function(id){ return byId[id]; })); }
   function _srvMergeProfile(tid,prof){ _profileHydrated=true;   // #294 Gap 6: a valid server profile was received -> the profile push is now safe to run
     var loc=_lsGet('atlas_tenant_'+tid,null)||{}; var s=(prof&&prof.settings)||{};
