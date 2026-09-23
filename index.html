@@ -3786,6 +3786,7 @@ const Atlas = (function(){
     save(); _updMoneyPrev();
   }
   function setCancelPolicy(v){ if(!_guard('pricing','Editing the cancellation policy'))return; if(!S.legal)S.legal={}; S.legal.cancelPolicy=String(v||'').slice(0,1200); save(); }
+  function setSenderAddress(v){ if(!S.legal)S.legal={}; S.legal.senderAddress=String(v||'').replace(/\s+/g,' ').trim().slice(0,200); save(); }   // audit #26 (CAN-SPAM): the business mailing address rendered in the marketing-email footer (synced in S.legal, read server-side by the outreach send)
   function toggleRule(id){ var r=(S.money.rules||[]).find(function(x){return x.id===id;}); if(r){ r.on=!r.on; save(); _updMoneyPrev(); } }
   function setRule(id,f,v){ var r=(S.money.rules||[]).find(function(x){return x.id===id;}); if(!r)return; r[f]=(f==='value')?(parseFloat(v)||0):v; save(); _updMoneyPrev(); }
   function removeRule(id){ S.money.rules=(S.money.rules||[]).filter(function(x){return x.id!==id;}); save(); renderSet(); }
@@ -8436,6 +8437,9 @@ const Atlas = (function(){
       <div class="set-block"><h3>Cancellation policy</h3><div class="desc">Shown to customers on your booking page <b>before they pay</b> and merged into your rental agreement &mdash; so what they agree to and what the contract says are the same. A non-refundable amount is only enforceable if it was disclosed here first.</div>
         <div class="field"><label>Free-cancellation window</label><div class="rule-input" style="padding:0 12px"><input class="tnum" style="width:auto;flex:1;text-align:left" value="${_cxWindow()}" oninput="Atlas.setMoney('cancelWindowHrs',this.value)"><span>hours before start</span></div></div>
         <div class="field" style="margin-bottom:0"><label>Policy the customer sees &amp; signs</label><textarea class="input" rows="3" placeholder="e.g. Free cancellation up to 48 hours before pickup. Within 48 hours the deposit is non-refundable. No-shows are charged in full." oninput="Atlas.setCancelPolicy(this.value)">${esc((S.legal&&S.legal.cancelPolicy)||'')}</textarea><div class="bk-lenhint" style="margin:8px 0 0">Publish your booking site after editing so customers see the current policy.</div></div>
+      </div>
+      <div class="set-block"><h3>Business mailing address</h3><div class="desc">Your business's physical postal address. It appears in the footer of the <b>marketing emails</b> you send from Outreach, as US CAN-SPAM law requires. Leave blank if you never send marketing email.</div>
+        <div class="field" style="margin-bottom:0"><label>Mailing address (street, city, state, ZIP)</label><input class="input" placeholder="e.g. 123 Main St, Suite 4, Austin, TX 78701" value="${esc((S.legal&&S.legal.senderAddress)||'')}" oninput="Atlas.setSenderAddress(this.value)"></div>
       </div>
       <div class="set-block"><h3>Rules &amp; fees</h3><div class="desc">Add any fee or rule your business charges &mdash; card processing, airport surcharge, eco fee, anything. Toggle it on to apply. <b>Nothing here is on by default</b> &mdash; a 13.25% card fee, for example, is yours to add, never baked in.</div>
         <div style="border:1px solid var(--line);border-radius:12px;padding:2px 14px">
@@ -13459,7 +13463,7 @@ const Atlas = (function(){
   }
   document.addEventListener('DOMContentLoaded',function(){ (window.__atlasStoreReady||Promise.resolve()).then(init).catch(function(){ init(); }); });   // wait for the IndexedDB big-store hydration so loaders read migrated data, not an empty localStorage
 
-  return {startTrial,demo,demoStart,demoSkip,exitDemo,next,back,brandLive,logoPick,pickColor,pickColorHex,pickFleet,toggleFleet,setMoney,setDisplayCurrency,setNotify,setTypeRate,setCancelPolicy,connect,doConnect,connectQuickbooks,connectXero,connectPaypal,connectSquare,setActivePay,connectAtlas,idvSetProvider,idvToggle,setTurnaround,setIdScanRetention,setAutoHold,setPassFee,setTaxOn,syncTax,
+  return {startTrial,demo,demoStart,demoSkip,exitDemo,next,back,brandLive,logoPick,pickColor,pickColorHex,pickFleet,toggleFleet,setMoney,setDisplayCurrency,setNotify,setTypeRate,setCancelPolicy,setSenderAddress,connect,doConnect,connectQuickbooks,connectXero,connectPaypal,connectSquare,setActivePay,connectAtlas,idvSetProvider,idvToggle,setTurnaround,setIdScanRetention,setAutoHold,setPassFee,setTaxOn,syncTax,
     playFilm,closeFilm,filmMute,filmSeek,filmTapStop,
     openDreaming,dreamToggle,dreamConnect,dreamSaveConn,dreamDisconnect,dreamLaunch,dreamOutreach,dreamSend,setupAssistant,_suGoal,_suPhoto,_obAssetPhoto,setupFinish,
     finish,go,goSettings,setTab,renderSet,openAio,closeAio,openNotifications,aioSend,aioAsk,aioApply,aioUndo,aioCancel,aioBundleApply,aioBundleCancel,aioDiagnose,aioFix,aioWriteCopy,dismissQuicks,toggleCouncil,toast,copyPortal,referCopy,openModal,closeModal,
