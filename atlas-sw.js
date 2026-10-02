@@ -2,7 +2,7 @@
    Network-first for everything (never serve stale HTML/JS), cache only as an OFFLINE fallback.
    Own cache name so it never touches other apps' caches. Deploy Atlas in its own folder in
    production so this SW's scope stays isolated from any sibling app's service worker. */
-var CACHE = 'atlas-shell-v314';
+var CACHE = 'atlas-shell-v315';
 var SHELL = ['atlas.html', 'atlas-manifest.json', 'atlas-icon.svg'];
 
 self.addEventListener('install', function (e) {
@@ -41,4 +41,23 @@ self.addEventListener('fetch', function (e) {
       });
     })
   );
+});
+
+
+/* ---- Web push (RFC 8291): show owner/renter notifications pushed by the worker. Inert unless a push actually arrives. ---- */
+self.addEventListener('push', function(e){
+  var d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) { try { d = { title: 'Atlas Rental', body: (e.data && e.data.text()) || '' }; } catch (__) { d = {}; } }
+  var title = d.title || 'Atlas Rental';
+  var opts = { body: d.body || '', icon: '/atlas-hq-icon-192.png', badge: '/atlas-hq-icon-192.png', data: { url: d.url || '/' } };
+  if (d.tag) opts.tag = d.tag;
+  e.waitUntil(self.registration.showNotification(title, opts));
+});
+self.addEventListener('notificationclick', function(e){
+  e.notification.close();
+  var url = (e.notification.data && e.notification.data.url) || '/';
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(ws){
+    for (var i = 0; i < ws.length; i++) { if (ws[i].url.indexOf(url) >= 0 && 'focus' in ws[i]) return ws[i].focus(); }
+    if (clients.openWindow) return clients.openWindow(url);
+  }));
 });
