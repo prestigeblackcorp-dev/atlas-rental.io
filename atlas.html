@@ -2255,8 +2255,9 @@ const Atlas = (function(){
   function _fNum(d){ d=_fHalf(d); return (d===Math.floor(d))?(''+d):d.toFixed(2); }
   function _fDisp(d){ d=Number(d)||0; if(!_isFounder()) return '$'+d; return '<span style="text-decoration:line-through;opacity:.5">$'+d+'</span> <span style="color:var(--brand);font-weight:850">$'+_fNum(d)+'</span>'; }
   /* ---- app version + owner-only feature flags (in-app upgrades) ---- */
-  var APP_VERSION='2026.7.23i';
+  var APP_VERSION='2026.7.23j';
   var APP_CHANGELOG=[
+    'Money &amp; per-type fixes from the launch audit: a 12-month lease no longer silently applies the long-term discount (it was quoting 25% off a signed lease), the onboarding security-hold now actually activates, medical &amp; AV gear no longer shows &ldquo;Engine hours,&rdquo; and lifecycle emails call an aircraft an &ldquo;aircraft&rdquo; (not &ldquo;air&rdquo;)',
     'Polish from a deep self-audit: the Unlock dialog shows your asset word (not &ldquo;undefined&rdquo;), the assistant captures &ldquo;set my headline to be X&rdquo; correctly, housing ad drafts carry a fair-housing reminder, custom asset names are hardened against hidden characters, and &ldquo;Reserve a aircraft&rdquo;-style wording now reads right',
     'Rent several kinds of things under one account? Atlas now reads right for multi-type businesses &mdash; the dashboard says &ldquo;assets&rdquo; instead of your main type, each item shows its own type&rsquo;s words (a car is &ldquo;utilized,&rdquo; a boat &ldquo;chartered&rdquo;), and counts use correct singulars (&ldquo;1 vessel,&rdquo; not &ldquo;1 vessels&rdquo;)',
     'Atlas.io assistant is sharper on real goals: ask it to grow, say &ldquo;give me the plan,&rdquo; or &ldquo;what will it cost&rdquo; and it now builds a concrete, grounded plan from your numbers instead of a generic pitch &mdash; and it uses your own customer word (charterers / tenants / clients), not just &ldquo;renters&rdquo;',
@@ -2919,7 +2920,7 @@ const Atlas = (function(){
     var _rentBase=(m.baseRate||0)*_rm*periods, _usedWeekly=false;
     if(+m.assetWeekly>0 && ((m.rateModel||'day')==='day') && periods>=7){ var _wks=Math.floor(periods/7), _rem=periods%7; _rentBase=(_wks*(+m.assetWeekly)+_rem*(m.baseRate||0))*_rm; _usedWeekly=true; }
     var gross=_rentBase + addons + exTotal, disc=0;
-    var _wkP=(m.rateModel==='hour'?168:m.rateModel==='week'?2:m.rateModel==='month'?999999:7), _moP=(m.rateModel==='hour'?672:m.rateModel==='week'?4:m.rateModel==='month'?12:28);   // "weekly"/"monthly" thresholds in the CURRENT rate-model's periods. week model: the "weekly" discount is a MULTI-week discount at 2+ (was 1 -> it silently fired on every single-week booking); month model: weekly never fires, "monthly" disc = long-term at 12+ months
+    var _wkP=(m.rateModel==='hour'?168:m.rateModel==='week'?2:m.rateModel==='month'?999999:7), _moP=(m.rateModel==='hour'?672:m.rateModel==='week'?4:m.rateModel==='month'?999999:28);   // "weekly"/"monthly" thresholds in the CURRENT rate-model's periods. week model: the "weekly" discount is a MULTI-week discount at 2+ (was 1 -> it silently fired on every single-week booking); month model (audit CRITICAL): the "monthly" long-term discount NO LONGER auto-fires (was 12 -> a signed 12-month lease silently lost 25%); a per-month lease is already the agreed rate -- the % long-term discount is only for sub-monthly models renting 28+ days
     if(!_usedWeekly){ if(m.monthlyDisc && periods>=_moP) disc=gross*m.monthlyDisc/100;
       else if(m.weeklyDisc && periods>=_wkP) disc=gross*m.weeklyDisc/100; }
     if(discount && discount.type && discount.type!=='none' && discount.value){
@@ -3810,7 +3811,7 @@ const Atlas = (function(){
     else if(k==='deposit.mode') m.deposit.mode=v;
     else if(k==='deposit.pct') m.deposit.pct=parseFloat(v)||0;
     else if(k==='hold.type') m.hold.type=v;
-    else if(k==='hold.value') m.hold.value=parseFloat(v)||0;
+    else if(k==='hold.value'){ m.hold.value=parseFloat(v)||0; if(m.hold.value>0){ if(!m.hold.type||m.hold.type==='none') m.hold.type='fixed'; } else m.hold.type='none'; }   // audit: the onboarding 'security hold' input set only the value; hold.type stayed 'none' so the hold NEVER activated -- entering an amount now turns it on (fixed), clearing it turns it off
     else if(k==='deposit.amount') m.deposit.amount=Math.max(0,parseFloat(v)||0);   // #290 fixed-$ reserve down-payment
     else if(k==='hold.collect') m.hold.collect=(v==='charge')?'charge':'hold';      // #290 security: authorize a hold ($0 release) vs charge + refund
     else if(k==='hold.when') m.hold.when=(v==='booking')?'booking':'pickup';        // #290 security: collect at pickup vs at booking
@@ -6784,8 +6785,8 @@ const Atlas = (function(){
     events:{u:'',f:0,hi:'Delivery + setup',ho:'Pickup + teardown',gi:'Mark delivered',lt:'Late pickup',ci:['Delivered on site','Setup complete','Client walkthrough done'],co:['Everything picked up','Item count matches','Checked for damage']},
     party:{u:'',f:0,hi:'Delivery + setup',ho:'Pickup + teardown',gi:'Mark delivered',lt:'Late pickup',ci:['Delivered and set up','Safety rules given','Power / blower connected'],co:['Picked up','Cleaned and dried','Checked for damage']},
     camera:{u:'',f:0,hi:'Kit check-out',ho:'Kit check-in',gi:'Check the kit out',lt:'Late return',ci:['Checked out piece by piece','Batteries + media included','Glass inspected'],co:['All pieces returned','Batteries + media returned','Glass inspected']},
-    medical:{u:'hrs',f:0,hi:'Delivery + setup',ho:'Pickup',gi:'Mark delivered',lt:'Late pickup',ci:['Delivered and set up','Use instructions given','Sanitized before delivery'],co:['Picked up','Sanitized after return','Working order confirmed']},
-    av:{u:'hrs',f:0,hi:'Delivery + setup',ho:'Pickup + teardown',gi:'Mark delivered',lt:'Late pickup',ci:['Delivered on site','Setup + sound check done','Cables + stands included'],co:['Everything picked up','Item count matches','Cables + stands returned']},
+    medical:{u:'',f:0,hi:'Delivery + setup',ho:'Pickup',gi:'Mark delivered',lt:'Late pickup',ci:['Delivered and set up','Use instructions given','Sanitized before delivery'],co:['Picked up','Sanitized after return','Working order confirmed']},   // audit: a hospital bed/wheelchair has no "Engine hours" -- no usage reading by default (owner can set a per-asset usageAllow)
+    av:{u:'',f:0,hi:'Delivery + setup',ho:'Pickup + teardown',gi:'Mark delivered',lt:'Late pickup',ci:['Delivered on site','Setup + sound check done','Cables + stands included'],co:['Everything picked up','Item count matches','Cables + stands returned']},   // audit: AV gear has no "Engine hours" -- no usage reading by default
     furniture:{u:'',f:0,hi:'Delivery + setup',ho:'Pickup + teardown',gi:'Mark delivered',lt:'Late pickup',ci:['Delivered on site','Placement complete','Item count confirmed'],co:['Everything picked up','Item count matches','Checked for damage']},
     custom:{u:'',f:0,hi:'Start \u2014 hand-off',ho:'Close out \u2014 return',gi:'Hand it over',lt:'Late return',ci:['Handed over to the customer','Condition documented'],co:['Returned by the customer','Condition documented']}
   };
@@ -10217,7 +10218,7 @@ const Atlas = (function(){
       var cDates=_aioFindDates(raw), cAsset=_aioAssetFromText(raw), cust='';
       var cm=/\bfor\s+([A-Z][A-Za-z.'\-]+(?:\s+[A-Z][A-Za-z.'\-]+){0,2})/.exec(raw); if(cm) cust=cm[1].trim();
       if(!cust){ var dq2=_aioDQ(raw); if(dq2 && dq2.length<=60 && !/\d/.test(dq2)) cust=dq2.trim(); }
-      if(cust && cAsset && cust.toLowerCase().indexOf(String(cAsset.name).toLowerCase())>=0) cust='';
+      if(cust && cAsset){ var _cl=cust.toLowerCase(), _al=String(cAsset.name).toLowerCase(); if(_cl.indexOf(_al)>=0 || _al.indexOf(_cl)>=0) cust=''; }   // audit: the guard only caught customer-CONTAINS-asset; "book Ferrari 488 for Sat" set customer="Ferrari" (a SUBSTRING of the asset name) -> now cleared either direction so an asset name never becomes the renter
       if(cust && cAsset && cDates.length>=1) return {type:'booking.create', params:{customer:cust, asset:cAsset.name, start:cDates[0], end:cDates[1]||''}};
     }
     return null;
