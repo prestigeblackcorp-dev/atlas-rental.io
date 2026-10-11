@@ -2257,7 +2257,7 @@ const Atlas = (function(){
   function _fNum(d){ d=_fHalf(d); return (d===Math.floor(d))?(''+d):d.toFixed(2); }
   function _fDisp(d){ d=Number(d)||0; if(!_isFounder()) return '$'+d; return '<span style="text-decoration:line-through;opacity:.5">$'+d+'</span> <span style="color:var(--brand);font-weight:850">$'+_fNum(d)+'</span>'; }
   /* ---- app version + owner-only feature flags (in-app upgrades) ---- */
-  var APP_VERSION='2026.7.23ax';
+  var APP_VERSION='2026.7.23ay';
   var APP_CHANGELOG=[
     'Critical fix: a new booking created directly as Confirmed (a walk-in, phone, AI, or recurring booking) was silently failing to save on the server &mdash; now fixed. Also: a captured security deposit is no longer double-counted in your revenue, net profit and tax export; a record you delete can&rsquo;t quietly come back if the delete didn&rsquo;t reach the server; an erased customer stays erased even through the PB sync; and turning on push notifications is now CSRF-protected',
     'Per-type close-out fixes: powersports (Slingshots, UTVs) track miles by default, trailers no longer ask for an &ldquo;odometer&rdquo; they do not have, and the reading you enter at close-out now updates the asset so service reminders stay accurate',
@@ -11654,12 +11654,12 @@ const Atlas = (function(){
   // Multi-site Phase 1: shareable FILTERED booking links. /api/book/<slug>/(l|t|a)/<slug> serves the same branded site
   // showing only one location / type / asset (worker route + /api/public?scope=). Full multi-site + per-site domains = Phase 2.
   function _scopedLink(dim,val){ var seg={loc:'l',type:'t',asset:'a'}[dim]; if(!seg||!val) return _bookingLink(); return _bookingLink()+'/'+seg+'/'+_postSlug(val); }
-  function _scopedLinkOptions(){ var locs={},types={},opt='<option value="all" selected>Everything (your full site)</option>';
+  function _scopedLinkOptions(sel){ sel=sel||'all'; var _s=function(v){return sel===v?' selected':'';}; var locs={},types={},opt='<option value="all"'+_s('all')+'>Everything (your full site)</option>';
     (DATA.assets||[]).forEach(function(a){ if(a.loc) locs[a.loc]=1; var ty=a.type||(S.fleet&&S.fleet.id)||''; if(ty) types[ty]=1; });
-    var lk=Object.keys(locs).sort(); if(lk.length){ opt+='<optgroup label="By location">'+lk.map(function(l){return '<option value="loc:'+esc(l)+'">'+esc(l)+'</option>';}).join('')+'</optgroup>'; }
-    var tk=Object.keys(types).sort(); if(_multiType()&&tk.length){ opt+='<optgroup label="By type">'+tk.map(function(t){var tb=_typeById(t);return '<option value="type:'+esc(t)+'">'+esc((tb&&tb.label)||t)+'</option>';}).join('')+'</optgroup>'; }
+    var lk=Object.keys(locs).sort(); if(lk.length){ opt+='<optgroup label="By location">'+lk.map(function(l){return '<option value="loc:'+esc(l)+'"'+_s('loc:'+l)+'>'+esc(l)+'</option>';}).join('')+'</optgroup>'; }
+    var tk=Object.keys(types).sort(); if(_multiType()&&tk.length){ opt+='<optgroup label="By type">'+tk.map(function(t){var tb=_typeById(t);return '<option value="type:'+esc(t)+'"'+_s('type:'+t)+'>'+esc((tb&&tb.label)||t)+'</option>';}).join('')+'</optgroup>'; }
     var _sn={}, ak=(DATA.assets||[]).map(function(a){return a.name;}).filter(function(n){ if(!n||_sn[n]) return false; _sn[n]=1; return true; }).sort();
-    if(ak.length){ opt+='<optgroup label="By '+esc(_adNoun())+'">'+ak.map(function(n){return '<option value="asset:'+esc(n)+'">'+esc(n)+'</option>';}).join('')+'</optgroup>'; }
+    if(ak.length){ opt+='<optgroup label="By '+esc(_adNoun())+'">'+ak.map(function(n){return '<option value="asset:'+esc(n)+'"'+_s('asset:'+n)+'>'+esc(n)+'</option>';}).join('')+'</optgroup>'; }
     return opt; }
   function _scopedLinksHtml(){ if(!_bookingSitePublished()) return '';
     var hasLoc=(DATA.assets||[]).some(function(a){return a.loc;});
@@ -11672,6 +11672,54 @@ const Atlas = (function(){
     var inp=document.getElementById('webScopedLinkUrl'); if(inp) inp.value=link;
     var op=document.getElementById('webScopedLinkOpen'); if(op) op.href=link; }
   function copyScopedLink(){ var inp=document.getElementById('webScopedLinkUrl'); if(inp){ try{ inp.select(); }catch(e){} try{ navigator.clipboard.writeText(inp.value); }catch(e){} } toast('Filtered link copied'); }
+  // ===== Multi-site Phase 2: NAMED, branded booking sites (settings.publicSites[]). Each = a scoped + branded view of the
+  // primary published snapshot, served at /api/book/<slug>/s/<site-slug>. Persisted via a _kt-stamped settings PUT (newest-wins). =====
+  function _publicSites(){ if(!S) return []; if(!Array.isArray(S.publicSites)) S.publicSites=[]; return S.publicSites; }
+  function _siteCap(){ var t=(S&&S.tier)||''; if((typeof _isComp==='function'&&_isComp())||t==='enterprise') return Infinity; if(t==='pro') return 5; return 2; }   // extra sub-sites beyond the primary; comp/enterprise unlimited
+  function _siteSlugUniq(name){ var base=_postSlug(name)||'site'; var ex={}; _publicSites().forEach(function(s){ if(s&&s.slug) ex[s.slug]=1; }); if(!ex[base]) return base; var n=2; while(ex[base+'-'+n]) n++; return base+'-'+n; }
+  function _subSiteLink(slug){ return _bookingLink()+'/s/'+slug; }
+  function _siteScopeLabel(sc){ if(!sc||!sc.dim||sc.dim==='all') return 'Everything (full fleet)'; if(sc.dim==='type'){ var t=_typeById(sc.val); return 'Type: '+((t&&t.label)||sc.val); } return (sc.dim==='loc'?'Location: ':(cap(_adNoun())+': '))+sc.val; }
+  function _persistSites(cb){ try{ save(); }catch(e){} if(!ATLAS_BACKEND || !_apiCsrf){ if(cb)cb(true); return; }
+    _api('/api/tenant/profile',{method:'PUT',body:{ settings:{ publicSites:_publicSites(), _kt:{publicSites:Date.now()} } }}).then(function(res){ if(cb)cb(res.status>=200&&res.status<300&&res.json&&res.json.ok); }).catch(function(){ if(cb)cb(false); }); }
+  function _webSitesHtml(){ if(!_bookingSitePublished()) return '';
+    var sites=_publicSites();
+    var rows = sites.length ? sites.map(function(s){ var link=_subSiteLink(s.slug), pub=s.published!==false;
+      return '<div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px">'
+        +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px">'+esc(s.name||s.slug)+'</b>'
+        +(pub?'<span class="chip chip--ok" style="font-size:11px"><span class="dot"></span>Live</span>':'<span class="chip chip--muted" style="font-size:11px"><span class="dot"></span>Draft</span>')
+        +'<span style="flex:1"></span>'
+        +'<button class="btn btn--ghost btn--sm" onclick="Atlas.webSiteEdit(\''+esc(s.id)+'\')">Edit</button>'
+        +'<button class="btn btn--ghost btn--sm" onclick="Atlas.webSitePubToggle(\''+esc(s.id)+'\')">'+(pub?'Unpublish':'Publish')+'</button>'
+        +'<button class="icon-btn" style="color:var(--danger)" title="Delete site" onclick="Atlas.webSiteDelete(\''+esc(s.id)+'\')">'+_rmSvg()+'</button></div>'
+        +'<div style="font-size:12px;color:var(--muted);margin:6px 0 8px">'+esc(_siteScopeLabel(s.scope))+'</div>'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap"><input class="input mono" readonly value="'+esc(link)+'" style="flex:1;min-width:160px;font-size:12px"><button class="btn btn--ghost btn--sm" onclick="Atlas.webSiteCopy(\''+esc(s.slug)+'\')">Copy</button><a class="btn btn--ghost btn--sm" href="'+esc(link)+'" target="_blank" rel="noopener">Open</a></div></div>'; }).join('')
+      : '<div class="bk-lenhint" style="margin:0 0 10px">No separate sites yet. Create one to show a single location, type, or '+esc(_adNoun())+' on its own branded page.</div>';
+    var capN=_siteCap(), atCap=(capN!==Infinity && sites.length>=capN);
+    return '<div class="set-block"><h3>Your sites <span style="color:var(--muted);font-weight:500;font-size:12px">('+sites.length+(capN===Infinity?'':(' / '+capN))+')</span></h3>'
+      +'<div class="desc">Run separate, branded booking sites &mdash; one per location, '+esc(_adNoun())+' type, or single '+esc(_adNoun())+'. Each has its own headline, fleet and link, and all book into this same dashboard. (Per-site custom domains are coming next.)</div>'
+      +rows
+      +(atCap?('<div class="bk-lenhint" style="margin:6px 0 0">You have reached your plan&rsquo;s limit of '+capN+' extra site'+(capN>1?'s':'')+'. Upgrade for more.</div>')
+            :('<button class="btn btn--primary btn--sm" onclick="Atlas.webSiteCreate()">+ Add a site</button>'))
+      +'</div>'; }
+  function _siteFormModal(s){ s=s||{}; var isEdit=!!s.id; var sc=s.scope||{dim:'all',val:''}, scVal=(sc.dim==='all'||!sc.dim)?'all':(sc.dim+':'+sc.val);
+    openModal('<div class="modal__head"><h3>'+(isEdit?'Edit site':'New site')+'</h3>'+_xBtn()+'</div><div class="modal__body">'
+      +'<div class="field"><label>Site name</label><input class="input" id="siteName" value="'+esc(s.name||'')+'" placeholder="e.g. Miami Yachts" maxlength="60"></div>'
+      +'<div class="field"><label>Show only</label><select class="select" id="siteScope">'+_scopedLinkOptions(scVal)+'</select></div>'
+      +'<div class="field"><label>Headline <span style="color:var(--muted);font-weight:400;font-size:12px">(optional &mdash; the big line on this site)</span></label><input class="input" id="siteHeadline" value="'+esc(s.headline||'')+'" placeholder="'+esc('Rent with '+((S.brand&&S.brand.name)||'us'))+'" maxlength="120"></div>'
+      +'<div class="field"><label>About <span style="color:var(--muted);font-weight:400;font-size:12px">(optional)</span></label><textarea class="input" id="siteAbout" rows="3" maxlength="600" placeholder="A short intro shown on this site">'+esc(s.about||'')+'</textarea></div>'
+      +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button class="btn btn--ghost" onclick="Atlas.closeModal()">Cancel</button><button class="btn btn--primary" onclick="Atlas.webSiteSave(\''+esc(s.id||'')+'\')">'+(isEdit?'Save':'Create site')+'</button></div></div>'); }
+  function webSiteCreate(){ if(!_guard('webEdit','Creating a site'))return; var capN=_siteCap(); if(capN!==Infinity && _publicSites().length>=capN){ toast('You have reached your plan site limit'); return; } _siteFormModal(null); }
+  function webSiteEdit(id){ var s=_publicSites().filter(function(x){return x&&x.id===id;})[0]; if(s) _siteFormModal(s); }
+  function webSiteSave(id){ if(!_guard('webEdit','Saving a site'))return;
+    var name=(val('siteName')||'').trim(); if(!name){ toast('Give your site a name'); return; }
+    var scv=val('siteScope')||'all', scope; if(scv==='all'){ scope={dim:'all',val:''}; } else { var i=scv.indexOf(':'); scope={dim:scv.slice(0,i),val:scv.slice(i+1)}; }
+    var headline=(val('siteHeadline')||'').trim(), about=(val('siteAbout')||'').trim(), arr=_publicSites();
+    if(id){ var s=arr.filter(function(x){return x&&x.id===id;})[0]; if(!s){ toast('Site not found'); return; } s.name=name; s.scope=scope; s.headline=headline; s.about=about; }
+    else { arr.push({ id:'st_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:name, slug:_siteSlugUniq(name), scope:scope, headline:headline, about:about, published:true, createdAt:Date.now() }); }
+    closeModal(); _persistSites(function(ok){ try{ renderWebsite(); }catch(e){} toast(ok?(id?'Site saved':'Site created \u2014 link is live'):'Saved \u2014 will sync when online'); }); }
+  function webSitePubToggle(id){ if(!_guard('webEdit','Publishing a site'))return; var s=_publicSites().filter(function(x){return x&&x.id===id;})[0]; if(!s)return; s.published=(s.published===false); _persistSites(function(){ try{ renderWebsite(); }catch(e){} toast(s.published?'Site published':'Site unpublished'); }); }
+  function webSiteDelete(id){ if(!_guard('webEdit','Deleting a site'))return; var s=_publicSites().filter(function(x){return x&&x.id===id;})[0]; if(!s)return; if(!confirm('Delete the site "'+(s.name||s.slug)+'"? Its link will stop working.'))return; S.publicSites=_publicSites().filter(function(x){return x&&x.id!==id;}); _persistSites(function(){ try{ renderWebsite(); }catch(e){} toast('Site deleted'); }); }
+  function webSiteCopy(slug){ try{ navigator.clipboard.writeText(_subSiteLink(slug)); }catch(e){} toast('Site link copied'); }
   function publishBookingSite(){ if(!_guard('webEdit','Publishing your site'))return;
     if(!ATLAS_BACKEND || !_apiCsrf){ toast('Your site is a preview. Publishing to a real link goes live once your Atlas backend is connected (see go-live steps).'); return; }
     var slug=_bookingSlug();
@@ -12778,6 +12826,7 @@ const Atlas = (function(){
           : '<div class="bk-lenhint" style="margin:0">This is a <b>preview</b>. Your public booking site and shareable link go live once your Atlas backend is connected (see go-live steps) &mdash; then Publish here. Nothing is served publicly until then.</div>')
       +'</div>'
       +_scopedLinksHtml()
+      +_webSitesHtml()
       +'<div class="set-block" id="domBlock"><h3>Domain</h3><div class="desc">Swap your web address anytime.</div>'+_domainHtml()+'</div>'
       +'<div class="set-block" id="webLegalBlock"><h3>Legal pages</h3><div class="desc">Every public site needs these. We build them compliant to your country/state.</div>'+_webLegalHtml()+'</div>'
       +'<div class="set-block"><h3>Connections &amp; API keys</h3><div class="desc">Save your integration keys here &mdash; stored securely on your account, never shared. Add, edit or remove them anytime.</div>'+_webKeysHtml()+'</div>'
@@ -14078,7 +14127,7 @@ const Atlas = (function(){
     importAssets,_impFile,previewImport,doImportAssets,exportSetup,exportMyData,importSetup,doImportSetup,
     drillKpi,ovCustomizeKpis,ovCustomizeAna,ovKpiToggle,ovKpiMove,ovKpiSave,ovKpiDragStart,ovKpiDrop,drillDeposits,drillUnpaid,drillCancelLoss,drillAddons,setOvRange,setOvScope,gsDismiss,drillLog,drillLedger,logLedger,saveLedger,rmLedger,editLedger,saveLedgerEdit,logIncome,logExpense,openBudgets,saveBudgets,assetBlock,saveAssetBlock,assetUnblock,
     _ldPhotoPick,_ldPhotoClear,_ldRecToggle,pnlSetPeriod,pnlSetKind,pnlMarginDrill,pnlRevDrill,pnlNetDrill,pnlExpDrill,assetPnlSetPeriod,renderPnl,
-    renderWebsite,buildWebsite,setWebField,_webInlineEdit,_webInlineKey,toggleWebSection,setWebFont,setWebTemplate,setWebAccent,webFaqAdd,webFaqSet,webFaqRemove,webPostAdd,webPostSet,webPostRemove,webPostToggle,webPostAddFromForm,webPageAdd,webPageSet,webPageRemove,webPageToggle,webPageNavToggle,webPageSectionAdd,webPageSectionSet,webPageSectionRemove,webPageSectionMove,webSecReorder,webSecDragStart,webSecDragOver,webSecDragLeave,webSecDrop,webSecDragEnd,webPageSectionListSet,webPageSectionListAdd,webPageSectionListRemove,webSecImgUpload,webSecGalleryUpload,webPageAddFromForm,webPageStarterLanding,webEditPage,webPagesBack,aiDesignSite,aiEditPage,webSetHomePage,webFleetPriceSet,webSetDevice,webUndoDesign,webViewLegal,webBookNow,_wbQuote,webSubmitBooking,publishBookingSite,copyBookingLink,webScopedLinkPick,copyScopedLink,copyEmbed,webDomainMode,webRevertDomain,webConnectDomain,webVerifyDomain,webSearchDomain,webBuyDomain,confirmDomainBuy,webDomLoad,webDomManage,webDomCheckConn,webDomDns,webDomDnsReload,webDomDnsAdd,webDomDnsDel,webDomDnsSet,webDomDnsSave,buyWebsiteAddon,confirmWebsiteAddon,seoHealthLoad,seoHealthJump,webLoadSiteStats,webMetaImageUpload,
+    renderWebsite,buildWebsite,setWebField,_webInlineEdit,_webInlineKey,toggleWebSection,setWebFont,setWebTemplate,setWebAccent,webFaqAdd,webFaqSet,webFaqRemove,webPostAdd,webPostSet,webPostRemove,webPostToggle,webPostAddFromForm,webPageAdd,webPageSet,webPageRemove,webPageToggle,webPageNavToggle,webPageSectionAdd,webPageSectionSet,webPageSectionRemove,webPageSectionMove,webSecReorder,webSecDragStart,webSecDragOver,webSecDragLeave,webSecDrop,webSecDragEnd,webPageSectionListSet,webPageSectionListAdd,webPageSectionListRemove,webSecImgUpload,webSecGalleryUpload,webPageAddFromForm,webPageStarterLanding,webEditPage,webPagesBack,aiDesignSite,aiEditPage,webSetHomePage,webFleetPriceSet,webSetDevice,webUndoDesign,webViewLegal,webBookNow,_wbQuote,webSubmitBooking,publishBookingSite,copyBookingLink,webScopedLinkPick,copyScopedLink,webSiteCreate,webSiteEdit,webSiteSave,webSitePubToggle,webSiteDelete,webSiteCopy,copyEmbed,webDomainMode,webRevertDomain,webConnectDomain,webVerifyDomain,webSearchDomain,webBuyDomain,confirmDomainBuy,webDomLoad,webDomManage,webDomCheckConn,webDomDns,webDomDnsReload,webDomDnsAdd,webDomDnsDel,webDomDnsSet,webDomDnsSave,buyWebsiteAddon,confirmWebsiteAddon,seoHealthLoad,seoHealthJump,webLoadSiteStats,webMetaImageUpload,
     setFleetType,fleetAlsoToggle,setCustomNoun,demoBig,demoPick,fleetLoc,fleetSearch,fleetStatusFilter,fleetShowAll,
     openPerm,setRolePreset,setPerm,setMemberField,inviteMember,saveInvite,copyInviteLink,removeMember,previewAs,exitPreview,addShift,saveShift,rmShift,schedBuildAI,editShift,saveShiftEdit,
     search,searchGo,_searchClose,
