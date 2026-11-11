@@ -2372,7 +2372,7 @@ const Atlas = (function(){
   function _fNum(d){ d=_fHalf(d); return (d===Math.floor(d))?(''+d):d.toFixed(2); }
   function _fDisp(d){ d=Number(d)||0; if(!_isFounder()) return '$'+d; return '<span style="text-decoration:line-through;opacity:.5">$'+d+'</span> <span style="color:var(--brand);font-weight:850">$'+_fNum(d)+'</span>'; }
   /* ---- app version + owner-only feature flags (in-app upgrades) ---- */
-  var APP_VERSION='2026.7.23ed';
+  var APP_VERSION='2026.7.23ee';
   var APP_CHANGELOG=[
     'Critical fix: a new booking created directly as Confirmed (a walk-in, phone, AI, or recurring booking) was silently failing to save on the server &mdash; now fixed. Also: a captured security deposit is no longer double-counted in your revenue, net profit and tax export; a record you delete can&rsquo;t quietly come back if the delete didn&rsquo;t reach the server; an erased customer stays erased even through the PB sync; and turning on push notifications is now CSRF-protected',
     'Per-type close-out fixes: powersports (Slingshots, UTVs) track miles by default, trailers no longer ask for an &ldquo;odometer&rdquo; they do not have, and the reading you enter at close-out now updates the asset so service reminders stay accurate',
@@ -6486,7 +6486,7 @@ const Atlas = (function(){
     else _logEvent('booking','Booking '+b.id+' created: '+b.cust+' / '+b.asset+' / '+money(q.total),{booking:b.id,total:_r2(q.total)});
     if(_newRedeem) _logEvent('promo','Promo '+_bkPromo.code+' redeemed on '+b.id,{code:_bkPromo.code,booking:b.id});
     _bkPromo=null;
-    closeModal(); renderOverview(); renderBookings(); renderCustomers(); _bkBadge();   // fix: refresh Customers panel so new customers / Trips / Spent update live
+    closeModal(); try{DATA.customers=_customersFromBookings();}catch(_e){} renderOverview(); renderBookings(); renderCustomers(); _bkBadge();   // WAVE26: rebuild the customer index from bookings BEFORE re-rendering (renderCustomers reads DATA.customers, which is only materialized on boot) so an edited/renamed booking's customer shows live, not a stale/orphaned entry; + refresh Customers panel so new customers / Trips / Spent update live
     toast(editId?'Booking updated':'Booking created &mdash; '+money(q.total));
   }
   // Booking Command Bar: the single most important next step for a booking, by status. ONE source of truth --
