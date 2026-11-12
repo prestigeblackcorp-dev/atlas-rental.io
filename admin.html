@@ -93,6 +93,22 @@
   .hqtabs button.on{color:#04160e;background:linear-gradient(180deg,var(--em),var(--em2));border-color:transparent}
   .hqsec{display:none}
   .hqsec.on{display:block}
+  .hqgroup{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);margin:4px 2px 11px;padding-bottom:7px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+  .hqgroup:not(:first-child){margin-top:20px}
+  .hqfind{position:relative;margin:0 0 2px}
+  .hqfind input{width:100%;background:var(--surf2);border:1px solid var(--line2);border-radius:9px;padding:9px 12px 9px 34px;color:var(--ink);font-size:13px;font-family:inherit;outline:none}
+  .hqfind input:focus{border-color:var(--em)}
+  .hqfind>svg{position:absolute;left:11px;top:11px;opacity:.5;pointer-events:none}
+  .hqfind-res{position:absolute;top:100%;left:0;right:0;z-index:60;background:var(--surf);border:1px solid var(--line2);border-radius:10px;margin-top:5px;box-shadow:0 14px 34px rgba(0,0,0,.4);max-height:360px;overflow-y:auto;display:none}
+  .hqfind-item{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:9px 13px;cursor:pointer;border-bottom:1px solid var(--line)}
+  .hqfind-item:last-child{border-bottom:none}
+  .hqfind-item:hover,.hqfind-item.sel{background:var(--surf2)}
+  .hqfind-l{font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hqfind-c{font-size:10.5px;color:var(--mut);flex:none;text-transform:uppercase;letter-spacing:.04em}
+  .hqfind-k{font-size:9px;font-weight:700;color:var(--mut2);border:1px solid var(--line2);border-radius:5px;padding:1px 5px;margin-right:7px;text-transform:uppercase;letter-spacing:.05em}
+  .hqfind-empty{padding:11px 13px;color:var(--mut);font-size:12.5px}
+  .hq-flash{animation:hqflash 1.7s ease}
+  @keyframes hqflash{0%,100%{box-shadow:0 0 0 0 rgba(49,214,138,0)}22%{box-shadow:0 0 0 2px var(--em)}}
 
   /* ---- KPI grid ---- */
   .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:8px 0 16px}
@@ -284,6 +300,13 @@
     <button class="icon-btn" title="Lock console" aria-label="Lock console" onclick="lock()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="4" y="10.5" width="16" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" stroke="currentColor" stroke-width="1.8"/></svg></button>
   </header>
 
+  <!-- CONTROL FINDER: type to jump to any area or control across every tab -->
+  <div class="hqfind">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <input id="hqFind" type="text" autocomplete="off" spellcheck="false" placeholder="Find any area or control &mdash; e.g. webhook, bans, GMV, domain, backup..." oninput="hqFind()" onfocus="hqBuildIndex()" onblur="setTimeout(hqFindHide,160)" onkeydown="hqFindKey(event)">
+    <div class="hqfind-res" id="hqFindRes" role="listbox"></div>
+  </div>
+
   <!-- SECTION TABS -->
   <nav class="hqtabs" id="hqTabs">
     <button data-sec="overview" onclick="setSection('overview')">Overview</button>
@@ -293,6 +316,7 @@
     <button data-sec="support" onclick="setSection('support')">Support</button>
     <button data-sec="ai" onclick="setSection('ai')">AI</button>
     <button data-sec="security" onclick="setSection('security')">Security</button>
+    <button data-sec="system" onclick="setSection('system')">System</button>
     <button data-sec="settings" onclick="setSection('settings')">Settings</button>
     <button data-sec="control" id="tcTab" style="display:none;border-color:#6b2b2b;color:#ff9d9d" onclick="setSection('control')">Take Control</button>
   </nav>
@@ -329,6 +353,16 @@
     <div class="card-b pad" id="cxBody"><div class="mut">Loading&hellip;</div></div>
   </div>
 
+  <!-- NEEDS ATTENTION (monitoring-derived action list) stays on the command center -->
+  <div class="card">
+    <div class="card-h"><h2>Needs attention</h2><span class="sub" id="monSub"></span><div class="sp"></div><span class="sub">derived from live monitoring</span></div>
+    <div class="card-b pad" id="monBody"><div class="mut">Loading&hellip;</div></div>
+  </div>
+  </section>
+
+  <!-- ===== SYSTEM TAB: platform health + monitoring (pulled out of Overview for a clean command center) ===== -->
+  <section class="hqsec" data-sec="system">
+  <div class="hqgroup">Platform health</div>
   <!-- SYSTEM HEALTH -->
   <style>.hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:9px}.hc{background:var(--surf2);border:1px solid var(--line);border-radius:11px;padding:11px 13px;min-width:0}.hc .hk{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);font-weight:600}.hc .hv{font-size:14px;font-weight:700;margin-top:4px;display:flex;align-items:center;gap:6px}.hdot{width:9px;height:9px;border-radius:50%;flex:none}.hbanner{display:flex;align-items:center;gap:12px;margin-bottom:12px}.hbig{font-size:16px;font-weight:800;letter-spacing:-.01em}</style>
   <div class="card">
@@ -353,10 +387,7 @@
     .fun-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--em2),var(--em));min-width:2px}
     .fun-conv{font-size:11px;color:var(--mut2);margin-top:3px}
   </style>
-  <div class="card">
-    <div class="card-h"><h2>Needs attention</h2><span class="sub" id="monSub"></span><div class="sp"></div><span class="sub">derived from live monitoring</span></div>
-    <div class="card-b pad" id="monBody"><div class="mut">Loading&hellip;</div></div>
-  </div>
+  <div class="hqgroup">Monitoring</div>
   <div class="card">
     <div class="card-h"><h2>SEO monitor</h2><span class="sub" id="seoSub"></span><div class="sp"></div><span class="sub">worst first</span></div>
     <div class="card-b pad" id="seoBody"><div class="mut">Loading&hellip;</div></div>
@@ -538,6 +569,7 @@
   </section>
 
   <section class="hqsec" data-sec="revenue">
+  <div class="hqgroup">Revenue &amp; P&amp;L</div>
   <!-- REVENUE BREAKDOWN + FUNNEL -->
   <div class="card">
     <div class="card-h"><h2>Revenue &amp; growth</h2><span class="sub" id="revSub"></span><div class="sp"></div><span class="sub" id="revNote"></span></div>
@@ -557,6 +589,7 @@
     <div class="card-b pad" id="marginBox"><div class="mut">Loading&hellip;</div></div>
   </div>
 
+  <div class="hqgroup">Transactions</div>
   <!-- PURCHASES (itemized: subscriptions, credits, websites, domains) -->
   <div class="card">
     <div class="card-h"><h2>Purchases</h2><span class="sub" id="purSub"></span><div class="sp"></div><button class="chip" id="purModeBtn" onclick="togglePayMode()">All payments</button><button class="chip" onclick="purCSV()">Export CSV</button></div>
@@ -579,6 +612,13 @@
     <div style="overflow-x:auto"><table class="tbl" id="purTbl"></table></div>
   </div>
 
+  <!-- LIVE TRANSACTIONS (real-time feed, moved next to Purchases) -->
+  <div class="card">
+    <div class="card-h"><h2>Live transactions</h2><span class="sub">to the cent</span></div>
+    <div class="feed" id="txnFeed"></div>
+  </div>
+
+  <div class="hqgroup">Payment setup</div>
   <!-- PAYMENTS (LIVE/TEST switch, readiness self-test, $49.99 test charge) -->
   <div class="card">
     <div class="card-h"><h2>Payments</h2></div>
@@ -690,12 +730,6 @@
   </div>
   </section>
 
-  <section class="hqsec" data-sec="revenue">
-  <div class="card">
-    <div class="card-h"><h2>Live transactions</h2><span class="sub">to the cent</span></div>
-    <div class="feed" id="txnFeed"></div>
-  </div>
-  </section>
   </div><!-- /adminMain -->
 </div>
 
@@ -756,7 +790,7 @@ function openReport(key){ var w=window.open('','_blank');
 function _ok200(r){ return !!(r && r.status===200 && r.json && typeof r.json==='object' && r.json.ok!==false && !r.json.error); }
 
 /* ================= section nav (tab bar; only the active section's cards render) ================= */
-var HQ_SECTIONS=['overview','revenue','members','analytics','support','ai','security','settings','control'];
+var HQ_SECTIONS=['overview','revenue','members','analytics','support','ai','security','system','settings','control'];
 var HQ_SEC_KEY='atlas_hq_section';
 function setSection(name){ if(HQ_SECTIONS.indexOf(name)<0) name='overview';
   var tabs=$('hqTabs'); if(tabs){ Array.prototype.forEach.call(tabs.children,function(b){ var _cur=b.getAttribute('data-sec')===name; b.classList.toggle('on', _cur); if(_cur) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); }); }
@@ -765,6 +799,47 @@ function setSection(name){ if(HQ_SECTIONS.indexOf(name)<0) name='overview';
   try{ if(window._hqA11yPass) window._hqA11yPass(); }catch(e){}
 }
 function initSections(){ var saved=''; try{ saved=localStorage.getItem(HQ_SEC_KEY)||''; }catch(e){} setSection(HQ_SECTIONS.indexOf(saved)>=0?saved:'overview'); }
+
+/* ===== Control finder: index every area (card) + named control (button/toggle) across ALL tabs, then jump + flash ===== */
+var _hqIdx=null, _hqFindOut=[], _hqSel=-1;
+var _HQ_FIND_SKIP={'refresh':1,'run now':1,'export csv':1,'save':1,'all':1,'new':1,'replied':1,'mark all read':1,'test now':1,'recheck':1,'enable all':1,'disable all':1,'public status':1,'close':1,'cancel':1,'back':1,'next':1,'by plan':1,'by industry':1};
+/* key controls that live INSIDE dynamically-rendered card bodies -> given explicit, always-findable anchors (resolve to the card container that exists in static HTML) */
+var _HQ_FIND_EXTRA=[
+  {label:'Webhook health (Stripe delivery)', sec:'revenue', sel:'#entPayBody', card:'Payments', aliases:'webhook signed events delivering endpoint fulfillment stripe'},
+  {label:'Cancel duplicate subscriptions', sec:'revenue', sel:'#entPayBody', card:'Payments', aliases:'dup dedup double charge subs'},
+  {label:'LIVE / TEST payments mode', sec:'revenue', sel:'#entPayBody', card:'Payments', aliases:'stripe test live sandbox mode switch'},
+  {label:'Run a full test subscription', sec:'revenue', sel:'#entPayBody', card:'Payments', aliases:'test sub charge payment readiness'},
+  {label:'Register a REAL test domain', sec:'settings', sel:'#entRegBody', card:'Domain registrar', aliases:'dynadot buy domain test'}
+];
+function _secLabel(s){ return ({overview:'Overview',system:'System',revenue:'Revenue',members:'Members',analytics:'Analytics',support:'Support',ai:'AI',security:'Security',settings:'Settings',control:'Take Control'})[s]||s; }
+function hqBuildIndex(){ var idx=[]; var secs=document.querySelectorAll('.hqsec');
+  for(var i=0;i<secs.length;i++){ var sec=secs[i].getAttribute('data-sec'); var cards=secs[i].querySelectorAll('.card');
+    for(var j=0;j<cards.length;j++){ var c=cards[j]; var h=c.querySelector('.card-h h2'); var title=h?(h.textContent||'').trim():'';
+      if(title) idx.push({label:title, sec:sec, el:c, kind:'area'});
+      var ctrls=c.querySelectorAll('button, label, a.chip');
+      for(var k=0;k<ctrls.length;k++){ var t=((ctrls[k].textContent||'').trim()).replace(/\s+/g,' '); if(!t||t.length<4||t.length>52) continue; if(_HQ_FIND_SKIP[t.toLowerCase()]) continue; idx.push({label:t, sec:sec, el:ctrls[k], kind:'control', card:title}); }
+    }
+  }
+  for(var m=0;m<_HQ_FIND_EXTRA.length;m++){ var x=_HQ_FIND_EXTRA[m]; var xe=document.querySelector(x.sel); if(xe) idx.push({label:x.label, sec:x.sec, el:xe, kind:'control', card:x.card, aliases:x.aliases}); }
+  _hqIdx=idx; return idx; }
+function hqFindHide(){ var r=$('hqFindRes'); if(r) r.style.display='none'; _hqSel=-1; }
+function hqFind(){ var q=(($('hqFind')&&$('hqFind').value)||'').trim().toLowerCase(); var res=$('hqFindRes'); if(!res) return;
+  if(!q){ hqFindHide(); return; } if(!_hqIdx) hqBuildIndex();
+  var seen={}, out=[]; for(var i=0;i<_hqIdx.length && out.length<14;i++){ var e=_hqIdx[i]; var hay=(e.label+' '+(e.card||'')+' '+(e.aliases||'')+' '+_secLabel(e.sec)).toLowerCase(); if(hay.indexOf(q)<0) continue; var key=e.kind+'|'+e.label.toLowerCase()+'|'+e.sec; if(seen[key]) continue; seen[key]=1; out.push(e); }
+  _hqFindOut=out; _hqSel=-1;
+  if(!out.length){ res.innerHTML='<div class="hqfind-empty">No area or control matches &ldquo;'+esc(q)+'&rdquo;.</div>'; res.style.display='block'; return; }
+  res.innerHTML=out.map(function(e,ix){ return '<div class="hqfind-item" data-ix="'+ix+'" onmousedown="event.preventDefault();hqJump('+ix+')"><span class="hqfind-l">'+(e.kind==='control'?'<span class="hqfind-k">Ctrl</span>':'')+esc(e.label)+'</span><span class="hqfind-c">'+(e.kind==='control'&&e.card?(esc(e.card)+' &middot; '):'')+esc(_secLabel(e.sec))+'</span></div>'; }).join('');
+  res.style.display='block'; }
+function hqJump(ix){ var e=_hqFindOut[ix]; if(!e) return; setSection(e.sec);
+  var el=e.el; setTimeout(function(){ try{ el.scrollIntoView({behavior:'smooth',block:'center'}); el.classList.add('hq-flash'); setTimeout(function(){ el.classList.remove('hq-flash'); },1700); }catch(_e){} },70);
+  var fi=$('hqFind'); if(fi) fi.value=''; hqFindHide(); }
+function hqFindKey(ev){ var res=$('hqFindRes'); var open=res&&res.style.display==='block';
+  if(ev.key==='Escape'){ var fi=$('hqFind'); if(fi) fi.value=''; hqFindHide(); return; }
+  if(!open||!_hqFindOut.length) return;
+  if(ev.key==='Enter'){ ev.preventDefault(); hqJump(_hqSel>=0?_hqSel:0); return; }
+  if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){ ev.preventDefault(); _hqSel=(ev.key==='ArrowDown')?Math.min(_hqFindOut.length-1,_hqSel+1):Math.max(0,_hqSel-1);
+    var items=res.querySelectorAll('.hqfind-item'); for(var i=0;i<items.length;i++){ items[i].classList.toggle('sel', i===_hqSel); if(i===_hqSel) items[i].scrollIntoView({block:'nearest'}); } }
+}
 
 /* ================= auth gate ================= */
 function unlock(){ var v=($('tok').value||'').trim(); if(!v){ $('gateErr').textContent='Enter your admin key.'; return; }
