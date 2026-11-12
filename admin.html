@@ -181,6 +181,7 @@
   .feed-ic{width:32px;height:32px;border-radius:9px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--surf3);color:var(--em)}
   .feed-ic.gold{color:var(--gold2)}
   .feed-ic.blue{color:var(--blue)}
+  .feed-ic.red{color:#e0736f}
   .feed-tx{flex:1;min-width:0}
   .feed-tx b{font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .feed-tx span{font-size:11.5px;color:var(--mut2)}
@@ -568,9 +569,10 @@
         <button class="on" data-k="all" onclick="setPurKind(this)">All</button>
         <button data-k="subscription" onclick="setPurKind(this)">Subs</button>
         <button data-k="credits" onclick="setPurKind(this)">Credits</button>
+        <button data-k="emails" onclick="setPurKind(this)">Emails</button>
         <button data-k="website" onclick="setPurKind(this)">Websites</button>
-        <button data-k="asset_unlock" onclick="setPurKind(this)">Unlocks</button>
         <button data-k="domain" onclick="setPurKind(this)">Domains</button>
+        <button data-k="addons" onclick="setPurKind(this)">Add-ons</button>
       </div>
     </div>
     <div id="purTotals" style="padding:0 12px 8px;display:flex;flex-wrap:wrap;gap:4px"></div>
@@ -1055,9 +1057,20 @@ function renderTxns(){ var t=DATA.txns||[];
     if(k==='subscription'||k==='plan'){ label='Subscription'+(x.tier?(' &middot; '+esc(TIER_LABEL[x.tier]||x.tier)):''); ic='gold'; }
     else if(k==='credits'){ label='Credits'+(x.pack?(' &middot; '+esc(x.pack)):''); ic='em'; }
     else if(k==='website'){ label='Website add-on'; ic='blue'; }
-    else if(k==='asset_unlock'){ label='Asset unlock'+(x.pack?(' &middot; '+esc(x.pack)):'')+' &middot; $11.99/mo'; ic='gold'; }
+    else if(k==='domain'){ label='Domain'+(x.pack?(' &middot; '+esc(x.pack)):''); ic='gold'; }
+    else if(k==='domain_renew_claim'){ label='Domain renewal'+(x.pack?(' &middot; '+esc(x.pack)):''); ic='gold'; }
+    else if(k==='email_pack'){ label='Email pack'+(x.pack?(' &middot; '+esc(x.pack)):''); ic='blue'; }
+    else if(k==='email_addon'){ label='Email add-on'+(x.pack?(' &middot; '+esc(x.pack)+'/mo'):'')+' (monthly)'; ic='blue'; }
+    else if(k==='asset_unlock'){ label='Asset unlock'+(x.pack?(' &middot; '+esc(x.pack)):'')+' (monthly)'; ic='gold'; }
+    else if(k==='location_addon'){ label='Extra location (+1 / month)'; ic='em'; }
+    else if(k==='site_addon'){ label='Extra booking site (+1 / month)'; ic='em'; }
+    else if(k==='asset_addon'){ label='Asset-cap block (+10 units / month)'; ic='em'; }
+    else if(k==='tracking'){ label='Live GPS tracking (monthly)'; ic='em'; }
+    else if(k==='gmv'){ label='Atlas processing fee (GMV)'; ic='gold'; }
+    else if(k==='chargeback_rev'||k==='chargeback_lost'||k==='platform_chargeback'){ label='Chargeback'+(k==='chargeback_lost'?' (lost)':(k==='platform_chargeback'?' fee':'')); ic='red'; }
+    else if(k==='chargeback_restore'){ label='Chargeback restored'; ic='em'; }
     else if(k==='trial'){ label='Trial started &middot; card on file'; ic='blue'; }
-    else { label=esc(k||'Payment'); }
+    else { label=esc(_purKindLabel(k)); }
     var amt = (x.amount_cents>0) ? centsUSD(x.amount_cents) : (k==='trial'?'card':centsUSD(0));
     return '<div class="feed-row"><div class="feed-ic '+ic+'">'+txIcon(k)+'</div>'+
       '<div class="feed-tx"><b>'+label+'</b><span>'+esc(x.email||x.tenant_id||'')+' &middot; '+ago(x.created_at)+'</span></div>'+
@@ -1855,14 +1868,15 @@ function renderGeo(){ var el=$('geoMap'); if(!el) return; var g=DATA.geo||{}; va
   if(_geoDrillCountry) _geoFetchRegions(_geoDrillCountry);   // keep the open region panel fresh across range changes/periodic refreshes
 }
 /* ================= purchases (itemized + filtered) ================= */
-function _purKindLabel(k){ return ({subscription:'Subscription',plan:'Subscription',credits:'Credits',website:'Website',asset_unlock:'Asset unlock',domain:'Domain',trial:'Trial',gmv:'Atlas processing'})[k] || (k? (k.charAt(0).toUpperCase()+k.slice(1)) : 'Other'); }
+function _purKindLabel(k){ return ({subscription:'Subscription',plan:'Subscription',trial:'Trial',credits:'Credits',email_pack:'Email pack',email_addon:'Email add-on',website:'Website',domain:'Domain',domain_renew_claim:'Domain renewal',asset_unlock:'Asset unlock',location_addon:'Extra location',site_addon:'Extra booking site',asset_addon:'Asset-cap block',tracking:'Live GPS tracking',gmv:'Atlas processing',chargeback_rev:'Chargeback',chargeback_lost:'Chargeback (lost)',chargeback_restore:'Chargeback (restored)',platform_chargeback:'Chargeback fee'})[k] || (k? (k.charAt(0).toUpperCase()+k.slice(1).replace(/_/g,' ')) : 'Other'); }
 function _purNorm(r){ return (r.kind==='plan')?'subscription':(r.kind||'other'); }
 function _purDesc(r){ var base=_purKindLabel(_purNorm(r)); var extra=r.tier||r.pack||''; return base+(extra?(' - '+extra):''); }
+var PUR_GROUPS={addons:['location_addon','site_addon','asset_addon','tracking','asset_unlock'],emails:['email_pack','email_addon']};
 function _purFiltered(){ var items=(DATA.purchases&&DATA.purchases.items)||[]; var q=_purQ.toLowerCase();
-  return items.filter(function(r){ if(_purKind!=='all' && _purNorm(r)!==_purKind) return false; if(q){ var hay=((r.email||'')+' '+(r.tier||'')+' '+(r.pack||'')+' '+(r.kind||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; } return true; }); }
+  return items.filter(function(r){ if(_purKind!=='all'){ var nk=_purNorm(r); if(PUR_GROUPS[_purKind]){ if(PUR_GROUPS[_purKind].indexOf(nk)<0) return false; } else if(nk!==_purKind) return false; } if(q){ var hay=((r.email||'')+' '+(r.tier||'')+' '+(r.pack||'')+' '+(r.kind||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; } return true; }); }
 function renderPurchases(){ var p=DATA.purchases||{}; var byk=p.by_kind||{};
   var ps=$('purSub'); if(ps) ps.textContent=((p.range&&p.range.label)||'')+' / '+centsUSD(p.grand_total_cents||0)+' / '+nfmt(p.grand_count||0)+' items';
-  var order=['subscription','credits','website','domain','trial'], seen={}, chips=[];
+  var order=['subscription','trial','credits','email_pack','email_addon','website','domain','asset_unlock','location_addon','site_addon','asset_addon','tracking','gmv'], seen={}, chips=[];
   order.forEach(function(k){ if(byk[k]){ seen[k]=1; chips.push('<span class="pill gray">'+esc(_purKindLabel(k))+' <b class="num">'+nfmt(byk[k].n)+'</b> '+centsUSD0(byk[k].c)+'</span>'); } });
   Object.keys(byk).forEach(function(k){ if(!seen[k]){ chips.push('<span class="pill gray">'+esc(_purKindLabel(k))+' <b class="num">'+nfmt(byk[k].n)+'</b></span>'); } });
   var pt=$('purTotals'); if(pt) pt.innerHTML=chips.join('')||'<span class="mut" style="font-size:12px">No purchases in this window.</span>';
@@ -1882,7 +1896,7 @@ var _payMode='atlas';
 function togglePayMode(){ _payMode=(_payMode==='atlas')?'stripe':'atlas'; var b=$('purModeBtn'); if(b) b.textContent=(_payMode==='stripe')?'Atlas records':'All payments'; if(_payMode==='stripe'){ if(!DATA.payLedger) loadPayLedger(); else renderPayLedger(); } else { renderPurchases(); } }
 function loadPayLedger(){ var tbl=$('purTbl'); if(tbl) tbl.innerHTML='<tbody><tr><td class="mut" style="padding:16px">Loading every payment from Stripe...</td></tr></tbody>'; api('/api/admin/payments-ledger').then(function(r){ var j=r.json||{}; if(!j||!j.ok){ if(tbl) tbl.innerHTML='<tbody><tr><td class="mut" style="padding:16px">'+esc((j&&j.note)||'Could not load payments')+'</td></tr></tbody>'; return; } DATA.payLedger=j; renderPayLedger(); }).catch(function(){ if(tbl) tbl.innerHTML='<tbody><tr><td class="mut" style="padding:16px">Network error</td></tr></tbody>'; }); }
 function _payFmtDay(ms){ if(!ms) return ''; try{ return new Date(ms).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){ return ''; } }
-function _payItem(r){ var lbl=({plan:'Subscription',trial:'Trial',website:'Website',domain:'Domain',credits:'Credits',asset_unlock:'Asset unlock',platform_test:'Test'})[r.billing]||''; if(!lbl) lbl=r.desc||'Payment'; var ex=r.tier||r.pack||r.domain||''; var base=lbl+(ex?(' - '+ex):''); var per=(r.period_start&&r.period_end)?(' <span class="mut" style="font-size:11px">'+esc(_payFmtDay(r.period_start))+' - '+esc(_payFmtDay(r.period_end))+'</span>'):''; return esc(base)+per; }
+function _payItem(r){ var lbl=({plan:'Subscription',trial:'Trial',website:'Website',domain:'Domain',credits:'Credits',email_pack:'Email pack',email_addon:'Email add-on',asset_unlock:'Asset unlock',location_addon:'Extra location',site_addon:'Extra booking site',asset_addon:'Asset-cap block',tracking:'Live GPS tracking',platform_test:'Test'})[r.billing]||''; if(!lbl) lbl=r.desc||'Payment'; var ex=r.tier||r.pack||r.domain||''; var base=lbl+(ex?(' - '+ex):''); var per=(r.period_start&&r.period_end)?(' <span class="mut" style="font-size:11px">'+esc(_payFmtDay(r.period_start))+' - '+esc(_payFmtDay(r.period_end))+'</span>'):''; return esc(base)+per; }
 function _payPill(r){ var m={succeeded:['#3ecb8f','Succeeded'],refunded:['#e0a94a','Refunded'],disputed:['#e0736f','Disputed'],failed:['#e0736f','Declined'],pending:['#8a99aa','Pending']}; var s=m[r.status]||['#8a99aa',r.status||'-']; return '<span style="display:inline-block;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:700;color:'+s[0]+';border:1px solid '+s[0]+'55">'+esc(s[1])+'</span>'+(r.decline?('<div class="mut" style="font-size:10.5px">'+esc(r.decline)+'</div>'):''); }
 function renderPayLedger(){ var j=DATA.payLedger||{}; var items=j.items||[]; var q=(_purQ||'').toLowerCase(); var rows=items.filter(function(r){ if(q){ var hay=((r.email||'')+' '+(r.tier||'')+' '+(r.pack||'')+' '+(r.domain||'')+' '+(r.billing||'')+' '+(r.status||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; } return true; }); var ps=$('purSub'); if(ps) ps.textContent=(j.mode||'')+' mode / '+nfmt(rows.length)+' payments'; var pt=$('purTotals'); if(pt) pt.innerHTML='<span class="mut" style="font-size:12px">Every charge from Stripe in <b>'+esc(j.mode||'')+'</b> mode - real status, method + billing period. Switches with your LIVE/TEST payment mode.</span>'; var tbl=$('purTbl'); if(!tbl) return; if(!rows.length){ tbl.innerHTML='<tbody><tr><td class="mut" style="padding:16px">No payments in Stripe for this mode yet. Charges appear here the moment they happen.</td></tr></tbody>'; return; } tbl.innerHTML='<thead><tr><th>Date (CT)</th><th>Account</th><th>Item</th><th>Method</th><th>Status</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+rows.map(function(r){ return '<tr class="row"><td class="num" style="white-space:nowrap">'+esc(tsCT(r.created))+'</td><td><b>'+esc(r.email||'-')+'</b></td><td>'+_payItem(r)+'</td><td class="mut" style="font-size:12px;white-space:nowrap">'+esc(r.method||'')+'</td><td>'+_payPill(r)+'</td><td class="money num" style="text-align:right'+(r.refunded?';text-decoration:line-through;opacity:.6':'')+'">'+centsUSD(r.amount||0)+'</td></tr>'; }).join('')+'</tbody>'; }
 
