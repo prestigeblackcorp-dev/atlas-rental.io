@@ -2376,7 +2376,7 @@ const Atlas = (function(){
   function _fNum(d){ d=_fHalf(d); return (d===Math.floor(d))?(''+d):d.toFixed(2); }
   function _fDisp(d){ d=Number(d)||0; if(!_isFounder()) return '$'+d; return '<span style="text-decoration:line-through;opacity:.5">$'+d+'</span> <span style="color:var(--brand);font-weight:850">$'+_fNum(d)+'</span>'; }
   /* ---- app version + owner-only feature flags (in-app upgrades) ---- */
-  var APP_VERSION='2026.7.23en';
+  var APP_VERSION='2026.7.23eo';
   var APP_CHANGELOG=[
     'Critical fix: a new booking created directly as Confirmed (a walk-in, phone, AI, or recurring booking) was silently failing to save on the server &mdash; now fixed. Also: a captured security deposit is no longer double-counted in your revenue, net profit and tax export; a record you delete can&rsquo;t quietly come back if the delete didn&rsquo;t reach the server; an erased customer stays erased even through the PB sync; and turning on push notifications is now CSRF-protected',
     'Per-type close-out fixes: powersports (Slingshots, UTVs) track miles by default, trailers no longer ask for an &ldquo;odometer&rdquo; they do not have, and the reading you enter at close-out now updates the asset so service reminders stay accurate',
@@ -12431,11 +12431,20 @@ const Atlas = (function(){
       if(res.status===402 && res.json && res.json.error==='website_addon_required'){ toast('Add the website add-on or upgrade to connect a custom domain'); try{buyWebsiteAddon();}catch(e){} return; }
       if(!(res.json&&res.json.ok)){ toast((res.json&&res.json.error)||'Could not connect \u2014 try again'); if(st)st.innerHTML=''; return; }
       _siteDomains=_siteDomains.filter(function(x){return x.site_slug!==slug;}); _siteDomains.push({domain:res.json.domain,site_slug:slug,status:'pending'});
-      if(st) st.innerHTML=_siteDomDnsHtml(res.json.domain,slug,'pending'); toast('Domain added \u2014 add the DNS record, then verify'); }).catch(function(){ toast('Network error'); if(st)st.innerHTML=''; }); }
+      if(res.json.autoApplied){ if(st) st.innerHTML='<div style="margin-top:12px;color:var(--muted);font-size:12.5px">DNS configured automatically &mdash; verifying (can take a few minutes)&hellip;</div>'; toast('DNS configured automatically \u2014 verifying\u2026'); _siteDomPoll(slug,0); }   /* WAVE45: one-click for Atlas-bought domains -- server auto-wrote the www CNAME + ownership TXT into the registrar, so poll to live instead of asking for manual records */
+      else { if(st) st.innerHTML=_siteDomDnsHtml(res.json.domain,slug,'pending'); toast('Domain added \u2014 add the DNS record, then verify'); } }).catch(function(){ toast('Network error'); if(st)st.innerHTML=''; }); }
   function webSiteDomainVerify(slug){ if(!(ATLAS_BACKEND&&_apiCsrf)){ toast('Sign in to verify'); return; } toast('Checking DNS\u2026');
     _api('/api/site/domain/verify',{method:'POST',body:{site_slug:slug}}).then(function(res){ var j=(res&&res.json)||{};
       if(j.live){ var d=_siteDomainFor(slug); if(d)d.status='live'; toast('Your domain is live!'); try{ closeModal(); }catch(e){} try{ renderWebsite(); }catch(e){} }
       else { toast(j.hint||'We do not see the DNS record yet \u2014 it can take a few minutes to a few hours.'); } }).catch(function(){ toast('Could not check right now.'); }); }
+  /* WAVE45: auto-verify poll for the one-click (Atlas-managed) site-domain connect -- twin of _emailDomPoll. The server already
+     wrote the DNS, so we just wait for propagation + CF SSL and flip to live; falls back to the manual records after ~3 min. */
+  function _siteDomPoll(slug,tries){ tries=tries||0; var st=document.getElementById('siteDomSteps');
+    _api('/api/site/domain/verify',{method:'POST',body:{site_slug:slug}}).then(function(res){ var j=(res&&res.json)||{};
+      if(j.live){ var d=_siteDomainFor(slug); if(d)d.status='live'; if(st)st.innerHTML='<div style="margin-top:12px;color:#1a7f5a;font-size:12.5px;font-weight:600">\u2713 Your domain is live!</div>'; toast('Your domain is live!'); try{ renderWebsite(); }catch(e){} return; }
+      if(tries>=20){ var dm=(_siteDomainFor(slug)||{}).domain||''; if(st)st.innerHTML='<div style="margin-top:12px;color:var(--muted);font-size:12.5px">Still propagating (this can take up to an hour on a brand-new domain). You can close this and we\u2019ll finish automatically, or tap Verify later.</div>'+_siteDomDnsHtml(dm,slug,'pending'); return; }
+      setTimeout(function(){ _siteDomPoll(slug,tries+1); }, 8000);
+    }).catch(function(){ if(tries<20) setTimeout(function(){ _siteDomPoll(slug,tries+1); }, 8000); }); }
   function webSiteDomainDisconnect(slug){ if(!_guard('webEdit','Removing a domain'))return; var d=_siteDomainFor(slug); if(!d)return; if(!confirm('Remove the custom domain '+(d.domain||'')+' from this site? The site stays live at its atlasrental.io link.'))return;
     _api('/api/site/domain/disconnect',{method:'POST',body:{site_slug:slug}}).then(function(){ _siteDomains=_siteDomains.filter(function(x){return x.site_slug!==slug;}); toast('Domain removed'); try{ closeModal(); }catch(e){} try{ renderWebsite(); }catch(e){} }).catch(function(){ toast('Could not remove \u2014 try again'); }); }
   // ===== WAVE34c: per-sub-site VERIFIED email SENDING domain (Resend Domains). Mirrors the site-domain UI; the owner adds the DKIM + SPF records at their DNS, then this business sends from handle@their-domain. =====
