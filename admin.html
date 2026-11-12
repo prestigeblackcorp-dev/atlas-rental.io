@@ -83,6 +83,7 @@
   .icon-btn:hover{color:var(--ink);background:var(--surf3)}
   .icon-btn.spin svg{animation:spin .7s linear}
   @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.3}}
 
   /* ---- section tabs ---- */
   .hqtabs{display:flex;gap:6px;overflow-x:auto;padding:0 0 12px;margin-top:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -1965,6 +1966,7 @@ function _entRenderBackup(e,owner){ var el=$('entBackupBody'); if(!el) return; v
 function _entRenderPayments(e,owner){ var el=$('entPayBody'); if(!el) return; var payTest=!!e.payments_test_mode;
   el.innerHTML=
     '<div class="desc" style="margin:0 0 5px">Switch between LIVE and TEST. The readiness check below is read-only and never moves money.</div>'
+    +'<div id="webhookHealth"></div>'
     +'<div id="payModeBlock">'
     +(owner?('<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn sm" style="flex:1;cursor:pointer;font-weight:700;'+(payTest?'background:transparent;border:1px solid var(--line2);color:var(--mut)':'background:rgba(62,203,143,.15);border:1px solid #3ecb8f;color:#3ecb8f')+'" onclick="payModeSet(false)">LIVE payments</button><button class="btn sm" style="flex:1;cursor:pointer;font-weight:700;'+(payTest?'background:rgba(224,169,74,.15);border:1px solid #e0a94a;color:#e0a94a':'background:transparent;border:1px solid var(--line2);color:var(--mut)')+'" onclick="payModeSet(true)">TEST payments</button></div>'):('<div class="pill '+(payTest?'past':'active')+'" style="display:inline-block;margin-bottom:8px">'+(payTest?'TEST mode':'LIVE mode')+'</div>'))
     +'<div class="mut" style="font-size:12.5px;margin-bottom:8px">'+(payTest?'Safe sandbox &mdash; only Stripe test cards (4242 4242 4242 4242), no real money moves.':'Real cards are charged real money.')+' <span class="mut">'+(e.test_key?'(PLATFORM_STRIPE_TEST_KEY set)':'(add PLATFORM_STRIPE_TEST_KEY in the worker)')+'</span></div>'
@@ -1987,6 +1989,30 @@ function _entRenderPayments(e,owner){ var el=$('entPayBody'); if(!el) return; va
         +'</div>'
       ):('<div class="mut" style="font-size:12.5px">'+esc(e.platform_legal_name||'Atlas Rental.io')+(e.platform_legal_address?(' &middot; '+esc(e.platform_legal_address)):'')+(e.platform_tax_id?(' &middot; Tax ID set'):'')+' (owner only to change)</div>'))
     +'</div>';
+  try{ loadWebhookHealth(); }catch(_e){}
+}
+var _whHtml='', _whLast=0;
+function loadWebhookHealth(force){ var el=$('webhookHealth'); if(!el) return;
+  if(_whHtml && !force){ el.innerHTML=_whHtml; if((Date.now()-_whLast)<45000) return; }
+  else { el.innerHTML='<div style="font-size:12px;color:var(--mut);padding:9px 2px">Checking webhook delivery&hellip;</div>'; }
+  api('/api/admin/payments/selftest').then(function(r){ var el2=$('webhookHealth'); if(!el2) return; var j=(r&&r.json)||{};
+    if(r.status===404){ el2.innerHTML=''; return; }
+    if(!j.ok){ el2.innerHTML='<div style="font-size:12px;color:var(--mut);padding:7px 2px">Webhook health check unavailable right now.</div>'; return; }
+    var ep=!!(j.checks&&j.checks.webhook_endpoint_configured), sec=!!(j.checks&&j.checks.webhook_secret_set);
+    var ok=ep&&sec, mode=j.mode||'', url=j.expected_webhook_url||'https://atlasrental.io/api/stripe/webhook';
+    var col=ok?'#3ecb8f':'#e0736f', bg=ok?'rgba(62,203,143,.10)':'rgba(224,115,111,.13)';
+    var dot='<span style="width:10px;height:10px;border-radius:50%;background:'+col+';flex:none;animation:pulseDot 1.5s ease-in-out infinite"></span>';
+    var title=ok?('Stripe webhooks: delivering &middot; '+esc(mode)+' mode'):('Stripe webhooks: NOT delivering &middot; '+esc(mode)+' mode');
+    var body;
+    if(ok){ body='Signed events reach the worker, so every paid checkout records a transaction, emails a branded receipt, grants the plan/add-on/credits, and auto-renews each month.';
+      if(mode==='test'){ body+=' <b>Before go-live:</b> add the same endpoint in your <b>LIVE</b> Stripe environment too (webhooks are per-environment).'; } }
+    else { var miss=[]; if(!ep) miss.push('no endpoint points at <code style="color:var(--fg)">'+esc(url)+'</code> in the <b>'+esc(mode)+'</b> environment'); if(!sec) miss.push('the signing secret (STRIPE_WEBHOOK_SECRET) is not set in the worker');
+      body='<b style="color:'+col+'">Charges would succeed but NOT fulfill</b> &mdash; no transaction, receipt, grant, or auto-renewal &mdash; because '+miss.join(', and ')+'. Fix in Stripe &rarr; Developers &rarr; Webhooks: add the endpoint above (same environment as the key), subscribe it to <code style="color:var(--fg)">checkout.session.completed, invoice.paid, customer.subscription.updated, customer.subscription.deleted, charge.refunded</code>, set its signing secret in the worker, then Recheck.'; }
+    var out='<div style="background:'+bg+';border:1px solid '+col+'66;border-radius:11px;padding:11px 13px;margin:2px 0 12px">'
+      +'<div style="display:flex;align-items:center;gap:9px">'+dot+'<b style="color:'+col+';font-size:13px;flex:1">'+title+'</b><button class="btn ghost sm" style="padding:4px 11px;font-size:11.5px" onclick="loadWebhookHealth(true)">Recheck</button></div>'
+      +'<div class="mut" style="font-size:12px;line-height:1.55;margin-top:7px">'+body+'</div></div>';
+    _whHtml=out; _whLast=Date.now(); el2.innerHTML=out;
+  }).catch(function(){ var el3=$('webhookHealth'); if(el3 && !_whHtml) el3.innerHTML='<div style="font-size:12px;color:var(--mut);padding:7px 2px">Could not check webhook health (network).</div>'; });
 }
 function saveReceiptLegal(){ var n=$('rlName'); if(!n) return; var a=$('rlAddr'), t=$('rlTax');
   api('/api/admin/config',{method:'POST',body:{platform_legal_name:(n.value||'').trim(), platform_legal_address:(a?a.value:'').trim(), platform_tax_id:(t?t.value:'').trim()}}).then(function(r){
