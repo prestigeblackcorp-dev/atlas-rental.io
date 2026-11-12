@@ -410,6 +410,7 @@
   <!-- SECURITY LOG (owner-only -- rows carry other tenants' emails/IPs; hidden entirely for support/analyst) -->
   <style>.sx-item{display:flex;gap:10px;align-items:flex-start;padding:9px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:7px;background:var(--surf2)}.sx-ic{flex:none;padding-top:5px}.sx-main{flex:1;min-width:0}.sx-t{font-size:13px;font-weight:700}.sx-b{font-size:11.5px;color:var(--mut);margin-top:2px}.sx-empty{font-size:13px;color:var(--mut);padding:6px 2px}</style>
   <style>.cr-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}.cr-kpi{border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:var(--surf2)}.cr-k{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}.cr-v{font-size:26px;font-weight:800;line-height:1.1;margin:2px 0}.cr-s{font-size:11px;color:var(--mut)}.cr-p{font-size:13px;line-height:1.6;margin:0 0 12px}.cr-links{display:flex;flex-wrap:wrap;gap:8px}.cr-links .chip{text-decoration:none}.cr-note{font-size:11.5px;color:var(--mut);margin-top:10px}@media(max-width:720px){.cr-grid{grid-template-columns:1fr 1fr}}</style>
+  <div class="hqgroup">Compliance &amp; audit</div>
   <div class="card" id="complianceCard">
     <div class="card-h"><h2>Compliance &amp; Audit Reports</h2><span class="sub">Updated Aug 6, 2026 &middot; owner-only</span><div class="sp"></div></div>
     <div class="card-b pad">
@@ -475,6 +476,7 @@
 
   <section class="hqsec" data-sec="analytics">
   <!-- GROWTH & SOCIAL (AI marketing brain: day-by-day compare, campaigns, posts, partners, real accounts) -->
+  <div class="hqgroup">Marketing &amp; growth</div>
   <div class="card">
     <div class="card-h"><h2>Growth &amp; social</h2><span class="sub" id="growSub"></span><div class="sp"></div><span class="sub" id="growRange"></span></div>
     <div class="card-b pad">
@@ -497,6 +499,7 @@
 
   <section class="hqsec" data-sec="support">
   <!-- SUPPORT INBOX (inbound email -> AI draft -> you Send) -->
+  <div class="hqgroup">Customer support</div>
   <div class="card">
     <div class="card-h"><h2>Support inbox</h2><span class="sub" id="inboxSub"></span><div class="sp"></div>
       <div class="seg" id="inboxSeg"><button class="on" data-s="new" onclick="setInboxSeg(this)">New</button><button data-s="replied" onclick="setInboxSeg(this)">Replied</button><button data-s="all" onclick="setInboxSeg(this)">All</button></div>
@@ -507,6 +510,7 @@
 
   <section class="hqsec" data-sec="analytics">
   <!-- WEBSITE VISITS -->
+  <div class="hqgroup">Traffic &amp; analytics</div>
   <div class="card">
     <div class="card-h"><h2>Website visits</h2><span class="sub" id="visSub"></span><span class="sub" id="visLive"></span><div class="sp"></div><span class="sub" id="visRange"></span></div>
     <div class="card-b pad" id="visBody"><div class="mut">Loading&hellip;</div></div>
@@ -669,6 +673,7 @@
 
   <section class="hqsec" data-sec="security">
   <!-- ABUSE DEFENSE: IP/email bans + attack-attempt feed (owner-only; endpoints 403 for staff, cards stay hidden) -->
+  <div class="hqgroup">Threats &amp; enforcement</div>
   <div class="card" id="banCard" style="display:none">
     <div class="card-h"><h2>Bans</h2><span class="sub" id="banSub"></span><div class="sp"></div><button class="chip" onclick="loadDefense(true)">Refresh</button></div>
     <div class="card-b pad" id="banBody"><div class="mut">Loading&hellip;</div></div>
@@ -681,6 +686,7 @@
 
   <section class="hqsec" data-sec="security">
   <!-- STAFF ACCESS (split out of the old Enterprise & trust card) -->
+  <div class="hqgroup">Access &amp; staff</div>
   <div class="card">
     <div class="card-h"><h2>Staff access</h2><span class="sub" id="entSub"></span></div>
     <div class="card-b pad" id="entStaffIntro"><div class="mut">Loading&hellip;</div></div>
@@ -709,6 +715,7 @@
   </section>
 
   <section class="hqsec" data-sec="support">
+  <div class="hqgroup">Tickets &amp; feedback</div>
   <div class="card">
     <div class="card-h"><h2>Bug &amp; idea inbox</h2><div class="sp"></div>
       <div class="seg" id="bugSeg">
