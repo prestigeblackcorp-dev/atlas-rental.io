@@ -2385,7 +2385,7 @@ const Atlas = (function(){
   function _fNum(d){ d=_fHalf(d); return (d===Math.floor(d))?(''+d):d.toFixed(2); }
   function _fDisp(d){ d=Number(d)||0; if(!_isFounder()) return '$'+d; return '<span style="text-decoration:line-through;opacity:.5">$'+d+'</span> <span style="color:var(--brand);font-weight:850">$'+_fNum(d)+'</span>'; }
   /* ---- app version + owner-only feature flags (in-app upgrades) ---- */
-  var APP_VERSION='2026.7.23et';
+  var APP_VERSION='2026.7.23eu';
   var APP_CHANGELOG=[
     'Critical fix: a new booking created directly as Confirmed (a walk-in, phone, AI, or recurring booking) was silently failing to save on the server &mdash; now fixed. Also: a captured security deposit is no longer double-counted in your revenue, net profit and tax export; a record you delete can&rsquo;t quietly come back if the delete didn&rsquo;t reach the server; an erased customer stays erased even through the PB sync; and turning on push notifications is now CSRF-protected',
     'Per-type close-out fixes: powersports (Slingshots, UTVs) track miles by default, trailers no longer ask for an &ldquo;odometer&rdquo; they do not have, and the reading you enter at close-out now updates the asset so service reminders stay accurate',
@@ -2480,7 +2480,8 @@ const Atlas = (function(){
     ['balanceDue','Balance-due reminder', 'Reminds the customer of an unpaid balance before pickup', 'before'],
     ['returnDue', 'Return reminder',      'Reminds the customer their rental is due back soon',       'before'],
     ['overdue',   'Overdue notice',       'Alerts the customer when a return is past due',            null],
-    ['waitlist',  'Waitlist opening',     'Emails a waitlisted customer when their wanted dates free up', null]
+    ['waitlist',  'Waitlist opening',     'Emails a waitlisted customer when their wanted dates free up', null],
+    ['leadDrip',  'Lead follow-up',       'Emails visitors who left their email on your booking page but did not book (shows a live promo only if you have one)', null]
   ];
   function _defaultComms(){ return {
     mode:'managed', resendKey:'', resendVerified:false,
@@ -2493,6 +2494,7 @@ const Atlas = (function(){
     // sms.sid + sms.connected are non-secret; the Twilio auth token is NEVER stored (transient _pendingSms.token only)
     sms:{ enabled:false, provider:'twilio', fromNumber:'', sid:'', connected:false, sentThisMonth:0 },   // TCPA: SMS only to customers who opted in; every text carries "Reply STOP"
     business:{ address:'' },   // CAN-SPAM: a physical mailing address in every marketing email
+    ownerSaleEmail:true,   // owner-facing: email me a breakdown on every sale (the owner cha-ching). Push is separate (device opt-in). Absent/true => ON; set false to keep only the push.
     autos:{
       confirm:{ on:true, subject:'Your {asset} booking is confirmed', body:'Hi {name},\n\nYou are all set. Your booking for the {asset} on {dates} is confirmed.\n\nTotal: {total}\n\nView or manage your booking anytime: {link}\n\nSee you soon,\n{business}' },
       reminder:{ on:true, days:2, subject:'Your {asset} pickup is coming up', body:'Hi {name},\n\nA quick reminder that your {asset} is booked for {dates}. We cannot wait to see you.\n\nManage your booking: {link}\n\n{business}' },
@@ -2503,7 +2505,8 @@ const Atlas = (function(){
       balanceDue:{ on:true, days:2, subject:'A balance is due for your {asset} booking', body:'Hi {name},\n\nA quick reminder that your booking for the {asset} ({dates}) has a balance still due. You can review and pay it securely here:\n\n{link}\n\nThank you,\n{business}' },
       returnDue:{ on:true, days:1, subject:'Your {asset} is due back soon', body:'Hi {name},\n\nReminder: your {asset} rental is ending soon. Please return it on time to avoid any late fees.\n\nManage your booking: {link}\n\nThank you,\n{business}' },
       overdue:{ on:false, subject:'Your {asset} rental is overdue', body:'Hi {name},\n\nOur records show the {asset} has not been returned yet. Please return it as soon as possible to avoid additional charges, or contact us if you have already returned it:\n\n{link}\n\n{business}' },
-      waitlist:{ on:false, subject:'A spot opened up at {business}', body:'Hi {name},\n\nGood news -- the {asset} you asked about is now open for {from} to {to}. These fill fast, so reply to grab it.\n\n{business}' }
+      waitlist:{ on:false, subject:'A spot opened up at {business}', body:'Hi {name},\n\nGood news -- the {asset} you asked about is now open for {from} to {to}. These fill fast, so reply to grab it.\n\n{business}' },
+      leadDrip:{ on:false, subject:'Still interested, {name}?', body:'Hi {name},\n\nThanks for your interest in {business}. Whenever you are ready, you can check availability and book online in a couple of taps:\n\n{link}\n\nAny questions? Just reply to this email.\n\n{business}' }
     },
     campaigns:[]
   }; }
@@ -9284,7 +9287,10 @@ const Atlas = (function(){
           return '<div class="set-block"><h3>How Atlas reaches you</h3><div class="desc">When a customer asks for a change from their portal, we tell you here. It always lands in your dashboard &mdash; these add email and text.</div>'
           +'<div class="auto-row"><label class="switch"><input type="checkbox" '+(n.email!==false?'checked':'')+' onchange="Atlas.setNotify(\'email\',this.checked)"><span class="switch__t"></span></label><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:14px">Email me</b><div style="font-size:12.5px;color:var(--muted)">'+esc(_sessEmail()||S.owner||'your account email')+'</div></div></div>'
           +'<div class="auto-row"><label class="switch"><input type="checkbox" '+(n.sms?'checked':'')+' onchange="Atlas.setNotify(\'sms\',this.checked)"><span class="switch__t"></span></label><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:14px">Text me</b><div style="font-size:12.5px;color:var(--muted)">Needs a mobile number below'+(n.sms&&!_notifyPhone()?' &mdash; <span style="color:var(--danger)">add one or texts cannot send</span>':'')+'</div></div></div>'
-          +'<div class="field" style="margin-top:6px"><label>Mobile number for alerts</label><input class="input" id="ntfPhone" value="'+esc(n.phone||'')+'" placeholder="+1 555 123 4567" onchange="Atlas.setNotify(\'phone\',this.value)"><div class="bk-lenhint" style="margin:5px 0 0">Standard rates apply. Reply STOP to any text from '+esc((S.brand&&S.brand.name)||'this business')+' to stop them &mdash; we honor it immediately.</div></div>'+'<div class="auto-row" id="pushRow" style="display:none"><label class="switch"><input type="checkbox" id="pushToggle" onchange="Atlas.togglePush(this.checked)"><span class="switch__t"></span></label><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:14px">Push on this device</b><div style="font-size:12.5px;color:var(--muted)" id="pushHint">Instant browser alerts &mdash; a new booking reaches you even when the dashboard is closed.</div></div></div>'+'</div>'; })()
+          +'<div class="field" style="margin-top:6px"><label>Mobile number for alerts</label><input class="input" id="ntfPhone" value="'+esc(n.phone||'')+'" placeholder="+1 555 123 4567" onchange="Atlas.setNotify(\'phone\',this.value)"><div class="bk-lenhint" style="margin:5px 0 0">Standard rates apply. Reply STOP to any text from '+esc((S.brand&&S.brand.name)||'this business')+' to stop them &mdash; we honor it immediately.</div></div>'+'<div class="auto-row" id="pushRow" style="display:none"><label class="switch"><input type="checkbox" id="pushToggle" onchange="Atlas.togglePush(this.checked)"><span class="switch__t"></span></label><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:14px">Push on this device</b><div style="font-size:12.5px;color:var(--muted)" id="pushHint">Instant browser alerts &mdash; a new booking or sale reaches you even when the dashboard is closed.</div></div></div>'
+          +'<div class="auto-row"><label class="switch"><input type="checkbox" id="saleEmailToggle" '+((_comms().ownerSaleEmail!==false)?'checked':'')+' onchange="Atlas.setSaleEmail(this.checked)"><span class="switch__t"></span></label><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:14px">Email me every sale</b><div style="font-size:12.5px;color:var(--muted)">A full breakdown (what, who, amount paid) the moment a payment lands.</div></div></div>'
+          +'<div class="auto-row"><label class="switch"><input type="checkbox" id="chaChingToggle" '+(_chaChingOn()?'checked':'')+' onchange="Atlas.chaChingToggle(this.checked)"><span class="switch__t"></span></label><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:14px">Cha-ching sound</b><div style="font-size:12.5px;color:var(--muted)">Play a cash-register chime on this device when a sale comes in.</div></div></div>'
+          +'</div>'; })()
         +'<div class="set-block"><h3>Developer &amp; upgrades</h3><div class="desc">Version '+APP_VERSION+'. Flip upgrades on live &mdash; no reinstall, no downtime.</div>'
           +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><button class="btn btn--ghost btn--sm" onclick="Atlas.checkUpdates()">Check for updates</button><button class="btn btn--ghost btn--sm" onclick="Atlas.viewChangelog()">Changelog</button><button class="btn btn--ghost btn--sm" onclick="Atlas.installApp()">Install app</button></div>'
           +OWNER_FLAGS.map(function(f){ return '<div class="auto-row"><label class="switch"><input type="checkbox" '+(_flags()[f[0]]?'checked':'')+' onchange="Atlas.toggleFlag(\''+f[0]+'\',this.checked)"><span class="switch__t"></span></label><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:14px">'+f[1]+'</b><div style="font-size:12.5px;color:var(--muted)">Beta &middot; toggles instantly</div></div></div>'; }).join('')
@@ -14993,7 +14999,28 @@ const Atlas = (function(){
   // FOUNDER OFFER (public): reveal the hero banner only when the program is live AND still open. Also seeds _founderInfo.program
   // so the signup plan chooser shows founder pricing. No-op (banner stays hidden) when the flag is OFF -> byte-identical marketing page.
   function _founderBanner(){ try{ if(typeof ATLAS_BACKEND==='undefined' || !ATLAS_BACKEND) return; _api('/api/founder/status',{method:'GET'}).then(function(res){ var j=res&&res.json; if(!(j&&j.enabled&&j.open)) return; _founderInfo.program=true; _founderInfo.open=true; _founderInfo.remaining=j.remaining||0; var cap=(j.cap||1000); var el=document.getElementById('founderBanner'); if(el){ el.innerHTML='&#127881; <b>Founding Member offer</b> &mdash; the first '+cap.toLocaleString()+' businesses get <b>1 week free + 50% off plans for life</b>, a founding-member number &amp; badge, and beta-first access. '+(j.remaining||0).toLocaleString()+' of '+cap.toLocaleString()+' spots left.'; el.style.display='block'; } }).catch(function(){}); }catch(e){} }
-  function _initPWA(){ try{ if('serviceWorker' in navigator && location.protocol!=='file:') navigator.serviceWorker.register('atlas-sw.js').catch(function(){}); }catch(e){}
+  /* ===== Owner "cha-ching" sale sound. Synthesized with WebAudio (no audio asset -> keeps the client pure ASCII). Plays when a
+     sale push arrives (the service worker relays 'atlas-sale' to open tabs) AND when the dashboard sees collected revenue rise on
+     a refresh (so it works even before web-push/VAPID is configured). Debounced so a push + a refresh never double-chime. Honors
+     a per-device mute (localStorage). ===== */
+  var _audioCtx=null, _chaMuted=false;
+  try{ _chaMuted = (localStorage.getItem('atlasChaMute')==='1'); }catch(e){}
+  function _audioUnlock(){ try{ if(!_audioCtx){ var AC=window.AudioContext||window.webkitAudioContext; if(AC) _audioCtx=new AC(); } if(_audioCtx && _audioCtx.state==='suspended') _audioCtx.resume(); }catch(e){} }
+  function _chaChing(){ if(_chaMuted) return; try{ if(Date.now()-(_chaChing._last||0)<2500) return; _chaChing._last=Date.now(); _audioUnlock(); var ctx=_audioCtx; if(!ctx) return; var t0=ctx.currentTime;
+    var ding=function(f,at,dur,gain){ for(var ix=0; ix<2; ix++){ var o=ctx.createOscillator(), g=ctx.createGain(); o.type=ix?'triangle':'sine'; o.frequency.value=f*(ix?2.01:1); var pk=gain*(ix?0.33:1); g.gain.setValueAtTime(0.0001,t0+at); g.gain.exponentialRampToValueAtTime(pk,t0+at+0.006); g.gain.exponentialRampToValueAtTime(0.0001,t0+at+dur); o.connect(g); g.connect(ctx.destination); o.start(t0+at); o.stop(t0+at+dur+0.02); } };
+    ding(1046.5, 0, 0.42, 0.22);      // "cha" (C6)
+    ding(1567.98, 0.11, 0.52, 0.26);  // "ching" (G6 -- a bright fifth up)
+  }catch(e){} }
+  function chaChingMute(on){ _chaMuted=!!on; try{ localStorage.setItem('atlasChaMute', _chaMuted?'1':'0'); }catch(e){} if(!_chaMuted){ _chaChing._last=0; try{ _chaChing(); }catch(e){} } }
+  function _chaChingOn(){ return !_chaMuted; }
+  function chaChingToggle(on){ chaChingMute(!on); try{ if(typeof toast==='function') toast(on?'Cha-ching sound on':'Cha-ching sound muted'); }catch(e){} }
+  function setSaleEmail(on){ if(!_canMod('settings'))return; _comms().ownerSaleEmail=!!on; save(); try{ toast(on?'You will get an email on every sale':'Per-sale emails off - push still works'); }catch(e){} }
+  try{ if(navigator.serviceWorker){ navigator.serviceWorker.addEventListener('message', function(ev){ var d=ev&&ev.data; if(d && d.type==='atlas-sale'){ try{ _chaChing(); }catch(e){} try{ if(typeof toast==='function') toast('Cha-ching! '+(d.body||'Payment received')); }catch(e){} } }); } }catch(e){}
+  try{ ['pointerdown','keydown','touchstart'].forEach(function(evn){ window.addEventListener(evn, _audioUnlock, {passive:true}); }); }catch(e){}
+  var _saleSeen=null;
+  function _saleWatch(){ try{ if(!(S&&S.onboarded)) return; var tot=0, bl=(DATA&&DATA.bookings)||[]; for(var i=0;i<bl.length;i++){ var P=(bl[i]&&bl[i].paid)||{}; for(var k in P){ var s=P[k]; if(!s||typeof s!=='object'||s.hold||s.refunded) continue; tot+=Math.round(Number(s.amountCents)||0); } } if(_saleSeen===null){ _saleSeen=tot; return; } if(tot>_saleSeen+1){ try{ _chaChing(); }catch(e){} } _saleSeen=tot; }catch(e){} }
+  function _initPWA(){ try{ try{ _saleWatch(); setInterval(_saleWatch, 20000); }catch(e){}
+    if('serviceWorker' in navigator && location.protocol!=='file:') navigator.serviceWorker.register('atlas-sw.js').catch(function(){}); }catch(e){}
     window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); _deferredInstall=e; });
     window.addEventListener('appinstalled', function(){ _pingInstall(); });
     try{ if((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone) _pingInstall(); }catch(e){} }
@@ -15103,7 +15130,7 @@ const Atlas = (function(){
     search,searchGo,_searchClose,
     setLegalField,buildDoc,reviewDoc,viewDoc,saveDoc,uploadDoc,_uploadDocFile,uploadDocSave,regenDoc,deleteDoc,sendAgreement,uploadSigned,genWebLegal,sigFont,sigPrev,sigDrawToggle,sigDrawClear,saveSig,setTheme,toggleMenu,closeMenu,
     navHide,navShow,navRename,navSetBar,navToggleBar,navReset,
-    setCommsMode,setCommsField,setPendingResend,setPendingSmsToken,connectSms,toggleAuto,setAutoDays,verifyResendKey,openEmailPlans,buyEmailPlan,openEmailBuilder,insertToken,previewEmail,saveEmailTemplate,sendCampaign,sendTestEmail,
+    setCommsMode,setCommsField,setPendingResend,setPendingSmsToken,connectSms,toggleAuto,setAutoDays,chaChingToggle,setSaleEmail,verifyResendKey,openEmailPlans,buyEmailPlan,openEmailBuilder,insertToken,previewEmail,saveEmailTemplate,sendCampaign,sendTestEmail,
     openSignFlow,submitSignature,viewSignedDoc,downloadSignedDoc,sigClear,_sigSync,
     applyBkPromo,addPromo,savePromo,promoEdit,savePromoEdit,togglePromo,deletePromo,setLoyalty,custRedeem,custLoyalty,saveCustLoyalty,custLoyaltyReset,loyaltyResetAll,setLogFilter,setLogSearch,renderReports,renderPayouts,downloadReport,drillReportRow,applySitePromo,replyReview,reviewRemoveReply,reviewToggleHidden,
     renderTracking,openTrackerConnect,connectTrackerLive,connectTrackerGeneric,trkPickProvider,trkGenericAuthUpdate,trkConnTab,trkLiveFieldsUpdate,trkFieldsUpdate,trkConnect,editTrackerConnect,disconnectTracker,gfEdit,gfSave,gfRemove,trkSelect,trkRoute,trkNavApp,trkGuideUpdate,trkRefresh,trkFullscreen,trkNav3d,exitNav3d,
