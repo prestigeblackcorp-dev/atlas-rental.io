@@ -59,6 +59,24 @@
 - [Camera rental software](https://atlasrental.io/camera-rental-software): high-value camera and lens kits with condition checks and insurance.
 - [Tent rental software](https://atlasrental.io/tent-rental-software): event tent quotes, install/teardown scheduling, and deposits.
 - [Bounce house rental software](https://atlasrental.io/bounce-house-rental-software): inflatable delivery/setup scheduling, waivers, and weather policy.
+- [Luxury car rental software](https://atlasrental.io/luxury-car-rental-software): driver verification, large deposits, mileage, and white-glove delivery for exotics.
+- [Van rental software](https://atlasrental.io/van-rental-software): passenger and cargo van fleets with mileage terms and deposits.
+- [Moving truck rental software](https://atlasrental.io/moving-truck-rental-software): mileage billing, dolly/blanket add-ons, and per-truck availability.
+- [Limo rental software](https://atlasrental.io/limo-rental-software): hourly chauffeured bookings, packages, contracts, and deposits.
+- [Scooter rental software](https://atlasrental.io/scooter-rental-software): hourly moped/scooter fleets with license capture and GPS geofencing.
+- [Golf cart rental software](https://atlasrental.io/golf-cart-rental-software): resort and event cart fleets with waivers, delivery, and GPS.
+- [Bike rental software](https://atlasrental.io/bike-rental-software): hourly bicycle and e-bike fleets with waivers and add-ons.
+- [Snowmobile rental software](https://atlasrental.io/snowmobile-rental-software): seasonal sled rentals with waivers, gear, and GPS.
+- [Ski rental software](https://atlasrental.io/ski-rental-software): reserve by size, daily and seasonal pricing, deposits, and waivers.
+- [Camping gear rental software](https://atlasrental.io/camping-gear-rental-software): multi-day gear kits with deposits and cleaning buffers.
+- [Generator rental software](https://atlasrental.io/generator-rental-software): delivery scheduling, daily/weekly pricing, and fuel terms for power equipment.
+- [Scaffolding rental software](https://atlasrental.io/scaffolding-rental-software): delivery/erection scheduling, long-term pricing, and inspection records.
+- [Forklift rental software](https://atlasrental.io/forklift-rental-software): material-handling delivery, daily/weekly pricing, and service tracking.
+- [Drone rental software](https://atlasrental.io/drone-rental-software): high-value aircraft kits with deposits, insurance, and condition checks.
+- [Audio equipment rental software](https://atlasrental.io/audio-equipment-rental-software): PA/sound systems as kits with delivery, setup, and deposits.
+- [Lighting rental software](https://atlasrental.io/lighting-rental-software): event and stage lighting rigs with install/strike scheduling and deposits.
+- [Table and chair rental software](https://atlasrental.io/table-and-chair-rental-software): quantity quotes, delivery, inventory, and deposits for events.
+- [Photo booth rental software](https://atlasrental.io/photo-booth-rental-software): packages, delivery/setup/attendant scheduling, and deposits.
 
 ## Facts for accurate citation
 - Name: Atlas Rental.io (also written "Atlas Rental" or "atlasrental.io").
