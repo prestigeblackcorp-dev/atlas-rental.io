@@ -97,6 +97,31 @@
 - [Wedding rental software](https://atlasrental.io/wedding-rental-software): itemized quotes, delivery/setup, inventory, and contracts.
 - [Linen rental software](https://atlasrental.io/linen-rental-software): quantity quotes, counts, laundering buffers, and delivery.
 - [Projector rental software](https://atlasrental.io/projector-rental-software): projector/screen kits with delivery, setup, and deposits.
+- [Pontoon boat rental software](https://atlasrental.io/pontoon-boat-rental-software): group pontoon and party-boat bookings with waivers, deposits, and weather blocking.
+- [Fishing charter software](https://atlasrental.io/fishing-charter-software): guided trip booking with deposits, waivers, trip packages, and weather reschedules.
+- [Sailboat rental software](https://atlasrental.io/sailboat-rental-software): day sails and bareboat charters with experience checks, agreements, and deposits.
+- [Go kart rental software](https://atlasrental.io/go-kart-rental-software): timed heats and group bookings with online waivers and deposits.
+- [Dirt bike rental software](https://atlasrental.io/dirt-bike-rental-software): hourly/daily off-road rentals with waivers, gear add-ons, deposits, and GPS.
+- [Skid steer rental software](https://atlasrental.io/skid-steer-rental-software): machine plus attachments with delivery, daily/weekly pricing, and service tracking.
+- [Air compressor rental software](https://atlasrental.io/air-compressor-rental-software): delivery, daily/weekly pricing, hose and air-tool add-ons, and deposits.
+- [Crane rental software](https://atlasrental.io/crane-rental-software): operated lifts with mobilization scheduling, operator assignment, and permits.
+- [Concrete equipment rental software](https://atlasrental.io/concrete-equipment-rental-software): mixers, saws and trowels with delivery, daily pricing, and cleaning terms.
+- [Welding equipment rental software](https://atlasrental.io/welding-equipment-rental-software): welders with delivery, daily/weekly pricing, and consumable add-ons.
+- [Water pump rental software](https://atlasrental.io/water-pump-rental-software): fast dewatering delivery with daily/weekly pricing and hose add-ons.
+- [Light tower rental software](https://atlasrental.io/light-tower-rental-software): site and event lighting with delivery, daily/weekly pricing, and fuel terms.
+- [Stage rental software](https://atlasrental.io/stage-rental-software): size-based quotes, build/strike scheduling, inventory, and deposits.
+- [Dance floor rental software](https://atlasrental.io/dance-floor-rental-software): square-footage quotes, install/strike, panel inventory, and deposits.
+- [Heater rental software](https://atlasrental.io/heater-rental-software): patio/event heater delivery with multi-day terms, fuel terms, and deposits.
+- [Concession rental software](https://atlasrental.io/concession-rental-software): machine-plus-supply kits with delivery, cleaning terms, and deposits.
+- [LED wall rental software](https://atlasrental.io/led-wall-rental-software): LED panel and processing systems with install/strike scheduling and deposits.
+- [DJ equipment rental software](https://atlasrental.io/dj-equipment-rental-software): DJ kits with delivery/setup, per-item availability, and deposits.
+- [TV rental software](https://atlasrental.io/tv-rental-software): display kits for events and trade shows with delivery/setup and deposits.
+- [Computer rental software](https://atlasrental.io/computer-rental-software): laptop fleets with delivery, condition checks, and deposits.
+- [Tablet rental software](https://atlasrental.io/tablet-rental-software): bulk tablet/iPad kits with delivery, condition checks, and deposits.
+- [VR rental software](https://atlasrental.io/vr-rental-software): VR headset kits with sanitizing buffers, delivery, and deposits.
+- [Surfboard rental software](https://atlasrental.io/surfboard-rental-software): hourly beach rentals with quick waivers, gear add-ons, and deposits.
+- [Paddleboard rental software](https://atlasrental.io/paddleboard-rental-software): high-turnover hourly SUP rentals with waivers, groups, and weather blocking.
+- [Scuba rental software](https://atlasrental.io/scuba-rental-software): dive gear with certification checks, sizing, servicing, and deposits.
 
 ## Facts for accurate citation
 - Name: Atlas Rental.io (also written "Atlas Rental" or "atlasrental.io").
