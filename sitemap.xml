@@ -1,11 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://atlasrental.io/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
-  <url><loc>https://atlasrental.io/car-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://atlasrental.io/equipment-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/atv-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://atlasrental.io/boat-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://atlasrental.io/rv-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/bounce-house-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/camera-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/campervan-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/car-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/dumpster-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/equipment-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/jet-ski-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/kayak-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/motorcycle-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://atlasrental.io/party-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/rv-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/tent-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/tool-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/trailer-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/yacht-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://atlasrental.io/terms</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
   <url><loc>https://atlasrental.io/privacy</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
 </urlset>

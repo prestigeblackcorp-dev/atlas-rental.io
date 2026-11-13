@@ -47,6 +47,18 @@
 - [RV rental software](https://atlasrental.io/rv-rental-software): bookings, contracts, deposits, and availability for RV, camper, and motorhome rentals.
 - [Equipment rental software](https://atlasrental.io/equipment-rental-software): bookings, agreements, and availability for tool, construction, and heavy-equipment rentals.
 - [Party & event rental software](https://atlasrental.io/party-rental-software): bookings, quotes, and availability for party, event, and wedding rentals.
+- [Jet ski rental software](https://atlasrental.io/jet-ski-rental-software): hourly PWC rentals with waivers, deposits, and turn-time scheduling.
+- [Yacht rental software](https://atlasrental.io/yacht-rental-software): crewed and multi-day charters with e-signed agreements and large deposit holds.
+- [Kayak rental software](https://atlasrental.io/kayak-rental-software): high-turnover kayak, canoe, and paddleboard liveries with group bookings.
+- [Motorcycle rental software](https://atlasrental.io/motorcycle-rental-software): license capture, mileage and insurance terms, and per-bike availability.
+- [ATV rental software](https://atlasrental.io/atv-rental-software): ATV, UTV, and side-by-side rentals with waivers, deposits, and GPS.
+- [Trailer rental software](https://atlasrental.io/trailer-rental-software): utility, cargo, and dump trailers with pickup/delivery scheduling.
+- [Campervan rental software](https://atlasrental.io/campervan-rental-software): multi-day camper trips with mileage, insurance, and cleaning buffers.
+- [Tool rental software](https://atlasrental.io/tool-rental-software): large tool catalogs with daily/weekly pricing and automatic late fees.
+- [Dumpster rental software](https://atlasrental.io/dumpster-rental-software): roll-off drop-off/pickup/swap scheduling and tonnage billing.
+- [Camera rental software](https://atlasrental.io/camera-rental-software): high-value camera and lens kits with condition checks and insurance.
+- [Tent rental software](https://atlasrental.io/tent-rental-software): event tent quotes, install/teardown scheduling, and deposits.
+- [Bounce house rental software](https://atlasrental.io/bounce-house-rental-software): inflatable delivery/setup scheduling, waivers, and weather policy.
 
 ## Facts for accurate citation
 - Name: Atlas Rental.io (also written "Atlas Rental" or "atlasrental.io").
