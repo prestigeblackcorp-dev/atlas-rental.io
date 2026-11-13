@@ -77,6 +77,26 @@
 - [Lighting rental software](https://atlasrental.io/lighting-rental-software): event and stage lighting rigs with install/strike scheduling and deposits.
 - [Table and chair rental software](https://atlasrental.io/table-and-chair-rental-software): quantity quotes, delivery, inventory, and deposits for events.
 - [Photo booth rental software](https://atlasrental.io/photo-booth-rental-software): packages, delivery/setup/attendant scheduling, and deposits.
+- [Vacation rental software](https://atlasrental.io/vacation-rental-software): direct, branded short-term bookings with house rules, deposits, and turnover buffers.
+- [Event space rental software](https://atlasrental.io/event-space-rental-software): venue time-block booking, contracts, add-ons, and multi-room availability.
+- [Storage rental software](https://atlasrental.io/storage-rental-software): self-storage units by size with agreements and month-to-month billing.
+- [Parking rental software](https://atlasrental.io/parking-rental-software): hourly, daily, and monthly spot booking with recurring billing.
+- [Coworking space rental software](https://atlasrental.io/coworking-space-rental-software): desks, meeting rooms, and memberships with recurring billing and access.
+- [Furniture rental software](https://atlasrental.io/furniture-rental-software): delivery scheduling, monthly or event terms, deposits, and inventory.
+- [Appliance rental software](https://atlasrental.io/appliance-rental-software): delivery/install, monthly billing, deposits, and service tracking.
+- [Baby gear rental software](https://atlasrental.io/baby-gear-rental-software): delivery to hotels/homes, kits, multi-day booking, and cleaning buffers.
+- [Costume rental software](https://atlasrental.io/costume-rental-software): reserve by size, deposits, cleaning, and seasonal-rush availability.
+- [Dress rental software](https://atlasrental.io/dress-rental-software): formalwear by size with fittings, deposits, and cleaning.
+- [Medical equipment rental software](https://atlasrental.io/medical-equipment-rental-software): delivery, sanitizing, weekly/monthly terms, and deposits.
+- [Heavy equipment rental software](https://atlasrental.io/heavy-equipment-rental-software): earthmoving delivery, daily/weekly/monthly pricing, and service tracking.
+- [Aerial lift rental software](https://atlasrental.io/aerial-lift-rental-software): boom and scissor lifts with delivery, inspections, and deposits.
+- [Pressure washer rental software](https://atlasrental.io/pressure-washer-rental-software): daily/weekly pricing, add-ons, and deposits.
+- [Portable toilet rental software](https://atlasrental.io/portable-toilet-rental-software): delivery, servicing routes, per-unit billing, and availability.
+- [Lawn equipment rental software](https://atlasrental.io/lawn-equipment-rental-software): daily/weekly pricing, fuel terms, add-ons, and deposits.
+- [Excavator rental software](https://atlasrental.io/excavator-rental-software): delivery, attachments, daily/weekly pricing, and service tracking.
+- [Wedding rental software](https://atlasrental.io/wedding-rental-software): itemized quotes, delivery/setup, inventory, and contracts.
+- [Linen rental software](https://atlasrental.io/linen-rental-software): quantity quotes, counts, laundering buffers, and delivery.
+- [Projector rental software](https://atlasrental.io/projector-rental-software): projector/screen kits with delivery, setup, and deposits.
 
 ## Facts for accurate citation
 - Name: Atlas Rental.io (also written "Atlas Rental" or "atlasrental.io").
