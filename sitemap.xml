@@ -2,6 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://atlasrental.io/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
   <url><loc>https://atlasrental.io/industries</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://atlasrental.io/help</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
   <url><loc>https://atlasrental.io/aerial-lift-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://atlasrental.io/air-compressor-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://atlasrental.io/appliance-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
@@ -112,6 +113,20 @@
   <url><loc>https://atlasrental.io/welding-equipment-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://atlasrental.io/wood-chipper-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://atlasrental.io/yacht-rental-software</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://atlasrental.io/guides/getting-started</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://atlasrental.io/guides/add-your-inventory</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://atlasrental.io/guides/importing-from-spreadsheets</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://atlasrental.io/guides/taking-bookings</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://atlasrental.io/guides/rental-agreements-esign</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://atlasrental.io/guides/payments-and-deposits</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://atlasrental.io/guides/pricing-and-billing</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://atlasrental.io/guides/member-portal</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://atlasrental.io/guides/white-label-branding</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://atlasrental.io/guides/atlas-ai-assistant</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://atlasrental.io/guides/gps-tracking</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://atlasrental.io/guides/reminders-and-automations</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://atlasrental.io/guides/analytics-and-pl</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://atlasrental.io/guides/multiple-rental-incomes</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://atlasrental.io/terms</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
   <url><loc>https://atlasrental.io/privacy</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
 </urlset>
