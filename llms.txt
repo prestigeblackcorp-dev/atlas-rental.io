@@ -122,6 +122,36 @@
 - [Surfboard rental software](https://atlasrental.io/surfboard-rental-software): hourly beach rentals with quick waivers, gear add-ons, and deposits.
 - [Paddleboard rental software](https://atlasrental.io/paddleboard-rental-software): high-turnover hourly SUP rentals with waivers, groups, and weather blocking.
 - [Scuba rental software](https://atlasrental.io/scuba-rental-software): dive gear with certification checks, sizing, servicing, and deposits.
+- [Houseboat rental software](https://atlasrental.io/houseboat-rental-software): multi-day liveaboard bookings with agreements, large deposits, and turnaround buffers.
+- [Wakeboard boat rental software](https://atlasrental.io/wakeboard-boat-rental-software): tow-sports days with waivers, tow-gear add-ons, optional drivers, and deposits.
+- [Pedal boat rental software](https://atlasrental.io/pedal-boat-rental-software): fast hourly park-concession bookings with quick waivers, capacity limits, and weather blocking.
+- [Boat slip rental software](https://atlasrental.io/boat-slip-rental-software): marina slips with seasonal/monthly terms, recurring billing, agreements, and waitlists.
+- [UTV rental software](https://atlasrental.io/utv-rental-software): side-by-side rentals with per-rider waivers, gear, deposits, and GPS tracking.
+- [Charter bus rental software](https://atlasrental.io/charter-bus-rental-software): trip bookings with itineraries, driver assignment, deposits, and agreements.
+- [Box truck rental software](https://atlasrental.io/box-truck-rental-software): commercial box trucks with driver/DOT records, daily/mileage pricing, and deposits.
+- [Car hauler rental software](https://atlasrental.io/car-hauler-rental-software): auto-transport trailers with tow-rating checks, daily/weekly pricing, and deposits.
+- [Backhoe rental software](https://atlasrental.io/backhoe-rental-software): loader-digger rentals with attachments, delivery, daily/weekly pricing, and service tracking.
+- [Bulldozer rental software](https://atlasrental.io/bulldozer-rental-software): dozers with low-boy mobilization, daily/weekly pricing, and run-hour tracking.
+- [Trencher rental software](https://atlasrental.io/trencher-rental-software): trenching equipment with delivery, daily/weekly pricing, and chain-wear tracking.
+- [Plate compactor rental software](https://atlasrental.io/plate-compactor-rental-software): compactors and rammers with delivery, daily/weekly pricing, and fuel terms.
+- [Telehandler rental software](https://atlasrental.io/telehandler-rental-software): reach forklifts with attachments, delivery, daily/weekly pricing, and service tracking.
+- [Wood chipper rental software](https://atlasrental.io/wood-chipper-rental-software): chippers with delivery or tow details, daily/weekly pricing, and fuel terms.
+- [Storage container rental software](https://atlasrental.io/storage-container-rental-software): on-site containers with delivery/placement, monthly recurring billing, and agreements.
+- [Temporary fence rental software](https://atlasrental.io/temporary-fence-rental-software): site/event fencing with linear-foot quotes, install/removal, and monthly billing.
+- [Carnival ride rental software](https://atlasrental.io/carnival-ride-rental-software): amusement rides with operator assignment, inspection/permit records, and deposits.
+- [Catering equipment rental software](https://atlasrental.io/catering-equipment-rental-software): serving gear with quantity quotes, counts in/out, cleaning buffers, and delivery.
+- [Portable bar rental software](https://atlasrental.io/portable-bar-rental-software): event bar packages with delivery/setup, inventory, and deposits.
+- [Casino table rental software](https://atlasrental.io/casino-table-rental-software): casino-night table-and-dealer packages with staffing, setup, and deposits.
+- [Arcade game rental software](https://atlasrental.io/arcade-game-rental-software): arcade machines for events or monthly placements with delivery and maintenance tracking.
+- [Commercial kitchen rental software](https://atlasrental.io/commercial-kitchen-rental-software): commissary time with hourly/membership booking, access windows, and recurring billing.
+- [Photography studio rental software](https://atlasrental.io/photography-studio-rental-software): hourly studio booking with gear add-ons, access codes, and deposits.
+- [Music studio rental software](https://atlasrental.io/music-studio-rental-software): rehearsal/recording rooms with hourly booking, backline/engineer add-ons, and access codes.
+- [Warehouse rental software](https://atlasrental.io/warehouse-rental-software): pallet/sqft space with monthly terms, recurring billing, agreements, and access.
+- [Billboard rental software](https://atlasrental.io/billboard-rental-software): out-of-home ad flights with date booking, artwork collection, and recurring billing.
+- [E-Bike rental software](https://atlasrental.io/ebike-rental-software): e-bikes with hourly/daily booking, waivers, battery/charge checks, deposits, and GPS.
+- [Snowboard rental software](https://atlasrental.io/snowboard-rental-software): snowboard counters with size/stance capture, daily booking, deposits, and tuning terms.
+- [Paintball rental software](https://atlasrental.io/paintball-rental-software): paintball with waivers, marker-air-mask kits, group bookings, and consumables.
+- [Food truck rental software](https://atlasrental.io/food-truck-rental-software): mobile vending with event/monthly bookings, permit/licensing records, and fuel terms.
 
 ## Facts for accurate citation
 - Name: Atlas Rental.io (also written "Atlas Rental" or "atlasrental.io").
