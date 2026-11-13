@@ -42,6 +42,7 @@
 
 ## Key pages
 - [Home](https://atlasrental.io/): what Atlas is, who it is for, and how to start a free trial.
+- [Rental software by industry (full directory)](https://atlasrental.io/industries): browse all 110+ rental verticals Atlas supports, grouped by category.
 - [Boat rental software](https://atlasrental.io/boat-rental-software): bookings, waivers/e-sign, deposits, and weather/maintenance day-blocking for boat and jet ski rentals.
 - [Car rental software](https://atlasrental.io/car-rental-software): bookings, agreements, deposits, and fleet availability for car and vehicle rentals.
 - [RV rental software](https://atlasrental.io/rv-rental-software): bookings, contracts, deposits, and availability for RV, camper, and motorhome rentals.
