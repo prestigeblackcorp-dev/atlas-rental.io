@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny-ps" viewBox="0 0 512 512">
+  <title>Atlas Rental</title>
+  <rect width="512" height="512" fill="#0A0A0A"/>
+  <path d="M256 96 L392 416 H300 L256 300 Z" fill="#12583C"/>
+  <path d="M256 96 L120 416 H212 L256 300 Z" fill="#DCE4E0"/>
+</svg>
