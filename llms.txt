@@ -43,6 +43,9 @@
 ## Key pages
 - [Home](https://atlasrental.io/): what Atlas is, who it is for, and how to start a free trial.
 - [Rental software by industry (full directory)](https://atlasrental.io/industries): browse all 110+ rental verticals Atlas supports, grouped by category.
+- [Buy a domain name](https://atlasrental.io/buy-domain): search availability, see the real yearly price, and register a domain that connects to your booking site automatically with free WHOIS privacy.
+- [Connect your own domain](https://atlasrental.io/connect-domain): point a domain you already own (any registrar) at your Atlas booking site and take reservations on your own web address; included with the booking website.
+- [Rental business domain name ideas](https://atlasrental.io/rental-domain-name-ideas): naming formulas and examples for a rental business domain, with a search to check availability and register in seconds.
 - [Boat rental software](https://atlasrental.io/boat-rental-software): bookings, waivers/e-sign, deposits, and weather/maintenance day-blocking for boat and jet ski rentals.
 - [Car rental software](https://atlasrental.io/car-rental-software): bookings, agreements, deposits, and fleet availability for car and vehicle rentals.
 - [RV rental software](https://atlasrental.io/rv-rental-software): bookings, contracts, deposits, and availability for RV, camper, and motorhome rentals.
