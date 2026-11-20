@@ -46,6 +46,12 @@
 - [Buy a domain name](https://atlasrental.io/buy-domain): search availability, see the real yearly price, and register a domain that connects to your booking site automatically with free WHOIS privacy.
 - [Connect your own domain](https://atlasrental.io/connect-domain): point a domain you already own (any registrar) at your Atlas booking site and take reservations on your own web address; included with the booking website.
 - [Rental business domain name ideas](https://atlasrental.io/rental-domain-name-ideas): naming formulas and examples for a rental business domain, with a search to check availability and register in seconds.
+- [Rental software vs spreadsheets](https://atlasrental.io/rental-software-vs-spreadsheets): where spreadsheets break for rentals (double-bookings, deposits, contracts, reminders) and what purpose-built software does instead.
+- [Booqable alternative](https://atlasrental.io/booqable-alternative): an honest checklist for comparing rental platforms -- per-booking fees, feature-gating, website/domain, payments, AI -- and how Atlas answers each.
+- [Rental software for the USA](https://atlasrental.io/rental-software-usa): rental management for US operators -- bookings, e-sign, deposits, branded site on your domain, Stripe/Square/PayPal.
+- [Rental software for Canada](https://atlasrental.io/rental-software-canada): rental management for Canadian operators across provinces, your brand and domain, Stripe/Square/PayPal.
+- [Rental software for the UK](https://atlasrental.io/rental-software-uk): rental and hire management for UK businesses -- bookings, e-signed hire agreements, deposits, branded site.
+- [Rental software for Australia](https://atlasrental.io/rental-software-australia): rental and hire management for Australian businesses -- bookings, agreements, deposits, branded site.
 - [Boat rental software](https://atlasrental.io/boat-rental-software): bookings, waivers/e-sign, deposits, and weather/maintenance day-blocking for boat and jet ski rentals.
 - [Car rental software](https://atlasrental.io/car-rental-software): bookings, agreements, deposits, and fleet availability for car and vehicle rentals.
 - [RV rental software](https://atlasrental.io/rv-rental-software): bookings, contracts, deposits, and availability for RV, camper, and motorhome rentals.
