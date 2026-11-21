@@ -2576,7 +2576,7 @@ const Atlas = (function(){
   function _fbSel(key){ _fbPending=key||''; try{ Array.prototype.forEach.call(document.querySelectorAll('.fbpick'),function(el){ var on=el.getAttribute('data-fbkey')===key; el.style.borderColor=on?'rgba(201,169,98,.9)':'rgba(201,169,98,.25)'; el.style.boxShadow=on?'0 0 0 1px rgba(201,169,98,.6)':'none'; }); }catch(e){} var c=document.getElementById('fbpickConfirm'); if(!c) return; if(!key||!_FB_META[key]){ c.innerHTML=''; return; } c.innerHTML='<button class="btn btn--primary" style="width:100%" onclick="Atlas._fbCommit()">Make '+esc(_FB_META[key].name)+' my mark &mdash; permanently</button>'; }
   function _fbCommit(){ var key=_fbPending; if(!key||!_FB_META[key]) return; var cb=document.querySelector('#fbpickConfirm .btn'); if(cb){ cb.disabled=true; cb.textContent='Saving...'; } _api('/api/founder/badge',{method:'POST',body:{badge:key}}).then(function(res){ var j=res&&res.json; if(res.status>=200&&res.status<300&&j&&j.ok){ _founderInfo.badge=j.badge||key; try{ if(typeof S!=='undefined'&&S){ S.founderBadge=j.badge||key; save(); } }catch(e){} try{ closeModal(); }catch(e){} try{ toast('Your founder badge is set: '+((_FB_META[j.badge||key]||{}).name||'')); }catch(e){} try{ if(typeof buildApp==='function') buildApp(); }catch(e){} } else { if(cb){ cb.disabled=false; cb.textContent='Try again'; } try{ toast((j&&j.error)||'Could not save your badge.'); }catch(e){} } }).catch(function(){ if(cb){ cb.disabled=false; cb.textContent='Try again'; } try{ toast('Network error -- try again.'); }catch(e){} }); }
   /* ---- app version + owner-only feature flags (in-app upgrades) ---- */
-  var APP_VERSION='2026.11.21ld';
+  var APP_VERSION='2026.11.21le';
   var APP_CHANGELOG=[
     'Getting started now puts <b>your own domain</b> front and center &mdash; the "Get your own domain name" step is a primary action, and the domain search spells out exactly what a domain does for you and what it costs. A domain bought through Atlas connects to your booking site <b>instantly</b> (we point it and issue the SSL for you), so customers can book at your own address right away. Pricing is shown plainly: the domain is billed yearly at the price you see before you buy, and the booking website that runs on it is included on the Enterprise plan and up, or $19/month (or a one-time $199 build) on Starter and Pro &mdash; no surprises.',
     'Accounting fix: your <b>Net Profit</b>, Profit &amp; Loss and revenue charts now subtract an owner or broker fee the moment a booking is <b>confirmed</b> &mdash; matching the &ldquo;Your take&rdquo; figure shown on the booking itself &mdash; instead of waiting until the cash was collected. A confirmed-but-unpaid booking with a percentage split (for example a $1,600 rental where a broker keeps 85%) no longer shows its full rental as profit; the dashboard now agrees with each booking&rsquo;s own economics to the cent. Your Payouts report still lists only fees on money you have actually collected, since that is what you owe partners in cash.',
@@ -16049,18 +16049,35 @@ const Atlas = (function(){
       +'<div class="dom-opt'+(mode==='buy'?' on':'')+'" onclick="Atlas.webDomainMode(\'buy\')"><b>Buy a new domain</b><small>Search, buy and auto-connect &mdash; billed yearly</small></div>';
     var body='';
     if(mode==='sub' && d.mode==='custom' && d.custom){ body='<div style="margin-top:12px"><div class="bk-lenhint" style="margin:0 0 10px">Your site is connected to <b>'+esc(d.custom)+'</b>. You can switch back to your free Atlas subdomain anytime.</div><button class="btn btn--ghost btn--sm btn--full" style="color:var(--danger)" onclick="Atlas.webRevertDomain()">Revert to free subdomain ('+esc(_subUrl())+')</button></div>'; }   // fix: connected custom domain can now be reverted to the free subdomain (the option + 'disconnect anytime' copy were dead)
-    else if(mode==='connect'){ body='<div style="margin-top:12px"><div class="field"><label>Your domain</label><input class="input" id="domIn" placeholder="mysite.com" value="'+esc(d._pending||'')+'"></div>'
+    else if(mode==='connect'){ body='<div style="margin-top:12px"><div class="field"><label>Your domain or subdomain</label><input class="input" id="domIn" placeholder="mysite.com  or  book.mysite.com" value="'+esc(d._pending||'')+'"><div class="bk-lenhint" style="margin:6px 0 0;line-height:1.6">Already have a website? Enter a <b>subdomain</b> like <b>book.yourdomain.com</b> &mdash; your current site stays exactly where it is, no matter who built it or where you bought the domain.</div></div>'
       +'<button class="btn btn--primary btn--sm btn--full" onclick="Atlas.webConnectDomain()">Show connection steps</button><div id="domSteps"></div></div>'; }
     else if(mode==='buy'){ body='<div style="margin-top:12px"><div class="field"><label>Find your domain</label><div style="display:flex;gap:8px"><input class="input" id="domSearch" placeholder="mysite.com"><button class="btn btn--primary btn--sm" onclick="Atlas.webSearchDomain()">Check</button></div></div><div id="domResult"></div></div>'; }
     return head+opts+body+'<div id="domPortfolio" style="margin-top:16px;border-top:1px solid var(--line);padding-top:16px"><div class="bk-lenhint" style="margin:0">Loading your domains&hellip;</div></div>';
   }
   function webDomainMode(mode){ var w=_web(); w._ui=mode; var el=document.getElementById('domBlock'); if(el) el.innerHTML='<h3>Domain</h3><div class="desc">Swap your web address anytime.</div>'+_domainHtml(); try{ webDomLoad(); }catch(e){} }
   function webRevertDomain(){ if(ATLAS_BACKEND && _apiCsrf){ _api('/api/domain/disconnect',{method:'POST',body:{}}).catch(function(){}); } var w=_web(); w.domain.mode='sub'; w.domain.custom=''; w.domain.status='live'; w.domain._pending=''; w._ui='sub'; save(); renderWebsite(); toast('Reverted to your free Atlas subdomain'); }   // disconnect server-side + go back to the free subdomain
+  // Split a connect target into {isSub, host, txtHost, root}. A SUBDOMAIN (book.mysite.com) lets the customer KEEP their existing
+  // website on the root and point ONLY the subdomain's own label at Atlas -- so the CNAME host is that label (not "www") and the
+  // ownership TXT lives at _atlas-verify.<label>. A ROOT domain keeps the historical www + _atlas-verify records byte-for-byte.
+  // Compact 2-part public-suffix set so mysite.co.uk is a ROOT (not a sub of co.uk) while book.mysite.co.uk is a sub. Fail-safe:
+  // anything uncertain (and every 2-label domain) falls back to ROOT, so a real root connect can NEVER regress.
+  var _DOM_SUF2={'co.uk':1,'org.uk':1,'me.uk':1,'net.uk':1,'ltd.uk':1,'plc.uk':1,'sch.uk':1,'ac.uk':1,'gov.uk':1,'com.au':1,'net.au':1,'org.au':1,'edu.au':1,'gov.au':1,'id.au':1,'co.nz':1,'net.nz':1,'org.nz':1,'govt.nz':1,'co.za':1,'org.za':1,'web.za':1,'com.br':1,'net.br':1,'org.br':1,'gov.br':1,'co.jp':1,'ne.jp':1,'or.jp':1,'go.jp':1,'co.in':1,'net.in':1,'org.in':1,'gen.in':1,'ind.in':1,'co.kr':1,'or.kr':1,'com.mx':1,'org.mx':1,'gob.mx':1,'com.sg':1,'com.hk':1,'com.cn':1,'net.cn':1,'org.cn':1,'gov.cn':1,'co.il':1,'org.il':1,'com.tr':1,'com.ar':1,'com.co':1,'com.ph':1,'co.th':1,'com.my':1,'com.tw':1,'com.ua':1,'com.pl':1,'com.vn':1,'com.ng':1,'co.id':1,'co.ke':1};
+  function _domSplit(dom){
+    var d=String(dom||'').toLowerCase().replace(/\.$/,'').replace(/^www\./,'');
+    var p=d.split('.').filter(Boolean);
+    if(p.length<3) return {isSub:false,host:'www',txtHost:'_atlas-verify',root:d,full:d};
+    var reg=_DOM_SUF2[p.slice(-2).join('.')]?3:2;
+    if(p.length<=reg) return {isSub:false,host:'www',txtHost:'_atlas-verify',root:d,full:d};
+    var sub=p.slice(0,p.length-reg).join('.');
+    return {isSub:true,host:sub,txtHost:'_atlas-verify.'+sub,root:p.slice(p.length-reg).join('.'),full:d};
+  }
   // Wave 3 (connect-existing UX) + WAVE5-INGEST follow-up: exact per-registrar click-paths for adding the www CNAME shown above,
   // EACH with a link to that registrar's OFFICIAL DNS help article (URLs verified live). Collapsible so the panel stays clean; all
   // steps reference "the target above" so they track whatever record the worker returned. Covers a tenant who brought their OWN
   // domain from ANY registrar -- no Atlas purchase required (Netlify + Wix added; 7 more registrars linked under "More DNS help").
-  function _domRegistrarGuides(){
+  // host param: the CNAME label actually shown above ("www" for a root connect, or the subdomain label e.g. "book") so the steps
+  // and the record card never contradict each other.
+  function _domRegistrarGuides(host){ var _subg=!!(host&&host!=='www');
     var R=[
       ['GoDaddy','1. godaddy.com &rarr; sign in &rarr; My Products &rarr; Domains &rarr; your domain &rarr; DNS.\n2. Records &rarr; Add &rarr; Type: CNAME.\n3. Name: www &nbsp;&middot;&nbsp; Value: the target shown above &nbsp;&middot;&nbsp; TTL: 1 hour. Save.\n4. Root domain: use Domain &rarr; Forwarding to redirect it to https://www.yourdomain.com.','https://www.godaddy.com/help/add-a-cname-record-19236'],
       ['Namecheap','1. Sign in &rarr; Domain List &rarr; Manage &rarr; Advanced DNS.\n2. Add New Record &rarr; CNAME Record.\n3. Host: www &nbsp;&middot;&nbsp; Value: the target above &nbsp;&middot;&nbsp; TTL: Automatic. Save (green check).\n4. Root domain: add a URL Redirect Record from @ to https://www.yourdomain.com.','https://www.namecheap.com/support/knowledgebase/article.aspx/9646/2237/how-to-create-a-cname-record-for-your-domain/'],
@@ -16080,7 +16097,9 @@ const Atlas = (function(){
     ];
     var _gen='Add a CNAME record: Host/Name <b>www</b>, pointing to the target shown above. For the naked/root domain, use your registrar&rsquo;s forwarding / redirect to https://www.yourdomain.com, then come back and click verify.';
     var det=function(name,steps,url){ return '<details style="border:1px solid var(--line);border-radius:8px;margin-bottom:6px"><summary style="cursor:pointer;padding:8px 10px;font-size:12.5px;font-weight:650;color:var(--ink)">'+esc(name)+'</summary><div style="padding:2px 10px 4px;font-size:12px;color:var(--muted);line-height:1.65;white-space:pre-line">'+steps+'</div>'+(url?('<div style="padding:0 10px 10px"><a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer" style="font-size:12px;font-weight:650;color:var(--brand-700)">Open '+esc(name)+'&rsquo;s DNS help &rarr;</a></div>'):'<div style="padding:0 10px 6px"></div>')+'</details>'; };
-    return '<div style="margin:2px 0 12px"><div style="font-size:12px;color:var(--muted);margin-bottom:6px">Already own your domain? Exact steps + the official DNS help page for your registrar:</div>'
+    return '<div style="margin:2px 0 12px">'
+      +(_subg?('<div style="font-size:12px;color:var(--brand-700);font-weight:650;margin-bottom:6px;line-height:1.6">You are adding the subdomain <b>'+esc(host)+'</b> &mdash; wherever a step below says Host/Name <b>www</b>, enter <b>'+esc(host)+'</b> instead (it matches the CNAME card above), and skip any bare-root / forwarding step.</div>'):'')
+      +'<div style="font-size:12px;color:var(--muted);margin-bottom:6px">Already own your domain? Exact steps + the official DNS help page for your registrar:</div>'
       +R.map(function(x){ return det(x[0],x[1],x[2]); }).join('')
       +det('Any other registrar',_gen,'')
       +'<div style="font-size:12px;color:var(--muted);margin:8px 2px 0;line-height:1.8">More DNS help: '+more.map(function(m){ return '<a href="'+esc(m[1])+'" target="_blank" rel="noopener noreferrer" style="font-weight:650;color:var(--brand-700)">'+esc(m[0])+'</a>'; }).join(' &middot; ')+'</div>'
@@ -16094,13 +16113,22 @@ const Atlas = (function(){
       if(!(res.json&&res.json.ok)){ toast((res.json&&res.json.error)||'Could not start - try again'); return; }
       w.domain.mode='custom'; w.domain.custom=res.json.domain; w.domain.status='pending'; w.domain._pending=res.json.domain; save();
       var recs=res.json.records||[];
-      document.getElementById('domSteps').innerHTML='<div style="margin-top:14px"><div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Log in to your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.) and add this &mdash; the <b>www</b> record is all most sites need:</div>'
+      // SUBDOMAIN support: if the connect target is a subdomain (book.mysite.com), the customer keeps their existing site on the
+      // root -- rewrite the root-oriented records the worker returned into the subdomain's own CNAME + _atlas-verify.<label> TXT and
+      // drop the bare-root forwarding row. ROOT connects are left exactly as the worker returned them (no change for existing clients).
+      var _dsp=_domSplit(res.json.domain||v); var _cnameHost=_dsp.isSub?_dsp.host:'www';
+      if(_dsp.isSub){ recs=recs.filter(function(r){ return r.type!=='Forward'; }).map(function(r){
+          if(r.type==='CNAME') return {type:'CNAME',host:_dsp.host,value:r.value,primary:true,label:'Point '+_dsp.full+' at your Atlas booking site',note:'Add this CNAME at the DNS host for '+_dsp.root+'. Host/Name is just "'+_dsp.host+'" (your DNS editor fills in the '+_dsp.root+' part). Your existing website on '+_dsp.root+' is NOT touched.'};
+          if(r.type==='TXT') return {type:'TXT',host:_dsp.txtHost,value:r.value,primary:true,label:'Prove you own '+_dsp.full+' (required)',note:'Add this TXT at the same DNS host. Going live needs BOTH this TXT and the CNAME above.'};
+          return r; }); }
+      var _introTxt=_dsp.isSub?('Add these two records at the DNS host for <b>'+esc(_dsp.root)+'</b>. Your current site on '+esc(_dsp.root)+' keeps running &mdash; only <b>'+esc(_dsp.full)+'</b> is added:'):'Log in to your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.) and add this &mdash; the <b>www</b> record is all most sites need:';
+      document.getElementById('domSteps').innerHTML='<div style="margin-top:14px"><div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">'+_introTxt+'</div>'
         +recs.map(function(r){ return '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--bg)">'
           +(r.label?('<div style="font-size:12.5px;font-weight:650;color:var(--ink);margin-bottom:5px">'+esc(r.label)+(r.optional?' <span style="font-weight:500;color:var(--muted);font-size:11px">&middot; optional</span>':'')+'</div>'):'')
           +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="background:var(--brand);color:#fff;border-radius:5px;padding:1px 8px;font-size:11px;font-weight:700">'+esc(r.type)+'</span><span class="mono" style="font-size:12.5px;color:var(--ink)">'+esc(r.host)+' &rarr; '+esc(r.value)+'</span></div>'
           +(r.note?('<div style="font-size:11px;color:var(--muted);line-height:1.55;margin-top:6px">'+esc(r.note)+'</div>'):'')
           +'</div>'; }).join('')
-        +_domRegistrarGuides()
+        +_domRegistrarGuides(_cnameHost)
         +'<div style="font-size:11.5px;color:var(--muted);margin:8px 0 12px">DNS can take a few minutes to a few hours. Your SSL certificate is issued automatically. You keep ownership &mdash; disconnect anytime.</div>'
         +'<button class="btn btn--primary btn--sm btn--full" onclick="Atlas.webVerifyDomain()">I added it &mdash; verify &amp; connect</button><div id="domVerifyMsg"></div></div>';
     }).catch(function(){ toast('Network error'); });
@@ -16109,7 +16137,7 @@ const Atlas = (function(){
     var m=document.getElementById('domVerifyMsg'); if(m) m.innerHTML='<div style="margin-top:10px;color:var(--muted);font-size:12.5px">Checking your DNS...</div>';
     _api('/api/domain/verify',{method:'POST',body:{}}).then(function(res){ var w=_web();
       if(res.json&&res.json.ok&&res.json.live){ w.domain.mode='custom'; w.domain.status='live'; w._ui='sub'; save(); renderWebsite(); toast((res.json.domain||'Your domain')+' is connected and live'); }
-      else { w.domain.status='pending'; save(); if(m) m.innerHTML='<div style="margin-top:10px;color:var(--muted);font-size:12.5px">'+esc((res.json&&res.json.hint)||'Not visible yet - DNS may still be updating. Try again in a few minutes.')+'</div>'; }
+      else { w.domain.status='pending'; save(); var _vd=_domSplit(w.domain.custom||w.domain._pending||''); var _vh=(res.json&&res.json.hint)||'Not visible yet - DNS may still be updating. Try again in a few minutes.'; if(_vd.isSub) _vh='Not visible yet - DNS can take minutes to hours. Make sure the CNAME "'+_vd.host+'" points to the target shown in the steps, and the TXT "'+_vd.txtHost+'" is set, then try again.'; if(m) m.innerHTML='<div style="margin-top:10px;color:var(--muted);font-size:12.5px">'+esc(_vh)+'</div>'; }
     }).catch(function(){ toast('Network error'); });
   }
   function _domainBase(domain){ var tld=(String(domain).split('.').pop()||'com').toLowerCase();
