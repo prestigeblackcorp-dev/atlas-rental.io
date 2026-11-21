@@ -136,6 +136,13 @@ section{padding:clamp(40px,6vw,72px) 0}
 .foot-brand{display:flex;align-items:center;gap:9px;font-weight:800;color:var(--ink);font-size:16px}
 .foot-meta{font-size:13px;color:var(--muted);margin-top:14px}
 @media (max-width:560px){.cta-row{flex-direction:column;align-items:stretch}.cta-row .btn,.cta-row .seelink{width:100%}.seelink{justify-content:center}}
+
+/* decor hero image (added) */
+.hero-shot{margin:32px 0 4px;max-width:940px}
+.hero-shot img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:var(--radius-lg);border:1px solid var(--line);box-shadow:var(--shadow)}
+.hero-shot figcaption{margin-top:7px;font-size:11px;color:var(--muted)}
+.hero-shot figcaption a{color:var(--muted)}
+@media (prefers-color-scheme:dark){.hero-shot img{filter:brightness(.92) contrast(1.02)}}
 </style>
 <style>
 .atlas-crumb{max-width:var(--maxw,1120px);margin:0 auto;padding:12px 20px 0;font-size:13px;color:var(--muted)}
@@ -173,7 +180,8 @@ section{padding:clamp(40px,6vw,72px) 0}
         <a class="seelink" href="https://atlasrental.io/">See everything it does <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
       </div>
       <p class="cta-note"><b>7-day free trial</b> &middot; then $49.50/mo for founding members (50% off $99) &middot; no per-booking fees &middot; cancel anytime</p>
-    </div>
+          <figure class="hero-shot"><img src="/img/ind-wedding.jpg" alt="Table and chair rental" loading="lazy" decoding="async"><figcaption>Photo by <a href="https://commons.wikimedia.org/wiki/File:Nobel-banquet-table.jpg" target="_blank" rel="noopener nofollow">Hansbaer</a> / <a href="https://creativecommons.org/licenses/by-sa/3.0" target="_blank" rel="noopener nofollow">CC BY-SA 3.0</a></figcaption></figure>
+</div>
   </section>
 
   <section>
