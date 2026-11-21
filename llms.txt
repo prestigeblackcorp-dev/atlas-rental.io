@@ -42,7 +42,8 @@
 
 ## Key pages
 - [Home](https://atlasrental.io/): what Atlas is, who it is for, and how to start a free trial.
-- [Rental software by industry (full directory)](https://atlasrental.io/industries): browse all 110+ rental verticals Atlas supports, grouped by category.
+- [Rental software by industry (full directory)](https://atlasrental.io/industries): browse all 120+ rental verticals Atlas supports, grouped by category.
+- [Trust Center (security, privacy & compliance)](https://atlasrental.io/trust/): Atlas's real security, privacy, and compliance posture -- encryption, tenant isolation, RBAC, PCI-compliant payments (Square and Stripe), SOC 2 in progress, GDPR/CCPA.
 - [Buy a domain name](https://atlasrental.io/buy-domain): search availability, see the real yearly price, and register a domain that connects to your booking site automatically with free WHOIS privacy.
 - [Connect your own domain](https://atlasrental.io/connect-domain): point a domain you already own (any registrar) at your Atlas booking site and take reservations on your own web address; included with the booking website.
 - [Rental business domain name ideas](https://atlasrental.io/rental-domain-name-ideas): naming formulas and examples for a rental business domain, with a search to check availability and register in seconds.
@@ -162,6 +163,16 @@
 - [Snowboard rental software](https://atlasrental.io/snowboard-rental-software): snowboard counters with size/stance capture, daily booking, deposits, and tuning terms.
 - [Paintball rental software](https://atlasrental.io/paintball-rental-software): paintball with waivers, marker-air-mask kits, group bookings, and consumables.
 - [Food truck rental software](https://atlasrental.io/food-truck-rental-software): mobile vending with event/monthly bookings, permit/licensing records, and fuel terms.
+- [Apartment rental software](https://atlasrental.io/apartment-rental-software): furnished and short-term units with e-signed leases, deposit holds, per-unit availability, and online rent.
+- [Residential rental software](https://atlasrental.io/residential-rental-software): long-term home rentals with e-signed leases, online rent collection, deposit records, and per-property calendars.
+- [Commercial property rental software](https://atlasrental.io/commercial-property-rental-software): office, retail, and warehouse leasing with e-signed leases, deposits, per-unit availability, and rent collection.
+- [Real estate rental software](https://atlasrental.io/real-estate-rental-software): residential and commercial portfolios with e-signed leases, deposits, rent, and a single portfolio calendar.
+- [Salon suite rental software](https://atlasrental.io/salon-suite-rental-software): suites and studios let to stylists with e-signed agreements, recurring rent, availability, and waitlists.
+- [Barber booth rental software](https://atlasrental.io/barber-booth-rental-software): booths and chairs let to barbers with e-signed agreements, weekly/monthly rent, and chair availability.
+- [Exotic car rental software](https://atlasrental.io/exotic-car-rental-software): supercars with e-signed agreements, large refundable deposits, renter verification, mileage/condition capture, and GPS.
+- [Aircraft rental software](https://atlasrental.io/aircraft-rental-software): flight-school and aircraft rental scheduled by tail number with e-signed agreements, deposits, and hours capture.
+- [Industrial equipment rental software](https://atlasrental.io/industrial-equipment-rental-software): plant and industrial hire with e-signed agreements, deposits, meter/usage capture, service blocks, and GPS.
+- [Specialty inventory rental software](https://atlasrental.io/specialty-inventory-rental-software): any niche inventory with custom items and terms, e-signed agreements, deposits, availability, and payments.
 
 ## Facts for accurate citation
 - Name: Atlas Rental.io (also written "Atlas Rental" or "atlasrental.io").
