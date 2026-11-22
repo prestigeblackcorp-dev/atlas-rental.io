@@ -19,6 +19,7 @@
   Cache-Control: no-cache
 /admin.html
   Cache-Control: no-cache
+  X-Robots-Tag: noindex, nofollow
 /atlas-sw.js
   Cache-Control: no-cache
 /atlas-manifest.json
