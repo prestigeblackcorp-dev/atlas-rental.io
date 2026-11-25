@@ -258,7 +258,7 @@
   .toast svg{color:var(--em)}
 
   @media(max-width:1080px){.kpis{grid-template-columns:repeat(3,1fr)}.kpi.hero{grid-column:span 3}.grid{grid-template-columns:minmax(0,1fr)}}
-  @media(max-width:620px){#app{padding-left:12px;padding-right:12px}.kpis{grid-template-columns:repeat(2,1fr)}.kpi.hero{grid-column:span 2}.brand span{display:none}.tbl .hide-sm{display:none}.topbar{gap:9px}#rangeSel{font-size:11.5px;padding:6px 8px;max-width:122px;min-width:0;flex-shrink:1}.live{display:none}.hqtabs button{padding:7px 11px;font-size:12px}}
+  @media(max-width:620px){.split{grid-template-columns:1fr}#app{padding-left:12px;padding-right:12px}.kpis{grid-template-columns:repeat(2,1fr)}.kpi.hero{grid-column:span 2}.brand span{display:none}.tbl .hide-sm{display:none}.topbar{gap:9px}#rangeSel{font-size:11.5px;padding:6px 8px;max-width:122px;min-width:0;flex-shrink:1}.live{display:none}.hqtabs button{padding:7px 11px;font-size:12px}}
 </style>
 </head>
 <body>
@@ -518,7 +518,7 @@
     <div class="card-h"><h2>Support inbox</h2><span class="sub" id="inboxSub"></span><div class="sp"></div>
       <div class="seg" id="inboxSeg"><button class="on" data-s="new" onclick="setInboxSeg(this)">New</button><button data-s="replied" onclick="setInboxSeg(this)">Replied</button><button data-s="all" onclick="setInboxSeg(this)">All</button></div>
     </div>
-    <div id="inboxList" class="card-b"><div class="mut" style="padding:10px 12px">Loading&hellip;</div></div>
+    <div id="inboxList"><div class="mut" style="padding:10px 12px">Loading&hellip;</div></div>
   </div>
   </section>
 
@@ -919,7 +919,7 @@ function enter(overview){ $('gate').style.display='none'; $('app').style.display
   loadAlerts();
   loadErrors();
   if(_timer) clearInterval(_timer);
-  _timer=setInterval(function(){ loadAll(true); loadHealth(); loadCounsel(); loadSecurity(); loadDefense(); loadAlerts(); loadErrors(); }, REFRESH_MS);
+  _timer=setInterval(function(){ var _ae=document.activeElement; if(_ae && /^(INPUT|TEXTAREA|SELECT)$/.test(_ae.tagName) && _ae.type!=='checkbox' && _ae.type!=='radio'){ return; }   /* don't auto-refresh/re-render while the owner is typing in a field -- it was wiping in-progress forms (e.g. add-staffer) every 15s */ loadAll(true); loadHealth(); loadCounsel(); loadSecurity(); loadDefense(); loadAlerts(); loadErrors(); }, REFRESH_MS);
   setInterval(tickLive, 1000);
 }
 
@@ -1231,9 +1231,9 @@ function renderTxns(){ var t=DATA.txns||[];
     else if(k==='chargeback_restore'){ label='Chargeback restored'; ic='em'; }
     else if(k==='trial'){ label='Trial started &middot; card on file'; ic='blue'; }
     else { label=esc(_purKindLabel(k)); }
-    var amt = (x.amount_cents>0) ? centsUSD(x.amount_cents) : (k==='trial'?'card':centsUSD(0));
+    var amt = (x.amount_cents>0) ? centsUSD(x.amount_cents) : (k==='trial'?'card':(x.amount_cents<0?'-'+centsUSD(-x.amount_cents):centsUSD(0)));
     return '<div class="feed-row"><div class="feed-ic '+ic+'">'+txIcon(k)+'</div>'+
-      '<div class="feed-tx"><b>'+label+'</b><span>'+esc(x.email||x.tenant_id||'')+' &middot; '+ago(x.created_at)+(x.receipt_no?(' &middot; '+esc(x.receipt_no)):'')+'</span></div>'+
+      '<div class="feed-tx"><b>'+label+'</b><span>'+_acctLabel(x)+' &middot; '+ago(x.created_at)+(x.receipt_no?(' &middot; '+esc(x.receipt_no)):'')+'</span></div>'+
       '<div class="feed-amt" style="'+(k==='trial'?'color:var(--blue)':'')+'">'+amt+'</div></div>';
   }).join('');
 }
@@ -1654,7 +1654,7 @@ async function aiSelfTest(){
     var d=(r&&r.json)||{};
     if(!d.ok||!Array.isArray(d.providers)){ el.innerHTML='<div class="mut">Could not run the test (HTTP '+esc(String((r&&r.status)||'?'))+'). Make sure the console is unlocked.</div>'; return; }
     el.innerHTML=d.providers.map(function(p){
-      var badge=!p.keyPresent?'<span style="color:var(--warn);font-weight:700">NO KEY</span>':(p.ok?'<span style="color:var(--ok);font-weight:700">OK</span>':'<span style="color:var(--danger);font-weight:700">FAIL '+esc(String(p.status||''))+'</span>');
+      var badge=!p.keyPresent?'<span style="color:var(--amber);font-weight:700">NO KEY</span>':(p.ok?'<span style="color:var(--em);font-weight:700">OK</span>':'<span style="color:var(--red);font-weight:700">FAIL '+esc(String(p.status||''))+'</span>');
       var detail=!p.keyPresent?('No key set. Add '+esc(p.provider.toUpperCase())+'_KEY as a worker secret.'):('model '+esc(p.model||'')+(p.keyType?(' &middot; key '+esc(p.keyType)):'')+(p.error?(' &mdash; '+esc(p.error)):''));
       return '<div style="padding:9px 0;border-top:1px solid var(--line)"><b style="text-transform:capitalize">'+esc(p.provider)+'</b> &nbsp;'+badge+'<div class="mut" style="margin-top:3px">'+detail+'</div></div>';
     }).join('');
@@ -2131,6 +2131,8 @@ function _purDesc(r){ var base=_purKindLabel(_purNorm(r)); var extra=r.tier||r.p
 var PUR_GROUPS={addons:['location_addon','site_addon','asset_addon','tracking','asset_unlock'],emails:['email_pack','email_addon']};
 function _purFiltered(){ var items=(DATA.purchases&&DATA.purchases.items)||[]; var q=_purQ.toLowerCase();
   return items.filter(function(r){ if(_purKind!=='all'){ var nk=_purNorm(r); if(PUR_GROUPS[_purKind]){ if(PUR_GROUPS[_purKind].indexOf(nk)<0) return false; } else if(nk!==_purKind) return false; } if(q){ var hay=((r.email||'')+' '+(r.tier||'')+' '+(r.pack||'')+' '+(r.kind||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; } return true; }); }
+function _memberName(tid){ if(!tid) return ''; var L=DATA.members||[]; for(var i=0;i<L.length;i++){ if(L[i].tenant_id===tid) return L[i].name||''; } return ''; }
+function _acctLabel(x){ return esc((x&&(_memberName(x.tenant_id)||x.email||x.tenant_id))||'-'); }   /* ledgers: show the tenant business name (e.g. JewelTime); a paid-subscription txn can carry only tenant_id (no email), which used to render the raw id */
 function renderPurchases(){ var p=DATA.purchases||{}; var byk=p.by_kind||{};
   var ps=$('purSub'); if(ps) ps.textContent=((p.range&&p.range.label)||'')+' / '+centsUSD(p.grand_total_cents||0)+' / '+nfmt(p.grand_count||0)+' items';
   var order=['subscription','trial','credits','email_pack','email_addon','website','domain','asset_unlock','location_addon','site_addon','asset_addon','tracking','gmv'], seen={}, chips=[];
@@ -2139,7 +2141,7 @@ function renderPurchases(){ var p=DATA.purchases||{}; var byk=p.by_kind||{};
   var pt=$('purTotals'); if(pt) pt.innerHTML=chips.join('')||'<span class="mut" style="font-size:12px">No purchases in this window.</span>';
   var rows=_purFiltered(); var shown=rows.reduce(function(s,r){return s+(r.amount_cents||0);},0); var tbl=$('purTbl'); if(!tbl) return;
   if(!rows.length){ tbl.innerHTML='<tbody><tr><td class="mut" style="padding:16px">No purchases match this filter. Every subscription, credit pack, website and domain purchase is itemized here as it happens.</td></tr></tbody>'; return; }
-  tbl.innerHTML='<thead><tr><th>Date (CT)</th><th>Account</th><th>Item</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+rows.map(function(r){ var _isDom=(r.kind==='domain'); var _buyer=(_isDom&&r.buyer_name)?('<div class="mut" style="font-size:11px">'+esc(r.buyer_name)+'</div>'):''; var _cm=(_isDom&&r.cost_cents!=null)?('<div class="mut" style="font-size:11px">cost '+centsUSD(r.cost_cents||0)+' &middot; margin '+centsUSD(r.margin_cents||0)+'</div>'):''; return '<tr class="row"><td class="num" style="white-space:nowrap"><div>'+esc(tsCT(r.created_at))+'</div>'+(r.tz?('<div class="mut" style="font-size:11px" title="'+esc(r.tz)+'">'+esc(tsTheir(r.created_at,r.tz))+'</div>'):'')+'</td><td><div class="m-name"><b>'+esc(r.email||r.tenant_id||'-')+'</b></div>'+_buyer+'</td><td>'+esc(_purDesc(r))+(r.receipt_no?('<div class="mut num" style="font-size:11px">'+esc(r.receipt_no)+'</div>'):'')+'</td><td class="money num" style="text-align:right">'+centsUSD(r.amount_cents||0)+_cm+'</td></tr>'; }).join('')+'</tbody><tfoot><tr><td colspan="3" class="mut" style="text-align:right;padding:10px 12px">'+nfmt(rows.length)+' shown'+((p.count>=1000)?' (latest 1000)':'')+'</td><td class="money num" style="text-align:right;padding:10px 12px">'+centsUSD(shown)+'</td></tr></tfoot>';
+  tbl.innerHTML='<thead><tr><th>Date (CT)</th><th>Account</th><th>Item</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+rows.map(function(r){ var _isDom=(r.kind==='domain'); var _buyer=(_isDom&&r.buyer_name)?('<div class="mut" style="font-size:11px">'+esc(r.buyer_name)+'</div>'):''; var _cm=(_isDom&&r.cost_cents!=null)?('<div class="mut" style="font-size:11px">cost '+centsUSD(r.cost_cents||0)+' &middot; margin '+centsUSD(r.margin_cents||0)+'</div>'):''; return '<tr class="row"><td class="num" style="white-space:nowrap"><div>'+esc(tsCT(r.created_at))+'</div>'+(r.tz?('<div class="mut" style="font-size:11px" title="'+esc(r.tz)+'">'+esc(tsTheir(r.created_at,r.tz))+'</div>'):'')+'</td><td><div class="m-name"><b>'+_acctLabel(r)+'</b></div>'+_buyer+'</td><td>'+esc(_purDesc(r))+(r.receipt_no?('<div class="mut num" style="font-size:11px">'+esc(r.receipt_no)+'</div>'):'')+'</td><td class="money num" style="text-align:right">'+centsUSD(r.amount_cents||0)+_cm+'</td></tr>'; }).join('')+'</tbody><tfoot><tr><td colspan="3" class="mut" style="text-align:right;padding:10px 12px">'+nfmt(rows.length)+' shown'+((p.count>=1000)?' (latest 1000)':'')+'</td><td class="money num" style="text-align:right;padding:10px 12px">'+centsUSD(shown)+'</td></tr></tfoot>';
 }
 function setPurKind(btn){ Array.prototype.forEach.call($('purSeg').children,function(b){b.classList.remove('on');}); btn.classList.add('on'); _purKind=btn.getAttribute('data-k'); renderPurchases(); }
 function purFilter(){ _purQ=($('purSearch').value||'').trim(); renderPurchases(); }
@@ -2389,7 +2391,9 @@ function _entRenderGmv(e,owner){ var el=$('entGmvBody'); if(!el) return; var tak
       +'<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin-left:6px"><input type="checkbox" id="entGmvOn" '+(e.gmv_connect_enabled?'checked':'')+' onchange="entToggleGmv(this.checked)"> Route new bookings via Connect</label></div>'
       +'<div class="mut" style="font-size:11.5px">Off: new bookings keep using each tenant\'s own Stripe key.</div>'):('<div class="mut" style="font-size:12px">Take '+takePct+'% &middot; Connect routing '+(e.gmv_connect_enabled?'on':'off')+' (owner only to change)</div>'));
 }
+var _staffOpen=false;   /* true once the owner opens the staff-access panel; keeps the 15s auto-refresh from rebuilding + wiping it */
 function _entRenderStaffIntro(owner){ var el=$('entStaffIntro'); if(!el) return;
+  if(_staffOpen && $('entStaff')) return;   /* preserve the open staff panel (list / add-staffer form / capabilities) across auto-refresh */
   el.innerHTML = owner ? ('<div class="desc" style="margin:0 0 6px">Issue scoped admin-console logins (support or analyst) to your team. Each teammate gets their OWN token; your shared admin key stays yours alone.</div>'
     +'<div id="entStaff"><button class="chip" onclick="staffLoad()">Manage staff access</button></div>') : '<div class="mut" style="font-size:12px">Owner only.</div>';
 }
@@ -2466,7 +2470,8 @@ function entSaveTake(){ var pct=parseFloat($('entBps').value)||0; var bps=Math.r
 function entToggleGmv(on){ if(on && !confirm('Route NEW bookings through Stripe Connect?\n\nOnly tenants who have onboarded to Connect are affected; everyone else keeps their own Stripe key unchanged.')){ renderEnterprise(); return; } api('/api/admin/config',{method:'POST',body:{gmv_connect_enabled:on}}).then(function(r){ if(r.json&&r.json.enterprise){ DATA.enterprise=r.json.enterprise; toast('Connect routing '+(on?'on':'off')); } else toast('Could not update'); }); }
 /* ===== #264 Staff access: owner mints/rotates/revokes per-staff admin tokens (support|analyst). Server-verified -- ===== */
 /* ===== this panel only ever RENDERS for you.role==='owner'; the worker enforces it regardless.               ===== */
-function staffLoad(){ api('/api/admin/staff').then(function(r){ var j=r.json||{}; var el=$('entStaff'); if(!el)return;
+function staffLoad(){ _staffOpen=true;   /* owner opened the panel -- protect it from the auto-refresh rebuild */
+  api('/api/admin/staff').then(function(r){ var j=r.json||{}; var el=$('entStaff'); if(!el)return;
   if(r.status===404){ el.innerHTML='<div class="mut" style="font-size:12px">Needs the latest worker. Paste worker.js into Cloudflare, then reload.</div>'; return; }
   window._CAPS_CAT=j.caps_catalog||[]; window._CAPS_OWNER=j.owner_only_caps||[]; window._CAPS_STAFF=j.staff||[];
   var list=j.staff||[];
@@ -2486,14 +2491,14 @@ function staffLoad(){ api('/api/admin/staff').then(function(r){ var j=r.json||{}
     +'<button class="btn ghost sm" onclick="staffAdd()">Add staffer</button></div>'
     +'<div id="stfSecret"></div>'; }); }
 function _stfSecretBox(secret){ return '<div style="margin-top:10px;padding:10px;border:1px solid var(--gold);border-radius:9px;background:rgba(239,201,120,.08)">'
-  +'<div class="mut" style="font-size:11.5px;margin-bottom:5px">New token &mdash; copy it now, it will not be shown again:</div>'
+  +'<div class="mut" style="font-size:11.5px;margin-bottom:5px">New access key &mdash; copy it now (NOT emailed; shown only once). Share it with the staffer privately:</div>'
   +'<div style="display:flex;gap:6px;align-items:center"><code style="flex:1;font-size:12px;overflow:auto;white-space:nowrap;padding:6px 8px;background:#0c1310;border-radius:6px">'+esc(secret)+'</code>'
   +'<button class="chip" onclick="_stfCopy(\''+esc(secret)+'\')">Copy</button></div></div>'; }
 function _stfCopy(secret){ try{ navigator.clipboard.writeText(secret); toast('Copied'); }catch(e){ toast('Could not copy - select the token and copy it manually'); } }
 function staffAdd(){ var email=($('stfEmail').value||'').trim(), name=($('stfName').value||'').trim(), role=$('stfRole').value;
   if(!email){ toast('Enter an email'); return; }
   api('/api/admin/staff',{method:'POST',body:{email:email,name:name,role:role}}).then(function(r){ var j=r.json||{};
-    if(j.ok&&j.secret){ toast('Staff token created'); staffLoad(); setTimeout(function(){ var sb=$('stfSecret'); if(sb) sb.innerHTML=_stfSecretBox(j.secret); },60); }
+    if(j.ok&&j.secret){ toast(j.emailed?'Staffer added - welcome email sent. Share the access key below with them privately.':'Staffer added. Welcome email not sent ('+(j.email_reason||'no mailer')+') - share the access key below with them.'); staffLoad(); setTimeout(function(){ var sb=$('stfSecret'); if(sb) sb.innerHTML=_stfSecretBox(j.secret); },60); }
     else toast((j.error)||'Could not add staffer'); }); }
 function staffRotate(id){ if(!confirm('Rotate this token? The old one stops working immediately.')) return; api('/api/admin/staff/rotate',{method:'POST',body:{id:id}}).then(function(r){ var j=r.json||{}; if(j.ok&&j.secret){ toast('Token rotated'); staffLoad(); setTimeout(function(){ var sb=$('stfSecret'); if(sb) sb.innerHTML=_stfSecretBox(j.secret); },60); } else toast((j.error)||'Could not rotate'); }); }
 function staffRole(id,cur){ var role=(cur==='support')?'analyst':'support'; if(!confirm('Change this staffer\'s role to '+role+'?')) return; api('/api/admin/staff/role',{method:'POST',body:{id:id,role:role}}).then(function(r){ if(r.json&&r.json.ok){ toast('Role updated'); staffLoad(); } else toast((r.json&&r.json.error)||'Could not update'); }); }
