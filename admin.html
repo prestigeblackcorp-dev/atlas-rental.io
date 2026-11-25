@@ -804,6 +804,7 @@ function _applyMoneyVis(){
   set('cardPnl', owner);        // Expenses & net profit -- owner only (pnl endpoint is owner-only)
   set('cardMargins', owner);    // Plan margins -- owner only
   set('grpRevPnl', money);      // the "Revenue & P&L" group label (owner implies money, so == money)
+  try{ _applyTabPerms(); }catch(e){}   // RBAC: hide the HQ tabs this staffer's caps don't reach (support -> Support only); fail-open + server-enforced
 }
 function _isSuperOwner(){ return !!(DATA.you && (DATA.you.tier||0)>=2); }   /* tier-2+ = super-admin backup (or all-seeing root); tier-1 primary is NOT super */
 function applyTierBrand(){ var b=document.getElementById('hqBrand'); if(b) b.textContent=_isSuperOwner()?'ATLAS SHQ':'ATLAS HQ'; var s=document.getElementById('hqBrandSub'); if(s) s.textContent=_isSuperOwner()?'Super HQ':'Master Dashboard'; try{ if(_isSuperOwner()) document.title='Atlas SHQ \u2014 Super HQ'; }catch(e){}
@@ -852,7 +853,23 @@ function setSection(name){ if(HQ_SECTIONS.indexOf(name)<0) name='overview';
   try{ localStorage.setItem(HQ_SEC_KEY,name); }catch(e){}
   try{ if(window._hqA11yPass) window._hqA11yPass(); }catch(e){}
 }
-function initSections(){ var saved=''; try{ saved=localStorage.getItem(HQ_SEC_KEY)||''; }catch(e){} setSection(HQ_SECTIONS.indexOf(saved)>=0?saved:'overview'); }
+/* RBAC: which capability each HQ tab needs. A staffer sees a tab only if their effective caps include one of these; owner sees all. settings = owner-only (no staff cap grants it). control is gated separately by _isSuperOwner. */
+var HQ_SEC_CAP={overview:['ops.overview'],revenue:['money.view'],members:['members.view'],analytics:['analytics.view','social.view'],support:['support.tickets.view','support.inbox.view','support.bugs.view'],ai:['ai.assist'],security:['security.reports'],system:['ops.system'],settings:[]};
+function _secAllowed(sec){ if(_isOwner()) return true;
+  var caps=DATA.you&&DATA.you.caps;
+  if(caps==null) return true;   /* fail-open: no caps info (older worker) -> show all; the worker still enforces access server-side */
+  var req=HQ_SEC_CAP[sec]; if(!req) return true;   /* unmapped (e.g. control) -> leave to its own gate */
+  if(!req.length) return false; /* owner-only section (settings) */
+  for(var i=0;i<req.length;i++){ if(caps.indexOf(req[i])>=0) return true; } return false; }
+function _applyTabPerms(){ var tabs=$('hqTabs'); if(!tabs) return;
+  var cur=''; var ab=tabs.querySelector('button.on'); if(ab) cur=ab.getAttribute('data-sec')||''; if(!cur){ try{ cur=localStorage.getItem(HQ_SEC_KEY)||''; }catch(e){} }
+  Array.prototype.forEach.call(tabs.children,function(b){ var sec=b.getAttribute('data-sec'); if(sec==='control') return;   /* control = _isSuperOwner only (applyTierBrand) */
+    b.style.display=_secAllowed(sec)?'':'none'; });
+  if(cur && !_secAllowed(cur)){ for(var i=0;i<HQ_SECTIONS.length;i++){ var s=HQ_SECTIONS[i]; if(s!=='control' && _secAllowed(s)){ setSection(s); break; } } } }
+function initSections(){ var saved=''; try{ saved=localStorage.getItem(HQ_SEC_KEY)||''; }catch(e){}
+  var want=(HQ_SECTIONS.indexOf(saved)>=0 && _secAllowed(saved))?saved:'';
+  if(!want){ for(var i=0;i<HQ_SECTIONS.length;i++){ if(HQ_SECTIONS[i]!=='control' && _secAllowed(HQ_SECTIONS[i])){ want=HQ_SECTIONS[i]; break; } } }
+  setSection(want||'overview'); }
 
 /* ===== Control finder: index every area (card) + named control (button/toggle) across ALL tabs, then jump + flash ===== */
 var _hqIdx=null, _hqFindOut=[], _hqSel=-1;
