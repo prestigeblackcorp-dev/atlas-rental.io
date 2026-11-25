@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex,nofollow">
+<title>Atlas Support</title>
+<style>
+  :root{
+    --bg:#0a0f0d; --bg2:#0c1411; --surf:#111a16; --surf2:#152019; --surf3:#1a2720;
+    --line:#213029; --line2:#2b3d34;
+    --ink:#e9f2ec; --mut:#8ba095; --mut2:#7e9186;
+    --em:#31d68a; --em2:#23a86c; --emdim:#153a2a;
+    --gold:#efc978; --gold2:#f4d99a;
+    --red:#ff6f6f; --amber:#f4b454; --blue:#6cb8ff;
+    --r:16px; --r2:12px; --r3:9px;
+    --sh:0 1px 0 rgba(255,255,255,.03) inset, 0 8px 30px rgba(0,0,0,.42);
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --card2:rgba(128,140,160,.14);
+  }
+  *{box-sizing:border-box}
+  html{background:#080c0a}
+  html,body{margin:0;padding:0;overscroll-behavior-y:none;-webkit-overflow-scrolling:touch}
+  body{background:radial-gradient(1200px 700px at 78% -8%,#123122 0%,rgba(18,49,34,0) 60%),linear-gradient(180deg,#0a0f0d,#080c0a);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh;font-size:14px;line-height:1.5}
+  button{font-family:inherit;cursor:pointer}
+  a{color:inherit}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#20302a;border-radius:20px;border:2px solid transparent;background-clip:content-box}
+
+  /* ---- login gate ---- */
+  #gate{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(900px 600px at 50% 0%,#10281c,#080c0a)}
+  .gate-card{width:100%;max-width:410px;background:linear-gradient(180deg,var(--surf2),var(--surf));border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:30px 26px;text-align:center}
+  .gate-badge{width:54px;height:54px;border-radius:15px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,var(--em2),#0f6b45);box-shadow:0 6px 20px rgba(35,168,108,.35);color:#eafff4}
+  .gate-card h1{margin:0 0 4px;font-size:20px;letter-spacing:.2px}
+  .gate-card p{margin:0 0 20px;color:var(--mut);font-size:13px;line-height:1.5}
+  .fld{position:relative;text-align:left;margin-bottom:14px}
+  .fld label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut2);margin:0 0 6px 2px;font-weight:600}
+  .inp{width:100%;background:#0c1310;border:1px solid var(--line2);border-radius:var(--r3);color:var(--ink);padding:12px 13px;font-size:15px;outline:none;transition:border-color .15s,box-shadow .15s}
+  .inp:focus{border-color:var(--em2);box-shadow:0 0 0 3px rgba(35,168,108,.16)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;border-radius:var(--r3);padding:11px 16px;font-size:14px;font-weight:600;color:#04160e;background:linear-gradient(180deg,var(--em),var(--em2));transition:filter .15s,transform .05s;width:100%;white-space:nowrap}
+  .btn:hover{filter:brightness(1.06)}
+  .btn:active{transform:translateY(1px)}
+  .btn[disabled]{opacity:.6;cursor:not-allowed}
+  .btn.sm{width:auto;padding:8px 12px;font-size:12.5px}
+  .btn.ghost{background:transparent;border-color:var(--line2);color:var(--ink)}
+  .btn.ghost:hover{background:var(--surf3)}
+  .btn.gold{background:linear-gradient(180deg,var(--gold2),var(--gold));color:#241a06}
+  .gate-err{color:var(--red);font-size:12.5px;min-height:16px;margin-top:2px;text-align:left}
+  .gate-foot{margin-top:16px;font-size:11.5px;color:var(--mut2);line-height:1.5}
+  .gate-link{color:var(--em);cursor:pointer;font-weight:600}
+  .gate-link:hover{text-decoration:underline}
+  .spin-ring{width:34px;height:34px;margin:6px auto 0;border:3px solid var(--line2);border-top-color:var(--em);border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media(prefers-reduced-motion:reduce){.spin-ring{animation:none}}
+  .sent-ic{width:52px;height:52px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;background:rgba(49,214,138,.12);color:var(--em);border:1px solid rgba(49,214,138,.3)}
+
+  /* ---- app shell ---- */
+  #app{display:none;max-width:980px;margin:0 auto;padding:0 16px 60px;overflow-x:clip}
+  .hqhead{position:sticky;top:0;z-index:20;padding-top:env(safe-area-inset-top,0px);background:linear-gradient(180deg,#0a0f0d 0%,#0a0f0d 64%,rgba(10,15,13,.90) 100%);backdrop-filter:blur(10px)}
+  .topbar{display:flex;align-items:center;gap:13px;padding:14px 2px 10px;flex-wrap:wrap;row-gap:8px}
+  .brand{display:flex;align-items:center;gap:11px;flex:none}
+  .brand .mk{width:36px;height:36px;border-radius:10px;flex:none;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,var(--em2),#0f6b45);box-shadow:0 4px 14px rgba(35,168,108,.3);color:#eafff4}
+  .brand>div{min-width:0}
+  .brand b{font-size:15px;letter-spacing:.3px;display:block;line-height:1.1;white-space:nowrap}
+  .brand span{font-size:11px;color:var(--mut);letter-spacing:.4px;white-space:nowrap}
+  .top-spacer{flex:1;min-width:8px}
+  .who{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--mut);min-width:0}
+  .who b{color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+  .who .pill{flex:none}
+  .live{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
+  .live .dot{width:8px;height:8px;border-radius:50%;background:var(--em);box-shadow:0 0 0 0 rgba(49,214,138,.6);animation:pulse 2.2s infinite}
+  @media(prefers-reduced-motion:reduce){.live .dot{animation:none}}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(49,214,138,.5)}70%{box-shadow:0 0 0 7px rgba(49,214,138,0)}100%{box-shadow:0 0 0 0 rgba(49,214,138,0)}}
+  .icon-btn{width:36px;height:36px;flex:none;border-radius:10px;border:1px solid var(--line2);background:var(--surf);color:var(--mut);display:flex;align-items:center;justify-content:center;transition:color .15s,background .15s}
+  .icon-btn:hover{color:var(--ink);background:var(--surf3)}
+  .icon-btn.spin svg{animation:spin .7s linear}
+
+  .hqgroup{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);margin:4px 2px 11px;padding-bottom:7px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+  .hqgroup:not(:first-child){margin-top:22px}
+
+  /* ---- cards ---- */
+  .card{background:linear-gradient(180deg,var(--surf2),var(--surf));border:1px solid var(--line);border-radius:var(--r2);box-shadow:var(--sh);margin-bottom:14px;overflow:hidden;min-width:0}
+  .card-h{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap;row-gap:6px}
+  .card-h h2{font-size:14px;margin:0;letter-spacing:.2px;white-space:nowrap}
+  .card-h .sub{font-size:11.5px;color:var(--mut2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .card-h .sp{flex:1}
+
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.2px;border:1px solid transparent;white-space:nowrap}
+  .pill.trial{color:var(--gold2);background:rgba(239,201,120,.1);border-color:rgba(239,201,120,.22)}
+  .pill.active{color:var(--em);background:rgba(49,214,138,.1);border-color:rgba(49,214,138,.24)}
+  .pill.past{color:var(--red);background:rgba(255,111,111,.1);border-color:rgba(255,111,111,.22)}
+  .pill.gray{color:var(--mut);background:var(--surf3);border-color:var(--line2)}
+
+  .seg{display:inline-flex;background:#0c1310;border:1px solid var(--line2);border-radius:8px;padding:2px;gap:2px;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .seg::-webkit-scrollbar{display:none}
+  .seg button{border:0;background:transparent;color:var(--mut);font-size:12px;font-weight:600;padding:6px 11px;border-radius:6px;transition:.12s;flex:none;white-space:nowrap}
+  .seg button.on{background:var(--surf3);color:var(--ink)}
+
+  .bug{padding:12px 14px;border-bottom:1px solid rgba(33,48,41,.6)}
+  .bug:last-child{border-bottom:none}
+  .bug-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;row-gap:5px;margin-bottom:5px}
+  .bug-type{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:2px 7px;border-radius:5px}
+  .bug-type.bug{color:var(--red);background:rgba(255,111,111,.1)}
+  .bug-type.idea{color:var(--gold2);background:rgba(239,201,120,.1)}
+  .bug-msg{font-size:13px;color:var(--ink);line-height:1.45}
+  .bug-meta{font-size:11px;color:var(--mut2);margin-top:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .bug-acts{display:flex;gap:6px;margin-top:8px}
+  .tk-unread{box-shadow:inset 3px 0 0 var(--gold,#C79A3A)}
+  .tk-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--gold,#C79A3A);margin-right:7px;vertical-align:middle}
+  .tk-thread-a{max-height:44vh;overflow-y:auto;display:flex;flex-direction:column;gap:9px;margin:10px 0 2px;padding-right:2px}
+  .tkm{max-width:88%;padding:8px 11px;border-radius:11px;font-size:13px;line-height:1.45}
+  .tkm-who{font-size:10.5px;opacity:.65;margin-bottom:3px;font-weight:600}
+  .tkm-own{align-self:flex-end;background:var(--gold,#C79A3A);color:#151922}
+  .tkm-cust{align-self:flex-start;background:var(--card2);color:var(--ink)}
+  .chip{font-size:11.5px;font-weight:600;padding:4px 9px;border-radius:6px;border:1px solid var(--line2);background:transparent;color:var(--mut);white-space:nowrap}
+  .chip:hover{color:var(--ink);background:var(--surf3)}
+  .chip.on{color:var(--em);border-color:rgba(49,214,138,.3);background:rgba(49,214,138,.08)}
+  .mut{color:var(--mut)}
+
+  .empty{padding:34px 20px;text-align:center;color:var(--mut2);font-size:13px}
+  .empty svg{opacity:.5;margin-bottom:8px}
+
+  /* ---- modal ---- */
+  #scrim{position:fixed;inset:0;z-index:60;background:rgba(4,8,6,.72);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:20px}
+  #scrim.on{display:flex}
+  .modal{width:100%;max-width:520px;background:linear-gradient(180deg,var(--surf2),var(--surf));border:1px solid var(--line2);border-radius:var(--r);box-shadow:0 24px 70px rgba(0,0,0,.6);overflow:hidden;max-height:90vh;display:flex;flex-direction:column}
+  .modal-h{display:flex;align-items:center;gap:8px;padding:16px 18px;border-bottom:1px solid var(--line);flex:none}
+  .modal-h h3{margin:0;font-size:15px}
+  .modal-b{padding:18px;overflow:auto}
+  .modal-b .desc{color:var(--mut);font-size:12.5px;margin:-4px 0 14px}
+  .desc{color:var(--mut);font-size:12.5px}
+  .modal-f{display:flex;gap:9px;padding:14px 18px;border-top:1px solid var(--line);background:rgba(12,19,16,.5);flex:none;flex-wrap:wrap}
+  .modal-f .btn{flex:1;min-width:120px;width:auto}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(10px);z-index:80;background:#0c1712;border:1px solid var(--line2);color:var(--ink);padding:11px 16px;border-radius:11px;font-size:13px;display:flex;align-items:center;gap:9px;opacity:0;transition:.25s;box-shadow:0 12px 40px rgba(0,0,0,.5);pointer-events:none;max-width:90vw}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast svg{color:var(--em);flex:none}
+
+  @media(max-width:620px){
+    #app{padding-left:12px;padding-right:12px}
+    .live{display:none}
+    .who b{max-width:110px}
+    .modal-f .btn{flex:1 1 100%}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN GATE ================= -->
+<div id="gate">
+  <div class="gate-card">
+    <!-- state: email form -->
+    <div id="gateForm">
+      <div class="gate-badge">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 13a8 8 0 0 1 16 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="2.5" y="13" width="4" height="7" rx="2" stroke="currentColor" stroke-width="1.8"/><rect x="17.5" y="13" width="4" height="7" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M20 19.5a3 3 0 0 1-3 2.5h-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </div>
+      <h1>Atlas Support</h1>
+      <p>Sign in to the support console. Enter your work email and we will send you a one-time sign-in link.</p>
+      <div class="fld">
+        <label for="email">Work email</label>
+        <input class="inp" id="email" type="email" autocomplete="email" inputmode="email" placeholder="you@atlasrental.io" onkeydown="if(event.key==='Enter')requestLink()">
+      </div>
+      <button class="btn" id="reqBtn" onclick="requestLink()">Email me a sign-in link</button>
+      <div class="gate-err" id="gateErr"></div>
+      <div class="gate-foot">Links are good for 15 minutes and sign you in for 24 hours. Need access? Ask the Atlas owner to add you.</div>
+    </div>
+
+    <!-- state: link sent -->
+    <div id="gateSent" style="display:none">
+      <div class="sent-ic">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 6h16v12H4z" stroke="currentColor" stroke-width="1.7"/><path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.7"/></svg>
+      </div>
+      <h1>Check your inbox</h1>
+      <p>If <b id="sentEmail" style="color:var(--ink)"></b> is a support account, a one-time sign-in link is on its way. Open it on this device to sign in. It is good for 15 minutes.</p>
+      <div class="gate-foot">Did not get it? Check spam, or <span class="gate-link" onclick="showGate()">use a different email</span>.</div>
+    </div>
+
+    <!-- state: verifying ?k= -->
+    <div id="gateVerify" style="display:none">
+      <div class="spin-ring"></div>
+      <h1 style="margin-top:16px">Signing you in</h1>
+      <p>One moment while we verify your link.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ================= SUPPORT CONSOLE ================= -->
+<div id="app">
+  <div class="hqhead">
+    <div class="topbar">
+      <div class="brand">
+        <div class="mk"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 13a8 8 0 0 1 16 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="2.5" y="13" width="4" height="7" rx="2" stroke="currentColor" stroke-width="1.8"/><rect x="17.5" y="13" width="4" height="7" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M20 19.5a3 3 0 0 1-3 2.5h-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+        <div><b>Atlas Support</b><span>Support console</span></div>
+      </div>
+      <div class="top-spacer"></div>
+      <div class="who" id="whoBox"><b id="whoName"></b><span class="pill gray" id="whoRole" style="display:none"></span></div>
+      <div class="live"><span class="dot"></span><span id="liveTxt">live</span></div>
+      <button class="icon-btn" id="refreshBtn" title="Refresh" onclick="refreshNow()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 1 0-.9 4.5M20 5v6h-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="icon-btn" title="Sign out" onclick="signOut()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 12H4m0 0 4-4m-4 4 4 4M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+  </div>
+
+  <main id="supportMain">
+    <!-- Triage -->
+    <div class="hqgroup">Triage</div>
+    <div class="card">
+      <div class="card-h"><h2>Needs action</h2><span class="sub" id="triageSub"></span><div class="sp"></div>
+        <div class="seg" id="triageSeg">
+          <button class="on" data-s="open" onclick="setTriageSeg(this)">Needs action</button>
+          <button data-s="all" onclick="setTriageSeg(this)">All</button>
+        </div>
+      </div>
+      <div id="triageList"><div class="mut" style="padding:12px 14px">Loading&hellip;</div></div>
+    </div>
+
+    <!-- Tickets -->
+    <div class="hqgroup">Tickets</div>
+    <div class="card">
+      <div class="card-h"><h2>Support tickets</h2><div class="sp"></div>
+        <div class="seg" id="tkSeg">
+          <button class="on" data-s="open" onclick="setTkSeg(this)">Open</button>
+          <button data-s="mine" onclick="setTkSeg(this)">Mine</button>
+          <button data-s="unclaimed" onclick="setTkSeg(this)">Unclaimed</button>
+          <button data-s="overdue" onclick="setTkSeg(this)">Overdue</button>
+          <button data-s="all" onclick="setTkSeg(this)">All</button>
+        </div>
+      </div>
+      <div id="supportList"><div class="mut" style="padding:12px 14px">Loading&hellip;</div></div>
+    </div>
+
+    <!-- Inbox -->
+    <div class="hqgroup">Email</div>
+    <div class="card">
+      <div class="card-h"><h2>Support inbox</h2><span class="sub" id="inboxSub"></span><div class="sp"></div>
+        <div class="seg" id="inboxSeg"><button class="on" data-s="new" onclick="setInboxSeg(this)">New</button><button data-s="replied" onclick="setInboxSeg(this)">Replied</button><button data-s="all" onclick="setInboxSeg(this)">All</button></div>
+      </div>
+      <div id="inboxList"><div class="mut" style="padding:12px 14px">Loading&hellip;</div></div>
+    </div>
+
+    <!-- Bugs & ideas -->
+    <div class="hqgroup">Feedback</div>
+    <div class="card">
+      <div class="card-h"><h2>Bug &amp; idea inbox</h2><div class="sp"></div>
+        <div class="seg" id="bugSeg">
+          <button class="on" data-s="open" onclick="setBugSeg(this)">Open</button>
+          <button data-s="all" onclick="setBugSeg(this)">All</button>
+        </div>
+      </div>
+      <div id="bugList"><div class="mut" style="padding:12px 14px">Loading&hellip;</div></div>
+    </div>
+  </main>
+</div>
+
+<div id="scrim"><div class="modal" id="modal" role="dialog" aria-modal="true" tabindex="-1"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== Atlas Support console =====================
+   Standalone support surface. Holds a staff session token (minted by the
+   passwordless /api/staff/login flow) and talks to the SAME support endpoints
+   the HQ uses -- scoped server-side to the staffer's capabilities. No owner
+   data is ever requested here. */
+var ATLAS_API='';
+var TOK_KEY='atlas_support_token';
+var _tok='';
+var DATA={};
+var _timer=null, _lastFetch=0;
+var _bugSeg='open', _tkSeg='open', _inboxSeg='new', _triageSeg='open';
+
+/* ---- helpers (mirrors HQ) ---- */
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function _oa(s){ return "'"+String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;')+"'"; }
+function ago(ts){ if(!ts) return ''; var s=Math.floor((Date.now()-ts)/1000); if(s<60)return s+'s ago'; var m=Math.floor(s/60); if(m<60)return m+'m ago'; var h=Math.floor(m/60); if(h<24)return h+'h ago'; var d=Math.floor(h/24); return d+'d ago'; }
+function dstr(ts){ if(!ts) return '--'; try{ return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){ return '--'; } }
+var _xI='<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+function toast(msg){ var t=$('toast'); t.innerHTML='<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M13 4.5 6.5 11 3 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'+esc(msg); t.classList.add('on'); clearTimeout(t._t); t._t=setTimeout(function(){ t.classList.remove('on'); },2600); }
+function api(path, opts){ opts=opts||{}; var h={'Content-Type':'application/json'}; if(_tok) h['X-Admin-Token']=_tok;
+  return fetch(ATLAS_API+path,{method:opts.method||'GET',headers:h,credentials:'same-origin',body:opts.body?JSON.stringify(opts.body):undefined})
+    .then(function(r){ return r.json().catch(function(){return {};}).then(function(j){ return {status:r.status,json:j}; }); }); }
+
+/* ===================== auth ===================== */
+function boot(){
+  var k=null; try{ k=new URLSearchParams(location.search).get('k'); }catch(e){}
+  if(k){ verifyLink(k); return; }
+  var saved=''; try{ saved=localStorage.getItem(TOK_KEY)||''; }catch(e){}
+  if(saved){ _tok=saved; enter(); return; }
+  showGate();
+}
+function _gateState(which){ $('gateForm').style.display=(which==='form')?'block':'none'; $('gateSent').style.display=(which==='sent')?'block':'none'; $('gateVerify').style.display=(which==='verify')?'block':'none'; $('gate').style.display='flex'; }
+function showGate(msg){ _gateState('form'); $('app').style.display='none'; var e=$('gateErr'); if(e) e.textContent=(typeof msg==='string'?msg:''); var b=$('reqBtn'); if(b){ b.disabled=false; b.textContent='Email me a sign-in link'; } var inp=$('email'); if(inp){ try{ inp.focus(); }catch(_e){} } }
+function requestLink(){
+  var email=(($('email').value)||'').trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ $('gateErr').textContent='Enter a valid email address.'; return; }
+  var btn=$('reqBtn'); btn.disabled=true; btn.textContent='Sending\u2026'; $('gateErr').textContent='';
+  api('/api/staff/login/request',{method:'POST',body:{email:email}}).then(function(){
+    $('sentEmail').textContent=email; _gateState('sent');
+  }).catch(function(){ btn.disabled=false; btn.textContent='Email me a sign-in link'; $('gateErr').textContent='Network error. Please try again.'; });
+}
+function verifyLink(k){
+  _gateState('verify');
+  api('/api/staff/login/verify',{method:'POST',body:{k:k}}).then(function(r){
+    var j=r.json||{};
+    _stripK();
+    if(r.status===200 && j.ok && j.token){
+      _tok=j.token; try{ localStorage.setItem(TOK_KEY,j.token); }catch(e){}
+      if(j.name||j.role){ DATA.you={name:j.name,role:j.role}; _applyIdentity(); }
+      enter();
+    } else {
+      showGate(j.error||'That sign-in link is invalid or has expired. Request a new one.');
+    }
+  }).catch(function(){ _stripK(); showGate('Network error verifying the link. Request a new one.'); });
+}
+function _stripK(){ try{ history.replaceState({}, document.title, location.pathname); }catch(e){} }
+function signOut(expired){
+  _tok=''; try{ localStorage.removeItem(TOK_KEY); }catch(e){}
+  if(_timer){ clearInterval(_timer); _timer=null; }
+  DATA={};
+  showGate(expired===true?'Your session expired. Request a new sign-in link.':'');
+}
+function enter(){
+  $('gate').style.display='none'; $('app').style.display='block';
+  _applyIdentity();
+  loadSupport();
+  if(_timer) clearInterval(_timer);
+  _timer=setInterval(function(){
+    var ae=document.activeElement;
+    if(ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && ae.type!=='checkbox' && ae.type!=='radio'){ return; }
+    loadSupport(true);
+  }, 20000);
+  setInterval(tickLive, 1000);
+}
+function _applyIdentity(){ var y=DATA.you||{}; var n=$('whoName'); if(n) n.textContent=y.name||''; var rp=$('whoRole'); if(rp){ if(y.role){ rp.textContent=y.role; rp.style.display=''; } else { rp.style.display='none'; } } }
+function tickLive(){ var el=$('liveTxt'); if(el) el.textContent=_lastFetch?('updated '+ago(_lastFetch)):'live'; }
+function refreshNow(){ loadSupport(); toast('Refreshed'); }
+
+/* ===================== data load (support scope only) ===================== */
+function loadSupport(quiet){
+  if(!_tok){ showGate(); return; }
+  if(!quiet){ var rb=$('refreshBtn'); if(rb) rb.classList.add('spin'); }
+  return Promise.all([
+    api('/api/admin/config'),
+    api('/api/admin/tickets?status='+((_tkSeg==='all'||_tkSeg==='mine')?'all':'open')),
+    api('/api/admin/inbox?status='+(_inboxSeg==='all'?'':_inboxSeg)),
+    api('/api/admin/feedback?status='+(_bugSeg==='all'?'all':'open'))
+  ]).then(function(r){
+    var cfg=r[0];
+    if(cfg.status===401 || cfg.status===403){ signOut(true); return; }
+    if(cfg.json && cfg.json.config){ DATA.aiCfg=cfg.json.config; DATA.you=cfg.json.you||DATA.you||{}; _applyIdentity(); _tkEnsureAgents(); }
+    if(r[1] && r[1].json && r[1].json.ok){ DATA.tickets=r[1].json.tickets||[]; renderTickets(); }
+    if(r[2] && r[2].json && r[2].json.ok){ DATA.inbox=r[2].json.messages||[]; DATA.inboxCounts=r[2].json.counts||{}; DATA.inboxCanSend=!!r[2].json.can_send; renderInbox(); }
+    if(r[3] && r[3].json && r[3].json.ok){ DATA.bugs=r[3].json.feedback||[]; renderBugs(); }
+    try{ renderTriage(); }catch(e){}
+    _lastFetch=Date.now();
+    var rb2=$('refreshBtn'); if(rb2) setTimeout(function(){ rb2.classList.remove('spin'); },600);
+  }).catch(function(){ var rb3=$('refreshBtn'); if(rb3) setTimeout(function(){ rb3.classList.remove('spin'); },600); });
+}
+
+/* ===================== unified triage queue ===================== */
+function setTriageSeg(btn){ Array.prototype.forEach.call($('triageSeg').children,function(b){b.classList.remove('on');}); btn.classList.add('on'); _triageSeg=btn.getAttribute('data-s'); renderTriage(); }
+function renderTriage(){
+  var el=$('triageList'); if(!el) return; var all=(_triageSeg==='all'), items=[];
+  (DATA.tickets||[]).forEach(function(t){ var open=(t.status!=='resolved'); if(!(all||open)) return; var od=_tkOverdue(t); items.push({ch:'Ticket',cls:'trial',when:t.updated_at||0,unread:(!!t.unread||od),prio:(od?3:(t.priority==='high'?2:0)),title:t.subject||'(no subject)',who:t.email||t.tenant_id||'',badge:(t.work_state?_wsPill(t.work_state):_tkPill(t.status))+(t.priority==='high'?' <span class="pill past">Urgent</span>':'')+(od?' <span class="pill past">Overdue</span>':''),fn:'tkOpen',id:t.id}); });
+  (DATA.inbox||[]).forEach(function(m){ var open=(m.status==='new'); if(!(all||open)) return; items.push({ch:'Email',cls:'active',when:m.received_at||0,unread:(m.status==='new'),prio:(m.status==='new'?1:0),title:m.subject||'(no subject)',who:m.from_name||m.from_email||'',badge:'<span class="pill '+(m.status==='new'?'trial':(m.status==='replied'?'active':'gray'))+'">'+esc(m.status||'new')+'</span>',fn:'inboxOpen',id:m.id}); });
+  (DATA.bugs||[]).forEach(function(f){ var st=f.status||'new'; var open=(st!=='resolved'); if(!(all||open)) return; items.push({ch:(f.type==='bug'?'Bug':'Idea'),cls:'gray',when:f.created_at||0,unread:(st==='new'),prio:(st==='new'&&f.type==='bug'?1:0),title:(f.message||'(no detail)').slice(0,80),who:f.email||f.tenant_id||'',badge:(st!=='new'?'<span class="pill gray">'+esc(st)+'</span>':'<span class="pill trial">new</span>'),fn:'bugPeek',id:f.id}); });
+  var need=items.filter(function(x){return x.unread;}).length; var ts=$('triageSub'); if(ts) ts.textContent=(all?(items.length+' total'):(need+' need action'));
+  if(!items.length){ el.innerHTML='<div class="empty" style="padding:16px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><br>Nothing needs action.<br><span style="font-size:11.5px">Open tickets, new emails and fresh bug reports land here in one queue.</span></div>'; return; }
+  items.sort(function(a,b){ if(b.prio!==a.prio) return b.prio-a.prio; return (b.when||0)-(a.when||0); });
+  el.innerHTML=items.map(function(it){ return '<div class="bug'+(it.unread?' tk-unread':'')+'" style="cursor:pointer" onclick="'+it.fn+'('+_oa(it.id)+')"><div class="bug-top">'+(it.unread?'<span class="tk-dot"></span>':'')+'<span class="pill '+it.cls+'" style="font-size:10px;letter-spacing:.3px">'+it.ch+'</span> <b style="font-size:13px">'+esc(it.title)+'</b><div class="sp" style="flex:1"></div>'+it.badge+'</div><div class="bug-meta">'+esc(it.who)+' &middot; '+ago(it.when)+'</div></div>'; }).join('');
+}
+
+/* ===================== bugs / ideas ===================== */
+function setBugSeg(btn){ Array.prototype.forEach.call($('bugSeg').children,function(b){b.classList.remove('on');}); btn.classList.add('on'); _bugSeg=btn.getAttribute('data-s'); loadSupport(true); }
+function renderBugs(){ var b=DATA.bugs||[];
+  if(!b.length){ $('bugList').innerHTML='<div class="empty"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 3l9 16H3L12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v4M12 16.5v.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><br>Nothing in the inbox.<br><span style="font-size:11.5px">User bug reports and ideas land here.</span></div>'; return; }
+  $('bugList').innerHTML = b.map(function(f){
+    var isbug = (f.type==='bug');
+    var st = f.status||'new';
+    return '<div class="bug"><div class="bug-top"><span class="bug-type '+(isbug?'bug':'idea')+'">'+(isbug?'Bug':'Idea')+'</span>'+
+      (st!=='new'?'<span class="pill gray">'+esc(st)+'</span>':'')+'</div>'+
+      '<div class="bug-msg">'+esc(f.message||'')+'</div>'+
+      '<div class="bug-meta">'+esc(f.email||f.tenant_id||'')+(f.page?(' &middot; '+esc(f.page)):'')+' &middot; '+ago(f.created_at)+'</div>'+
+      '<div class="bug-acts">'+
+        '<button class="chip'+(st==='seen'?' on':'')+'" onclick="bugStatus('+_oa(f.id)+',\'seen\')">Seen</button>'+
+        '<button class="chip'+(st==='resolved'?' on':'')+'" onclick="bugStatus('+_oa(f.id)+',\'resolved\')">Resolved</button>'+
+      '</div></div>';
+  }).join('');
+}
+function bugStatus(id, status){ api('/api/admin/feedback/update',{method:'POST',body:{id:id,status:status}}).then(function(r){ if(r.json&&r.json.ok){ toast('Marked '+status); loadSupport(true); } else toast('Could not update'); }); }
+function bugPeek(id){ var f=(DATA.bugs||[]).filter(function(x){return x.id===id;})[0]; if(!f) return; var isbug=(f.type==='bug'),st=f.status||'new';
+  $('modal').innerHTML='<div class="modal-h"><h3>'+(isbug?'Bug report':'Idea')+'</h3><div class="sp" style="flex:1"></div><span class="pill '+(st==='resolved'?'gray':(st==='seen'?'active':'trial'))+'">'+esc(st)+'</span><button class="icon-btn" onclick="closeModal()">'+_xI+'</button></div>'+
+    '<div class="modal-b"><div class="desc">'+esc(f.email||f.tenant_id||'')+(f.page?(' &middot; '+esc(f.page)):'')+' &middot; '+dstr(f.created_at)+'</div><div style="white-space:pre-wrap;font-size:13px;line-height:1.55;background:rgba(128,140,160,.06);border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0">'+esc(f.message||'')+'</div></div>'+
+    '<div class="modal-f"><button class="btn ghost" onclick="closeModal();bugStatus('+_oa(id)+',\'seen\')">Mark seen</button><button class="btn gold" onclick="closeModal();bugStatus('+_oa(id)+',\'resolved\')">Resolve</button></div>';
+  $('scrim').classList.add('on'); }
+
+/* ===================== tickets ===================== */
+function setTkSeg(btn){ Array.prototype.forEach.call($('tkSeg').children,function(b){b.classList.remove('on');}); btn.classList.add('on'); _tkSeg=btn.getAttribute('data-s'); loadSupport(true); }
+function _tkPill(s){ var m={open:['Open','trial'],answered:['Answered','active'],resolved:['Resolved','gray']}, x=m[s]||m.open; return '<span class="pill '+x[1]+'">'+x[0]+'</span>'; }
+function _wsPill(ws){ if(!ws) return ''; var m={new:['New','gray'],claimed:['Claimed','trial'],investigating:['Investigating','trial'],pending:['Pending','active'],escalated:['Escalated','past'],resolved:['Resolved','gray'],closed:['Closed','gray']}, x=m[ws]; return x?('<span class="pill '+x[1]+'" title="internal status">'+x[0]+'</span>'):''; }
+function _tkMine(t){ return !!(DATA.you&&DATA.you.staff_id&&t.assignee_staff_id===DATA.you.staff_id); }
+function _tkOverdue(t){ return !!(t.sla_due_at && Date.now()>t.sla_due_at && t.work_state!=='resolved' && t.work_state!=='closed' && t.status!=='resolved'); }
+function _tkAssignBadge(t){ if(t.assignee_name) return '<span class="pill '+(_tkMine(t)?'active':'gray')+'" title="owner">'+(_tkMine(t)?'You':esc(t.assignee_name))+'</span>'; return '<span class="pill" style="opacity:.55" title="unclaimed">Unclaimed</span>'; }
+function _tkNo(t){ return t.ticket_no?('<span class="mut" style="font-size:11.5px">#'+t.ticket_no+'</span> '):''; }
+function _tkEnsureAgents(){ if(!(DATA.you&&DATA.you.can_supervise)){ return; } if(DATA._agentsReq){ return; } DATA._agentsReq=true; api('/api/admin/ticket-agents').then(function(ar){ if(ar&&ar.json&&ar.json.ok){ DATA.agents=ar.json.agents||[]; } else { DATA._agentsReq=false; } }).catch(function(){ DATA._agentsReq=false; }); }
+function renderTickets(){ var ts=DATA.tickets||[]; var seg=_tkSeg;
+  ts=ts.filter(function(t){
+    if(seg==='mine') return _tkMine(t);
+    if(seg==='unclaimed') return !t.assignee_staff_id && t.status!=='resolved';
+    if(seg==='overdue') return _tkOverdue(t);
+    if(seg==='open') return t.status!=='resolved';
+    return true;
+  });
+  if(!ts.length){ var emp=(seg==='mine'?'No tickets assigned to you.':(seg==='unclaimed'?'No unclaimed tickets - the queue is clear.':(seg==='overdue'?'Nothing past its SLA.':'No support tickets.'))); $('supportList').innerHTML='<div class="empty"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><br>'+emp+'<br><span style="font-size:11.5px">Tenant tickets land here for you to claim and reply.</span></div>'; return; }
+  $('supportList').innerHTML = ts.map(function(t){
+    var lastPublic=null; if(t.messages){ for(var i=t.messages.length-1;i>=0;i--){ if(!t.messages[i].internal){ lastPublic=t.messages[i]; break; } } }
+    var lastAny=(t.messages&&t.messages.length)?t.messages[t.messages.length-1]:null;
+    return '<div class="bug'+(t.unread?' tk-unread':'')+'" style="cursor:pointer" onclick="tkOpen('+_oa(t.id)+')"><div class="bug-top">'+(t.unread?'<span class="tk-dot"></span>':'')+_tkNo(t)+'<b style="font-size:13.5px">'+esc(t.subject||'(no subject)')+'</b><div class="sp" style="flex:1"></div>'+_tkAssignBadge(t)+' '+(t.work_state?_wsPill(t.work_state):_tkPill(t.status))+(t.priority==='high'?' <span class="pill past">Urgent</span>':'')+(_tkOverdue(t)?' <span class="pill past" title="past SLA">Overdue</span>':'')+'</div>'+
+      '<div class="bug-msg" style="font-size:12.5px">'+(lastPublic?esc((lastPublic.by==='owner'?'You: ':'')+String(lastPublic.msg).slice(0,110)):(lastAny&&lastAny.internal?'<i>Internal note only</i>':''))+'</div>'+
+      '<div class="bug-meta">'+esc(t.email||t.tenant_id||'')+' &middot; '+esc(t.category||'')+' &middot; '+ago(t.updated_at)+'</div></div>';
+  }).join('');
+}
+function tkOpen(id){ var t=(DATA.tickets||[]).filter(function(x){return x.id===id;})[0]; if(!t)return;
+  var thread=(t.messages||[]).map(function(m){ if(m.internal){ return '<div class="tkm" style="background:rgba(224,180,80,.10);border:1px dashed rgba(224,180,80,.5)"><div class="tkm-who" style="color:#c99a3a">Internal note &middot; '+esc(m.name||'Staff')+' &middot; '+dstr(m.at)+'</div><div>'+esc(m.msg).replace(/\n/g,'<br>')+'</div></div>'; } var own=(m.by==='owner'); return '<div class="tkm '+(own?'tkm-own':'tkm-cust')+'"><div class="tkm-who">'+esc(own?'You (Atlas)':(m.name||t.email||'Customer'))+' &middot; '+dstr(m.at)+'</div><div>'+esc(m.msg).replace(/\n/g,'<br>')+'</div></div>'; }).join('');
+  var mine=_tkMine(t), claimed=!!t.assignee_staff_id, sup=!!(DATA.you&&DATA.you.can_supervise);
+  var ownLine='<div class="mut" style="font-size:12px;margin:2px 0 8px">'+(claimed?('Owner: <b>'+(mine?'You':esc(t.assignee_name))+'</b>'):'<i>Unclaimed</i>')+(t.ticket_no?(' &middot; #'+t.ticket_no):'')+(_tkOverdue(t)?' &middot; <span style="color:#d9534f">Overdue (past SLA)</span>':'')+'</div>';
+  var wsOpts=['new','claimed','investigating','pending','escalated','resolved','closed'];
+  var wsSel='<select id="tkWsSel" style="padding:5px 8px;border-radius:7px;border:1px solid rgba(128,140,160,.35);background:transparent;color:inherit;font-size:12px">'+wsOpts.map(function(w){return '<option value="'+w+'"'+((t.work_state||'new')===w?' selected':'')+'>'+w.charAt(0).toUpperCase()+w.slice(1)+'</option>';}).join('')+'</select>';
+  var claimBtn=claimed?((mine||sup)?('<button class="btn ghost" onclick="tkClaim('+_oa(id)+',\'release\')">'+(mine?'Release':'Unassign')+'</button>'):''):('<button class="btn ghost" onclick="tkClaim('+_oa(id)+',\'claim\')">Claim</button>');
+  var assignRow='';
+  if(sup){ _tkEnsureAgents(); var _ags=(DATA.agents||[]); var _cur=t.assignee_staff_id||''; var _curKnown=_ags.some(function(a){return a.id===_cur;}); var _opts='<option value="">(unassigned)</option>'; if(_cur&&!_curKnown){ _opts+='<option value="'+esc(_cur)+'" selected>'+esc(t.assignee_name||'Current owner')+'</option>'; } _opts+=_ags.map(function(a){ return '<option value="'+esc(a.id)+'"'+(_cur===a.id?' selected':'')+'>'+esc(a.name)+(a.role?(' - '+esc(a.role)):'')+'</option>'; }).join(''); assignRow='<div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap"><span class="mut" style="font-size:11.5px" title="supervisor">Assign to</span><select id="tkAssignSel" style="padding:5px 8px;border-radius:7px;border:1px solid rgba(128,140,160,.35);background:transparent;color:inherit;font-size:12px;max-width:220px">'+_opts+'</select><button class="btn ghost" style="padding:5px 10px;width:auto" onclick="tkReassign('+_oa(id)+')">Assign</button>'+(_ags.length?'':'<span class="mut" style="font-size:11px">(no other agents yet)</span>')+'</div>'; }
+  $('modal').innerHTML =
+    '<div class="modal-h"><h3 style="min-width:0;overflow:hidden;text-overflow:ellipsis;max-width:58%">'+esc(t.subject)+'</h3><div class="sp" style="flex:1"></div>'+(t.work_state?_wsPill(t.work_state):_tkPill(t.status))+'<button class="icon-btn" onclick="closeModal()">'+_xI+'</button></div>'+
+    '<div class="modal-b"><div class="desc">'+esc(t.email||'')+' &middot; '+esc(t.category||'')+'</div>'+ownLine+_tkResHtml(t)+
+      '<div id="tkCust"></div>'+
+      '<div class="tk-thread-a">'+thread+'</div>'+
+      '<div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap"><span class="mut" style="font-size:11.5px">Internal status</span>'+wsSel+'<button class="btn ghost" style="padding:5px 10px;width:auto" onclick="tkWorkstate('+_oa(id)+')">Set</button></div>'+
+      assignRow+
+      '<textarea id="tkNoteBox" rows="2" placeholder="Internal note - staff only, the customer never sees this..." style="width:100%;margin-top:10px;padding:9px;border-radius:8px;border:1px dashed rgba(224,180,80,.5);background:rgba(224,180,80,.05);color:inherit;font-family:inherit;font-size:12.5px;box-sizing:border-box"></textarea><div style="text-align:right;margin-top:4px"><button class="btn ghost" style="padding:5px 10px;width:auto" onclick="tkNote('+_oa(id)+')">Add internal note</button></div>'+
+      '<textarea id="tkReplyBox" rows="3" placeholder="Reply to the customer..." style="width:100%;margin-top:10px;padding:10px;border-radius:8px;border:1px solid rgba(128,140,160,.35);background:transparent;color:inherit;font-family:inherit;font-size:13px;box-sizing:border-box"></textarea><div id="tkAiMeta" class="mut" style="font-size:11.5px;margin-top:6px"></div><div id="tkResolveBox"></div></div>'+
+    '<div class="modal-f">'+claimBtn+((DATA.aiCfg&&DATA.aiCfg.ai_hq_enabled)?('<button class="btn ghost" onclick="aiDraft('+_oa(id)+')">Draft with AI</button>'):'')+(t.status==='resolved'?('<button class="btn ghost" onclick="tkStatus('+_oa(id)+',\'open\')">Reopen</button>'):('<button class="btn ghost" onclick="tkResolveForm('+_oa(id)+',\'\')">Mark resolved</button>'))+'<button class="btn gold" onclick="tkReply('+_oa(id)+')">Send reply</button></div>';
+  $('scrim').classList.add('on'); _tkLoadCustomer(id); }
+function _tkAcctStatus(c){ if(c.deleted) return ['Deleted','#d9534f']; var isTrial=/trial/i.test(String(c.plan||'')); if(isTrial){ if(c.trial_ends&&c.trial_ends<Date.now()) return ['Trial expired','#d9534f']; return ['On trial','#d9a13a']; } if(c.card_on_file) return ['Active','#3a9a5a']; if(c.plan) return [esc(c.plan),'#8a8f98']; return ['No plan','#8a8f98']; }
+function _tkCustChip(label,val){ return '<div style="min-width:84px"><div class="mut" style="font-size:10px;text-transform:uppercase;letter-spacing:.04em">'+label+'</div><div style="font-size:12.5px;font-weight:600">'+val+'</div></div>'; }
+function _tkCustHtml(c,money){ if(!c) return ''; var st=_tkAcctStatus(c); var rows='';
+  rows+=_tkCustChip('Plan',esc(c.plan||'-')+(c.tier?(' / '+esc(c.tier)):''));
+  rows+=_tkCustChip('Billing',c.card_on_file?'Card on file':'<span style="color:#d9a13a">No card</span>');
+  rows+=_tkCustChip('Bookings',c.bookings_total+' <span class="mut" style="font-size:10.5px">('+c.bookings_30d+'/30d)</span>');
+  rows+=_tkCustChip('Fleet',c.assets+' asset'+(c.assets===1?'':'s')+(c.fleet_type?(' &middot; '+esc(c.fleet_type)):''));
+  rows+=_tkCustChip('Open tickets',String(c.open_tickets));
+  if(c.created_at) rows+=_tkCustChip('Customer since',dstr(c.created_at));
+  if(c.owner_last_login) rows+=_tkCustChip('Last active',dstr(c.owner_last_login));
+  if(c.trial_ends) rows+=_tkCustChip('Trial ends',dstr(c.trial_ends));
+  if(c.custom_domain) rows+=_tkCustChip('Domain',esc(c.custom_domain));
+  if(money&&typeof c.revenue_cents==='number') rows+=_tkCustChip('Lifetime','$'+Math.round(c.revenue_cents/100).toLocaleString());
+  return '<div style="border:1px solid rgba(128,140,160,.22);border-radius:10px;padding:10px 12px;margin:2px 0 10px;background:rgba(128,140,160,.05)">'+
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap"><span style="font-size:12.5px;font-weight:700">'+esc(c.name||'Customer')+'</span><span style="font-size:10px;font-weight:700;color:'+st[1]+';border:1px solid '+st[1]+';border-radius:20px;padding:1px 8px">'+st[0]+'</span>'+(c.owner_email?('<span class="mut" style="font-size:11px;margin-left:auto;overflow:hidden;text-overflow:ellipsis">'+esc(c.owner_email)+'</span>'):'')+'</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:10px 16px">'+rows+'</div></div>'; }
+function _tkLoadCustomer(id){ if(!$('tkCust')) return; api('/api/admin/ticket-customer?id='+encodeURIComponent(id)).then(function(r){ var j=r.json||{}; var host=$('tkCust'); if(!host) return; if(j.ok&&j.customer){ host.innerHTML=_tkCustHtml(j.customer,!!j.money); } else if(j.ok&&j.note){ host.innerHTML='<div class="mut" style="font-size:11.5px;margin:0 0 8px">'+esc(j.note)+'</div>'; } else { host.innerHTML=''; } }).catch(function(){}); }
+function tkReply(id){ var el=$('tkReplyBox'); var msg=el?(el.value||'').trim():''; if(msg.length<1){ toast('Write a reply'); return; }
+  api('/api/admin/ticket-reply',{method:'POST',body:{id:id,message:msg}}).then(function(r){ var j=r.json||{}; if(j.ok){ closeModal(); loadSupport(true); if(j.emailed===false){ toast('Reply saved - email nudge failed ('+(j.email_reason||'error')+'). Follow up another way.'); } else { toast('Reply sent'); } } else toast(j.error||'Could not send'); }); }
+function tkStatus(id,status){ api('/api/admin/ticket-status',{method:'POST',body:{id:id,status:status}}).then(function(r){ if(r.json&&r.json.ok){ closeModal(); toast('Marked '+status); loadSupport(true); } else toast('Could not update'); }); }
+function tkClaim(id,action){ api('/api/admin/ticket-claim',{method:'POST',body:{id:id,action:action}}).then(function(r){ var j=r.json||{}; if(j.ok){ closeModal(); toast(action==='release'?'Released':'Claimed'); loadSupport(true); } else if(j.already){ toast('Already claimed by '+(j.claimed_by||'another agent')); closeModal(); loadSupport(true); } else toast(j.error||'Could not update'); }); }
+function tkWorkstate(id){ var sel=$('tkWsSel'); var ws=sel?sel.value:''; if(!ws) return; if(ws==='resolved'||ws==='closed'){ tkResolveForm(id,ws); return; } api('/api/admin/ticket-workstate',{method:'POST',body:{id:id,work_state:ws}}).then(function(r){ var j=r.json||{}; if(j.ok){ closeModal(); toast('Status: '+ws); loadSupport(true); } else toast(j.error||'Could not update'); }); }
+var _resCats=[['answered','Answered question'],['fixed','Fixed the issue'],['billing','Billing / payment'],['account','Account / access'],['feature','Feature request logged'],['duplicate','Duplicate'],['no_action','No action needed']];
+function _resLabel(k){ for(var i=0;i<_resCats.length;i++){ if(_resCats[i][0]===k) return _resCats[i][1]; } return k||''; }
+function _tkResHtml(t){ if(!t||t.status!=='resolved'||!t.resolution_category) return ''; var who=t.resolved_by_name?(' &middot; '+esc(t.resolved_by_name)):''; var wh=t.resolved_at?(' &middot; '+dstr(t.resolved_at)):''; return '<div style="border:1px solid rgba(58,154,90,.35);border-radius:10px;padding:9px 12px;margin:2px 0 10px;background:rgba(58,154,90,.08)"><div style="font-size:11px;font-weight:700;color:#3a9a5a;text-transform:uppercase;letter-spacing:.04em">Resolved &middot; '+esc(_resLabel(t.resolution_category))+who+wh+'</div>'+(t.resolution_note?('<div style="font-size:12.5px;margin-top:4px">'+esc(t.resolution_note).replace(/\n/g,'<br>')+'</div>'):'')+'</div>'; }
+function tkResolveForm(id,viaWs){ var box=$('tkResolveBox'); if(!box) return; var opts='<option value="">Select outcome...</option>'+_resCats.map(function(c){return '<option value="'+c[0]+'">'+c[1]+'</option>';}).join(''); box.innerHTML='<div style="border:1px solid rgba(58,154,90,.4);border-radius:10px;padding:12px;margin-top:10px;background:rgba(58,154,90,.06)">'+
+  '<div style="font-size:12.5px;font-weight:700;margin-bottom:8px">Resolve this ticket</div>'+
+  '<select id="tkResCat" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(128,140,160,.4);background:transparent;color:inherit;font-size:13px;box-sizing:border-box">'+opts+'</select>'+
+  '<textarea id="tkResNote" rows="3" placeholder="What was done to resolve it? (required)" style="width:100%;margin-top:8px;padding:9px;border-radius:8px;border:1px solid rgba(128,140,160,.4);background:transparent;color:inherit;font-family:inherit;font-size:13px;box-sizing:border-box"></textarea>'+
+  '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><button class="btn ghost" style="padding:6px 12px;width:auto" onclick="tkResolveCancel()">Cancel</button><button class="btn gold" style="padding:6px 12px;width:auto" onclick="tkResolveSubmit('+_oa(id)+',\''+viaWs+'\')">Confirm resolve</button></div></div>';
+  var el=$('tkResCat'); if(el){ try{ el.focus(); }catch(e){} } try{ box.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(e){} }
+function tkResolveCancel(){ var box=$('tkResolveBox'); if(box) box.innerHTML=''; }
+function tkResolveSubmit(id,viaWs){ var cat=$('tkResCat'), note=$('tkResNote'); var c=cat?cat.value:'', n=note?(note.value||'').trim():''; if(!c){ toast('Choose an outcome'); return; } if(n.length<3){ toast('Add a short resolution note'); return; } var ep=viaWs?'/api/admin/ticket-workstate':'/api/admin/ticket-status'; var body=viaWs?{id:id,work_state:viaWs,resolution_category:c,resolution_note:n}:{id:id,status:'resolved',resolution_category:c,resolution_note:n}; api(ep,{method:'POST',body:body}).then(function(r){ var j=r.json||{}; if(j.ok){ closeModal(); toast('Resolved'); loadSupport(true); } else toast(j.error||'Could not resolve'); }); }
+function tkNote(id){ var el=$('tkNoteBox'); var note=el?(el.value||'').trim():''; if(note.length<1){ toast('Write a note'); return; } api('/api/admin/ticket-note',{method:'POST',body:{id:id,message:note}}).then(function(r){ var j=r.json||{}; if(j.ok){ closeModal(); toast('Internal note added'); loadSupport(true); } else toast(j.error||'Could not save note'); }); }
+function tkReassign(id){ var sel=$('tkAssignSel'); if(!sel) return; var to=sel.value||''; api('/api/admin/ticket-assign',{method:'POST',body:{id:id,staff_id:to}}).then(function(r){ var j=r.json||{}; if(j.ok){ closeModal(); if(!to){ toast('Unassigned'); } else if(j.notified===false){ toast('Assigned to '+(j.assignee_name||'agent')+' - email notice failed ('+(j.notify_reason||'error')+'); tell them another way.'); } else { toast('Assigned to '+(j.assignee_name||'agent')+(j.notified?' - emailed':'')); } loadSupport(true); } else toast(j.error||'Could not reassign'); }); }
+function aiDraft(id){ var box=$('tkReplyBox'); if(box){ box.value='Drafting a reply...'; box.disabled=true; } api('/api/admin/ai/ticket-draft',{method:'POST',body:{id:id}}).then(function(r){ var j=r.json||{}; if(box) box.disabled=false; if(j.enabled===false||j.ai===false){ if(box)box.value=''; toast(j.reason||'AI is off'); return; } if(box) box.value=j.draft||''; var meta=$('tkAiMeta'); if(meta){ meta.innerHTML=(j.summary?('<b>Summary:</b> '+esc(j.summary)+' '):'')+(j.suggested_priority?('<span class="pill '+(j.suggested_priority==='high'?'past':'gray')+'">'+esc(j.suggested_priority)+'</span> '):'')+(j.confidence?('<span class="mut">confidence '+Math.round(j.confidence*100)+'%</span> '):'')+'<span class="mut">&mdash; review before sending</span>'; } }); }
+
+/* ===================== support inbox (inbound email) ===================== */
+function setInboxSeg(btn){ Array.prototype.forEach.call($('inboxSeg').children,function(b){b.classList.remove('on');}); btn.classList.add('on'); _inboxSeg=btn.getAttribute('data-s'); loadSupport(true); }
+function renderInbox(){ var el=$('inboxList'); if(!el) return; var msgs=DATA.inbox||[], c=DATA.inboxCounts||{};
+  var isb=$('inboxSub'); if(isb) isb.textContent = (c.new||0)+' new'+(DATA.inboxCanSend?'':' - sending off');
+  if(!msgs.length){ el.innerHTML='<div class="empty" style="padding:16px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 6h16v12H4z" stroke="currentColor" stroke-width="1.6"/><path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.6"/></svg><br>No messages here.<br><span style="font-size:11.5px">Inbound support email shows up here for an AI-drafted, you-approved reply.</span></div>'; return; }
+  el.innerHTML = msgs.map(function(m){ return '<div class="bug" style="cursor:pointer" onclick="inboxOpen('+_oa(m.id)+')"><div class="bug-top">'+(m.status==='new'?'<span class="tk-dot"></span>':'')+'<b style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:62%">'+esc(m.subject||'(no subject)')+'</b><div class="sp" style="flex:1"></div><span class="pill '+(m.status==='new'?'trial':(m.status==='replied'?'active':'gray'))+'">'+esc(m.status||'new')+'</span></div><div class="bug-msg" style="font-size:12.5px">'+esc(String(m.body||'').slice(0,110))+'</div><div class="bug-meta">'+esc(m.from_name||m.from_email||'')+' &middot; '+ago(m.received_at)+'</div></div>'; }).join('');
+}
+function inboxOpen(id){ var m=(DATA.inbox||[]).filter(function(x){return x.id===id;})[0]; if(!m) return; var aiOn=!!(DATA.aiCfg&&DATA.aiCfg.ai_hq_enabled);
+  $('modal').innerHTML =
+    '<div class="modal-h"><h3 style="min-width:0;overflow:hidden;text-overflow:ellipsis;max-width:64%">'+esc(m.subject||'(no subject)')+'</h3><div class="sp" style="flex:1"></div><span class="pill '+(m.status==='new'?'trial':(m.status==='replied'?'active':'gray'))+'">'+esc(m.status||'new')+'</span><button class="icon-btn" onclick="closeModal()">'+_xI+'</button></div>'+
+    '<div class="modal-b" style="max-height:64vh;overflow:auto"><div class="desc">From <b>'+esc(m.from_name||'')+'</b> &lt;'+esc(m.from_email||'')+'&gt; &middot; '+dstr(m.received_at)+'</div>'+
+      '<div style="white-space:pre-wrap;font-size:13px;line-height:1.55;background:rgba(128,140,160,.06);border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0">'+esc(m.body||'')+'</div>'+
+      (m.reply_body?('<div class="desc" style="margin:8px 0 2px"><b>Your last reply</b> &middot; '+dstr(m.replied_at)+'</div><div style="white-space:pre-wrap;font-size:12.5px;color:var(--mut)">'+esc(m.reply_body)+'</div>'):'')+
+      '<textarea id="inReplyBox" rows="5" placeholder="Write your reply (or draft with AI)..." style="width:100%;margin-top:10px;padding:10px;border-radius:8px;border:1px solid rgba(128,140,160,.35);background:transparent;color:inherit;font-family:inherit;font-size:13px;box-sizing:border-box">'+esc(m.reply_body||'')+'</textarea>'+
+      '<div id="inAiMeta" class="mut" style="font-size:11.5px;margin-top:6px"></div>'+
+      (DATA.inboxCanSend?'':'<div class="desc" style="color:var(--amber);margin-top:6px">Sending is currently off, so Send is disabled. You can still draft a reply here.</div>')+'</div>'+
+    '<div class="modal-f">'+(aiOn?('<button class="btn ghost" onclick="inboxDraft('+_oa(id)+')">Draft with AI</button>'):'')+'<button class="btn ghost" onclick="inboxStatus('+_oa(id)+',\'closed\')">Close</button><button class="btn gold" onclick="inboxSend('+_oa(id)+')"'+(DATA.inboxCanSend?'':' disabled style="opacity:.5;cursor:not-allowed"')+'>Send reply</button></div>';
+  $('scrim').classList.add('on'); }
+function inboxDraft(id){ var box=$('inReplyBox'); if(box){ box.value='Drafting...'; box.disabled=true; } api('/api/admin/ai/inbox-draft',{method:'POST',body:{id:id}}).then(function(r){ var j=r.json||{}; if(box) box.disabled=false; if(j.enabled===false||j.ai===false){ if(box)box.value=''; toast(j.reason||'AI is off'); return; } if(box) box.value=j.draft||''; var meta=$('inAiMeta'); if(meta){ meta.innerHTML=(j.summary?('<b>Summary:</b> '+esc(j.summary)+' '):'')+(j.suggested_priority?('<span class="pill '+(j.suggested_priority==='high'?'past':'gray')+'">'+esc(j.suggested_priority)+'</span> '):'')+'<span class="mut">&mdash; review before sending</span>'; } }); }
+function inboxSend(id){ if(!DATA.inboxCanSend){ toast('Sending is currently off'); return; } var box=$('inReplyBox'); var body=box?(box.value||'').trim():''; if(body.length<2){ toast('Write a reply first'); return; } if(!confirm('Send this reply now?')) return; api('/api/admin/inbox/reply',{method:'POST',body:{id:id,body:body}}).then(function(r){ var j=r.json||{}; if(j.ok&&j.sent){ closeModal(); toast('Reply sent'); loadSupport(true); } else toast((j&&j.message)||'Could not send'); }); }
+function inboxStatus(id,st){ api('/api/admin/inbox/status',{method:'POST',body:{id:id,status:st}}).then(function(r){ if(r.json&&r.json.ok){ closeModal(); toast('Marked '+st); loadSupport(true); } else toast('Could not update'); }); }
+
+/* ===================== modal + a11y ===================== */
+function closeModal(){ $('scrim').classList.remove('on'); try{ if(window._hqModalRestore) window._hqModalRestore(); }catch(e){} }
+(function(){
+  var scrim=$('scrim');
+  scrim.addEventListener('click', function(e){ if(e.target===scrim) closeModal(); });
+  function a11yPass(){ try{
+    document.querySelectorAll('div[onclick],span[onclick]').forEach(function(el){
+      if(el.id==='scrim'||el.classList.contains('modal')) return;
+      if(el.querySelector('button,a,input,select,textarea')) return;
+      if(!el.getAttribute('role')) el.setAttribute('role','button');
+      if(el.getAttribute('tabindex')===null) el.setAttribute('tabindex','0');
+      if(!el._k){ el._k=1; el.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); el.click(); } }); }
+    });
+  }catch(e){} }
+  window._hqA11yPass=a11yPass;
+  try{ new MutationObserver(function(){ if(a11yPass._t) return; a11yPass._t=setTimeout(function(){ a11yPass._t=0; a11yPass(); },250); }).observe(document.documentElement,{childList:true,subtree:true}); }catch(e){}
+  function focusables(){ var m=$('modal'); if(!m) return []; return Array.prototype.slice.call(m.querySelectorAll('a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),[tabindex]:not([tabindex="-1"])')).filter(function(el){ return el.offsetWidth>0||el.offsetHeight>0||el===document.activeElement; }); }
+  var mLast=null;
+  try{ new MutationObserver(function(){ if(scrim.classList.contains('on')){ mLast=document.activeElement; var f=focusables(); if(f.length){ try{ f[0].focus(); }catch(e){} } } }).observe(scrim,{attributes:true,attributeFilter:['class']}); }catch(e){}
+  window._hqModalRestore=function(){ try{ if(mLast&&mLast.focus) mLast.focus(); }catch(e){} mLast=null; };
+  document.addEventListener('keydown',function(e){
+    if(!scrim.classList.contains('on')) return;
+    if(e.key==='Escape'){ closeModal(); return; }
+    if(e.key==='Tab'){ var f=focusables(); if(!f.length) return; var first=f[0], last=f[f.length-1]; if(e.shiftKey&&document.activeElement===first){ e.preventDefault(); last.focus(); } else if(!e.shiftKey&&document.activeElement===last){ e.preventDefault(); first.focus(); } }
+  });
+})();
+
+/* ===================== go ===================== */
+boot();
+</script>
+</body>
+</html>
