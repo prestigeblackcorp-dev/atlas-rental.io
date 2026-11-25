@@ -32,8 +32,14 @@
       "purpose": "any"
     },
     {
-      "src": "atlas-icon-512.png",
+      "src": "atlas-icon-512-maskable.png",
       "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "atlas-icon-192-maskable.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
@@ -41,6 +47,85 @@
       "src": "atlas-icon.svg",
       "type": "image/svg+xml",
       "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshots/01-overview.jpg",
+      "sizes": "1456x827",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Overview dashboard - revenue, collected, utilization and upcoming bookings at a glance"
+    },
+    {
+      "src": "screenshots/02-analytics.jpg",
+      "sizes": "1456x827",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Analytics - profit and loss, revenue forecast and the money center"
+    },
+    {
+      "src": "screenshots/03-assets.jpg",
+      "sizes": "1456x827",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Assets and locations - manage units across every site with maintenance and blocked days"
+    },
+    {
+      "src": "screenshots/04-website.jpg",
+      "sizes": "1456x827",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Your branded booking website, live and taking reservations"
+    },
+    {
+      "src": "screenshots/05-calendar.jpg",
+      "sizes": "1456x827",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Bookings calendar - every reservation across your fleet in one scheduling grid"
+    },
+    {
+      "src": "screenshots/phone-01-overview.jpg",
+      "sizes": "750x1624",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Overview on mobile - your business HQ: revenue, active rentals, utilization and upcoming"
+    },
+    {
+      "src": "screenshots/phone-02-bookings-list.jpg",
+      "sizes": "750x1624",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Bookings in list view - every reservation with renter, vehicle, dates and status"
+    },
+    {
+      "src": "screenshots/phone-03-bookings-cards.jpg",
+      "sizes": "750x1624",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Bookings as trip cards - a quick visual read on each reservation"
+    },
+    {
+      "src": "screenshots/phone-04-bookings-calendar.jpg",
+      "sizes": "750x1624",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Bookings calendar - a full month of reservations on your phone"
+    },
+    {
+      "src": "screenshots/phone-05-analytics.jpg",
+      "sizes": "750x1624",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Analytics on mobile - revenue, average booking value, net profit and forecast"
+    },
+    {
+      "src": "screenshots/phone-06-vehicles.jpg",
+      "sizes": "750x1624",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Vehicles - manage your fleet, availability, maintenance and daily rates"
     }
   ]
 }

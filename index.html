@@ -757,7 +757,7 @@ body.trk-fs-on .trk-fs-exit{display:grid}
 
 .mnav,.hmb-btn{display:none}  /* hidden on desktop; the max-width:1024px query flips mnav->flex and .hmb-btn->inline-flex (defined here BEFORE the media queries so source-order lets the query win) */
 @media(max-width:960px){
-  .hero__in{grid-template-columns:1fr;gap:36px;padding-top:28px}.hero__panel{order:2}  /* CRO: on mobile/tablet lead with the headline, founder offer and CTA -- the mockup follows, instead of the decorative mockup eating the whole first screen */
+  .hero__in{grid-template-columns:1fr;gap:36px;padding-top:28px}.hero__panel{order:2}  /* CRO: on mobile/tablet lead with the headline, founder offer and CTA -- the mockup follows, instead of the decorative mockup eating the whole first screen. padding-top trimmed 78->28 so the founder-offer box sits right under the sticky nav (was a big empty gap on phones) */
   .feat-grid,.steps{grid-template-columns:1fr 1fr}.atlasio-spot{grid-template-columns:1fr}
   .lp-nav__links{display:none}.lp-burger{display:inline-flex}.lp-signin{display:none}
 }
@@ -1942,9 +1942,9 @@ const Atlas = (function(){
   var NATIVE_STORE=(function(){ try{ var p=new URLSearchParams(location.search).get('atlas_app'); if(p&&/^(ios|android)$/.test(p)) localStorage.setItem('atlas_native_app',p); return localStorage.getItem('atlas_native_app')||''; }catch(e){ return ''; } })();
   function _isNativeApp(){ return !!NATIVE_STORE; }
   function _openWeb(path){ var u='https://atlasrental.io'+(path||''); try{ window.open(u,'_blank','noopener'); }catch(e){ try{ location.href=u; }catch(e2){} } }
-  function _manageOnWeb(kind){ var what=(kind==='plan'||kind==='trial')?'Plans':(kind==='credits'?'Atlas.io credits':(kind==='domain'?'Domains':(kind==='website'?'The website add-on':'Plans &amp; add-ons')));
+  function _manageOnWeb(kind){ var what=(kind==='plan'||kind==='trial')?'Plans':(kind==='credits'?'Atlas.io credits':(kind==='domain'?'Domains':(kind==='website'?'The website add-on':((kind==='email'||kind==='email_pack'||kind==='email_addon')?'Email top-ups':'Plans &amp; add-ons'))));
     openModal('<div class="modal__head"><h3>Managed on the web</h3>'+_xBtn()+'</div><div class="modal__body">'
-      +'<div class="bk-lenhint" style="margin:0 0 14px">'+what+' are managed on your Atlas website so the app stays free of app-store fees. Open atlasrental.io to make changes &mdash; same account, and everything syncs right back here.</div>'
+      +'<div class="bk-lenhint" style="margin:0 0 14px">'+what+' are managed on your Atlas account at atlasrental.io. Open it to make changes &mdash; same account, and everything syncs right back here.</div>'
       +'<button class="btn btn--primary btn--full btn--lg" onclick="Atlas.closeModal();Atlas._openWeb(\'/?manage=1\')">Open atlasrental.io</button></div>'); }
   var _apiCsrf=null;
   var _bootSync=false;   // GAP-1: true only during the on-boot re-hydrate, so a boot-race profile edit can't push a stale whole-profile blob over newer server data before the merge lands
@@ -2576,7 +2576,7 @@ const Atlas = (function(){
   function _fbSel(key){ _fbPending=key||''; try{ Array.prototype.forEach.call(document.querySelectorAll('.fbpick'),function(el){ var on=el.getAttribute('data-fbkey')===key; el.style.borderColor=on?'rgba(201,169,98,.9)':'rgba(201,169,98,.25)'; el.style.boxShadow=on?'0 0 0 1px rgba(201,169,98,.6)':'none'; }); }catch(e){} var c=document.getElementById('fbpickConfirm'); if(!c) return; if(!key||!_FB_META[key]){ c.innerHTML=''; return; } c.innerHTML='<button class="btn btn--primary" style="width:100%" onclick="Atlas._fbCommit()">Make '+esc(_FB_META[key].name)+' my mark &mdash; permanently</button>'; }
   function _fbCommit(){ var key=_fbPending; if(!key||!_FB_META[key]) return; var cb=document.querySelector('#fbpickConfirm .btn'); if(cb){ cb.disabled=true; cb.textContent='Saving...'; } _api('/api/founder/badge',{method:'POST',body:{badge:key}}).then(function(res){ var j=res&&res.json; if(res.status>=200&&res.status<300&&j&&j.ok){ _founderInfo.badge=j.badge||key; try{ if(typeof S!=='undefined'&&S){ S.founderBadge=j.badge||key; save(); } }catch(e){} try{ closeModal(); }catch(e){} try{ toast('Your founder badge is set: '+((_FB_META[j.badge||key]||{}).name||'')); }catch(e){} try{ if(typeof buildApp==='function') buildApp(); }catch(e){} } else { if(cb){ cb.disabled=false; cb.textContent='Try again'; } try{ toast((j&&j.error)||'Could not save your badge.'); }catch(e){} } }).catch(function(){ if(cb){ cb.disabled=false; cb.textContent='Try again'; } try{ toast('Network error -- try again.'); }catch(e){} }); }
   /* ---- app version + owner-only feature flags (in-app upgrades) ---- */
-  var APP_VERSION='2026.11.22lk';
+  var APP_VERSION='2026.11.24ll';
   var APP_CHANGELOG=[
     'Getting started now puts <b>your own domain</b> front and center &mdash; the "Get your own domain name" step is a primary action, and the domain search spells out exactly what a domain does for you and what it costs. A domain bought through Atlas connects to your booking site <b>instantly</b> (we point it and issue the SSL for you), so customers can book at your own address right away. Pricing is shown plainly: the domain is billed yearly at the price you see before you buy, and the booking website that runs on it is included on the Enterprise plan and up, or $19/month (or a one-time $199 build) on Starter and Pro &mdash; no surprises.',
     'Accounting fix: your <b>Net Profit</b>, Profit &amp; Loss and revenue charts now subtract an owner or broker fee the moment a booking is <b>confirmed</b> &mdash; matching the &ldquo;Your take&rdquo; figure shown on the booking itself &mdash; instead of waiting until the cash was collected. A confirmed-but-unpaid booking with a percentage split (for example a $1,600 rental where a broker keeps 85%) no longer shows its full rental as profit; the dashboard now agrees with each booking&rsquo;s own economics to the cent. Your Payouts report still lists only fees on money you have actually collected, since that is what you owe partners in cash.',
@@ -3071,7 +3071,7 @@ const Atlas = (function(){
       }).catch(function(){ toast('Could not reach the SMS server to test'); });
     }).catch(function(){ toast('Could not reach the server \u2014 try again'); });
   }
-  function openEmailPlans(){ var cm=_comms();
+  function openEmailPlans(){ if(_isNativeApp()){ _manageOnWeb('email'); return; } var cm=_comms();
     var html='<div class="modal__head"><h3>Email plans</h3>'+_xBtn()+'</div><div class="modal__body">'
       +'<p style="color:var(--muted);font-size:13.5px;margin:0 0 14px">Every plan includes automated emails and the builder. Pick the monthly volume you need.</p>';
     html+=EMAIL_PLANS.map(function(p){ var cur=p.id===cm.plan;
@@ -13453,6 +13453,7 @@ const Atlas = (function(){
       else { toast((res.json&&res.json.error)||'Could not cancel - please try again'); }
     }).catch(function(){ toast('Network error cancelling'); }); }
   function openPlans(){
+    if(_isNativeApp()){ _manageOnWeb('plan'); return; }   // app-store compliance (Apple 3.1.1): no in-app plan purchase UI -- manage on web
     if(_isComp()){ toast('You have complimentary '+(S&&S.tier==='gold'?'Gold':'full')+' access -- every feature is unlocked and there is no billing to change.'); return; }   // #293: comp / owner tier is LOCKED -- no plan changes
     openModal('<div class="modal__head"><h3>Choose your plan</h3>'+_xBtn()+'</div>'
       +'<div class="modal__body" style="padding-top:10px">'+(_isFounder()?'<div style="background:var(--brand);color:#fff;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:12.5px;font-weight:700">Founder pricing active &mdash; 50% off every plan, for life</div>':'')+TIERS.filter(function(t){return !t.owner && !t.comp;}).map(function(t){ var cur=_isActive()&&S.tier===t.id;
@@ -13465,7 +13466,7 @@ const Atlas = (function(){
       +(_cryptoEnabled?('<button class="btn btn--ghost btn--full btn--sm" style="margin-top:4px" onclick="Atlas._cryptoPlanPrompt()">&#8383; Pay with crypto instead</button><p style="font-size:11px;color:var(--muted);text-align:center;margin-top:4px">Crypto is prepaid (no auto-renew) &mdash; pick how many months.</p>'):'')
       +'</div>');
   }
-  function subscribe(tierId){ if(_isComp()){ toast('Your complimentary access is locked to '+(S&&S.tier==='gold'?'Gold':'your comped tier')+' -- no card or plan change needed.'); return; }   // #293: comp / owner cannot change tier
+  function subscribe(tierId){ if(_isNativeApp()){ _manageOnWeb('plan'); return; } if(_isComp()){ toast('Your complimentary access is locked to '+(S&&S.tier==='gold'?'Gold':'your comped tier')+' -- no card or plan change needed.'); return; }   // #293: comp / owner cannot change tier
     var t=_tier(tierId); var sameTier=_isActive()&&!!S&&S.tier===t.id;   // fix: same active tier means this is a card-only update, not a plan change
     // No raw card number/CVC is ever collected in-app (that would put Atlas in PCI scope). Real card billing runs
     // through Stripe hosted Checkout at go-live; until PAYMENTS_LIVE, activating a plan just sets it up with no charge.
@@ -13505,6 +13506,7 @@ const Atlas = (function(){
     if(PAYMENTS_LIVE && ATLAS_BACKEND && !_isDemoTenant()){ if(!confirm('Cancel your plan?\n\nYour next cycle will not be charged and you keep full access through the end of the period you have already paid for. No refund or credit is issued for unused time. Your data is kept.')) return; _billingCancel(); return; }   // live: actually cancel the Stripe subscription (period-end)
     if(!confirm('Cancel your subscription? You keep all your data.')) return; S.plan='trial'; save(); renderTrialBox(); renderSet(); toast('Plan cancelled -- you keep your data'); }   // fix: billing RBAC guard (mirror confirmSubscribe/buyCredits)
   function openCredits(){
+    if(_isNativeApp()){ _manageOnWeb('credits'); return; }   // app-store compliance (Apple 3.1.1): no in-app credit purchase UI -- manage on web
     openModal('<div class="modal__head"><h3>Atlas.io credits</h3>'+_xBtn()+'</div>'
       +'<div class="modal__body"><div style="text-align:center"><div style="font-size:32px;font-weight:850;color:var(--ink)" class="tnum">'+(_creditsUnlimited()?'Unlimited':_credits().toLocaleString())+'</div><div style="font-size:13px;color:var(--muted)">'+(_creditsUnlimited()?'credits &mdash; included with your plan':('credits available &middot; '+_curTier().credits.toLocaleString()+' free every week'))+'</div></div>'
       +'<div style="font-size:13px;font-weight:700;color:var(--ink);margin:18px 0 8px">Need more? Top up anytime</div>'
@@ -13528,7 +13530,7 @@ const Atlas = (function(){
     return '<div class="set-block"><h3>Email allowance</h3><div class="desc">Booking confirmations, receipts, reminders and marketing all draw from your monthly email allowance. It refills on the 1st; top up anytime.</div>'
       +'<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap"><div style="flex:1;min-width:180px"><div style="font-size:26px;font-weight:850;color:var(--ink)" class="tnum">'+rem+'</div><div style="font-size:12.5px;color:var(--muted)">emails left this month &middot; '+allow+' on '+esc(t.name)+addon+pur+'</div></div>'
       +(m.allowance===Infinity?'':'<button class="btn btn--primary btn--sm" onclick="Atlas.openEmailPacks()">Buy emails</button>')+'</div></div>'; }
-  function openEmailPacks(){ var m=_emailMeter();
+  function openEmailPacks(){ if(_isNativeApp()){ _manageOnWeb('email'); return; } var m=_emailMeter();
     openModal('<div class="modal__head"><h3>Email top-ups</h3>'+_xBtn()+'</div>'
       +'<div class="modal__body"><div style="text-align:center"><div style="font-size:32px;font-weight:850;color:var(--ink)" class="tnum">'+((m.allowance===Infinity)?'Unlimited':((m.remaining)||0).toLocaleString())+'</div><div style="font-size:13px;color:var(--muted)">emails left this month &middot; '+((m.allowance===Infinity)?'unlimited':(((m.allowance)||0).toLocaleString()+'/mo'))+'</div></div>'
       +'<div style="font-size:13px;font-weight:700;color:var(--ink);margin:18px 0 8px">Need more? Add a one-off pack</div>'
@@ -13670,7 +13672,7 @@ const Atlas = (function(){
     var elapsed=Math.floor((Date.now()-start)/86400000)%cyc, daysLeft=Math.max(1, cyc-elapsed);
     return { daysLeft:daysLeft, frac:daysLeft/cyc }; }
   function _minTierIn(ids){ var ci=_tierIndex((S&&S.tier)||'starter'); for(var i=0;i<TIERS.length;i++){ if(ids.indexOf(TIERS[i].id)>=0 && i>ci) return TIERS[i]; } return _nextTierUp(); }   // lowest tier that actually satisfies a feature gate (and is an upgrade), not merely the next tier up
-  function promptUpgrade(reason){ var from=_curTier(), to=(reason==='website'?_minTierIn(WEBSITE_TIERS):_nextTierUp());   // website is gated to enterprise+ -> upgrade straight to the tier that unlocks it, so the customer never pays and stays locked
+  function promptUpgrade(reason){ if(_isNativeApp()){ _manageOnWeb(reason==='website'?'website':'plan'); return; } var from=_curTier(), to=(reason==='website'?_minTierIn(WEBSITE_TIERS):_nextTierUp());   // website is gated to enterprise+ -> upgrade straight to the tier that unlocks it, so the customer never pays and stays locked
     var why = reason==='vehicles' ? ('You have reached your plan limit of '+(from.vehicles===Infinity?'unlimited':from.vehicles+' units')+' on '+esc(from.name)+'.')
             : reason==='locations' ? ('You have reached your plan limit of '+(from.locations===Infinity?'unlimited':from.locations+' '+_fterm(from.locations===1?'loc':'locs'))+' on '+esc(from.name)+'.')
             : reason==='website'  ? ('A built-for-you website is included on '+_websiteTierName()+' and up.')
@@ -14208,6 +14210,7 @@ const Atlas = (function(){
       +(cta?('<div style="margin-top:11px">'+cta+'</div>'):'')+'</div>';
   }
   function _extCard(title,desc,priceStr,sub,btn,onclick,active){
+    if(_isNativeApp()){ priceStr=''; sub=''; btn='Manage'; }   // app-store compliance: no in-app price/Buy CTA in the native app -- the button routes to _manageOnWeb
     return '<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:7px">'
       +'<div style="font-weight:700;font-size:14px">'+esc(title)+'</div>'
       +'<div style="font-size:12.5px;color:var(--muted);line-height:1.5;flex:1">'+esc(desc)+'</div>'
@@ -14240,7 +14243,7 @@ const Atlas = (function(){
     var tiers=TIERS.filter(function(x){return !x.owner&&!x.comp;}), ci=_tierIndex((S&&S.tier)||''), next=tiers.filter(function(x){return _tierIndex(x.id)>ci;})[0];
     if(next && !comp){ h+='<div class="card" style="padding:16px 18px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border:1.5px solid var(--brand,#1E6E4E)">'
       +'<div><div style="font-weight:800;font-size:15px">Upgrade to '+esc(next.name)+'</div><div style="font-size:12.5px;color:var(--muted);margin-top:3px">'+(next.vehicles===Infinity?'Unlimited':next.vehicles)+' assets &middot; '+(next.locations===Infinity?'Unlimited':next.locations)+' locations &middot; '+(next.sites===Infinity?'Unlimited':next.sites)+' sites &middot; '+next.credits.toLocaleString()+' credits/wk &middot; '+next.emails.toLocaleString()+' emails/mo</div></div>'
-      +'<button class="btn btn--primary" onclick="Atlas.openPlans&&Atlas.openPlans()">'+_fDisp(next.price)+'/mo &mdash; Upgrade</button></div>'; }
+      +'<button class="btn btn--primary" onclick="Atlas.openPlans&&Atlas.openPlans()">'+(_isNativeApp()?'Manage plan':(_fDisp(next.price)+'/mo &mdash; Upgrade'))+'</button></div>'; }
     h+='<div style="font-weight:850;font-size:15px;margin:2px 0 11px">Add-ons &amp; upgrades</div>'
       +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">'
       + _extCard('AI credit packs','Top up your Atlas.io AI credits. Never expire; used after your weekly free allotment.','from '+_extC(2500),'one-time','Buy credits','Atlas.openCredits&&Atlas.openCredits()')
@@ -14279,7 +14282,7 @@ const Atlas = (function(){
       +'<div style="width:56px;height:56px;border-radius:15px;background:var(--brand-100);color:var(--brand);display:flex;align-items:center;justify-content:center;margin:0 auto 14px"><svg viewBox="0 0 24 24" fill="none" style="width:28px;height:28px"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M3 12h18M12 3c2.5 2.5 3.5 6 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-6-3.5-9s1-6.5 3.5-9z" stroke="currentColor" stroke-width="1.5"/></svg></div>'
       +'<h3 style="font-size:18px;margin-bottom:6px">Get a website Atlas.io builds for you</h3>'
       +'<p style="font-size:14px;color:var(--muted);max-width:34em;margin:0 auto 18px">Atlas.io turns your brand, '+esc(_adNouns())+' and pricing into a polished site that takes bookings straight into this dashboard. Included free on <b>Enterprise</b> and up.</p>'
-      +'<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn btn--primary" onclick="Atlas.buyWebsiteAddon()">Add it &mdash; $199 once or $19/mo</button><button class="btn btn--ghost" onclick="Atlas.promptUpgrade(\'website\')">Upgrade plan</button></div>'
+      +'<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn btn--primary" onclick="Atlas.buyWebsiteAddon()">'+(_isNativeApp()?'Website add-on':'Add it &mdash; $199 once or $19/mo')+'</button><button class="btn btn--ghost" onclick="Atlas.promptUpgrade(\'website\')">Upgrade plan</button></div>'
       +'<div style="border-top:1px solid var(--line);margin:20px 0 0;padding-top:16px"><div style="font-size:13px;color:var(--muted);margin-bottom:10px">Already have a website? Connect it &mdash; <b>free on any plan</b>.</div><button class="btn btn--ghost btn--sm" onclick="Atlas.connect(\'web\',\'Website embed\')">Connect my existing site</button></div>'
       +'</div>';
   }
@@ -16422,7 +16425,7 @@ const Atlas = (function(){
     var t=rows[i].querySelector('.buy-tick'); if(t){ t.style.background='var(--brand)'; t.style.borderColor='var(--brand)'; t.innerHTML='<svg viewBox="0 0 14 14" fill="none" style="width:12px;height:12px;margin:1px"><path d="M3 7.4l2.6 2.6L11 4.2" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
     setTimeout(function(){ _buyStep(i+1,domain); }, 520);
   }
-  function buyWebsiteAddon(){ if(!_guard('billing','Managing billing'))return;   // fix: billing RBAC guard
+  function buyWebsiteAddon(){ if(_isNativeApp()){ _manageOnWeb('website'); return; } if(!_guard('billing','Managing billing'))return;   // fix: billing RBAC guard
     openModal('<div class="modal__head"><h3>Add your website</h3>'+_xBtn()+'</div><div class="modal__body">'
       +'<p style="font-size:13.5px;color:var(--muted);margin-bottom:16px">Atlas.io builds and hosts a branded site that books straight into your dashboard. Pick how you\'d like to pay.</p>'
       +'<div class="dom-opt on" onclick="Atlas.confirmWebsiteAddon(\'once\')"><div style="display:flex;justify-content:space-between;align-items:center"><div><b>One-time</b><small>Pay once, the site is yours</small></div><b style="font-size:17px;color:var(--ink)">$199</b></div></div>'
