@@ -4,7 +4,10 @@
  *   <script src="https://atlasrental.io/atlas-embed.js" data-atlas-slug="YOUR-SLUG" defer></script>
  * (find YOUR-SLUG in Atlas: Settings > Add booking to your site.)
  *
- * Then EITHER:
+ * That one line is usually all you need: it scans your live page and automatically wires any
+ * booking/quote form it finds -- a filled form creates the booking + notifies you, right on your
+ * page, no popup. Plain contact and newsletter forms are left alone. Add data-atlas-manual to the
+ * script tag to turn auto-detect off and wire things explicitly instead:
  *   A) Turn any button into a booking button -- opens your Atlas booking page in a popup:
  *        <button data-atlas-book>Book now</button>
  *      (or a link:  <a href="#" data-atlas-book>Book now</a>)
@@ -151,12 +154,135 @@
     el.addEventListener('click', function (ev) { ev.preventDefault(); openPopup(el.getAttribute('data-atlas-book') || DEFAULT_SLUG); });
   }
 
+  // ---- AUTO MODE: connect an existing site with ONE pasted line, no data-atlas attributes ----
+  // Reads the live page, maps a booking form's fields by input type + label text, and wires it to post
+  // inline. Deliberately conservative: a form is only wired when it looks like a booking/quote form (has a
+  // name or email AND a date/asset field or booking wording), so plain contact and newsletter forms are
+  // left alone. Scanning the LIVE page (not raw HTML) is what makes this work on Squarespace/Wix/etc, which
+  // build their forms with JavaScript after load.
+  var MAP = [
+    ['email',   /e-?mail/i,                                   function (el) { return el.type === 'email'; }],
+    ['phone',   /phone|mobile|\btel\b|cell|whats ?app/i,      function (el) { return el.type === 'tel'; }],
+    ['start',   /date|check-?in|start|arriv|\bfrom\b|when|pick-?up ?date|rental ?date|\bday\b/i, function (el) { return el.type === 'date'; }],
+    ['time',    /\btime\b|pick-?up ?time/i,                   function (el) { return el.type === 'time'; }],
+    ['periods', /days|nights|period|duration|quantity|\bqty\b|how many|number of|length/i, null],
+    ['asset',   /vehicle|\bcar\b|boat|yacht|asset|\bitem\b|\bunit\b|rental|equipment|property|\broom\b|\bmodel\b|which|\bselect\b|choose/i, null],
+    ['location',/location|pick-?up|branch|where|depot/i,      null],
+    ['deliveryAddr', /deliver|drop-?off|address/i,            null],
+    ['promo',   /promo|coupon|discount|voucher|\bcode\b/i,    null],
+    ['name',    /full ?name|your name|^name$|contact|first ?name|\bname\b/i, null],
+    ['notes',   /note|message|comment|detail|request|special|anything/i, null]
+  ];
+  function labelText(el) {
+    var t = [el.getAttribute('data-atlas-field') || '', el.name || '', el.id || '', el.getAttribute('placeholder') || '', el.getAttribute('aria-label') || ''];
+    try { if (el.id) { var lb = document.querySelector('label[for="' + String(el.id).replace(/["\\]/g, '') + '"]'); if (lb) t.push(lb.textContent || ''); } } catch (e) {}
+    try { var wrap = el.closest && el.closest('label'); if (wrap) t.push(wrap.textContent || ''); } catch (e) {}
+    return t.join(' ').toLowerCase();
+  }
+  function fieldFor(el) {
+    var explicit = el.getAttribute('data-atlas-field'); if (explicit) return explicit;
+    var tag = (el.tagName || '').toLowerCase();
+    if (tag !== 'input' && tag !== 'select' && tag !== 'textarea') return null;
+    var type = (el.type || '').toLowerCase();
+    if (type === 'hidden' || type === 'submit' || type === 'button' || type === 'password' || type === 'file' || type === 'checkbox' || type === 'radio') return null;
+    var lt = labelText(el);
+    for (var i = 0; i < MAP.length; i++) { var m = MAP[i]; if ((m[2] && m[2](el)) || m[1].test(lt)) return m[0]; }
+    if (tag === 'textarea') return 'notes';
+    return null;
+  }
+  function mapForm(form) {
+    var out = {}, els = form.querySelectorAll('input, select, textarea');
+    for (var i = 0; i < els.length; i++) { var f = fieldFor(els[i]); if (f && out[f] == null) out[f] = els[i]; }
+    return out;
+  }
+  function formText(form) {
+    var t = (form.getAttribute('aria-label') || '') + ' ' + (form.className || '') + ' ';
+    try { var btn = form.querySelector('[type=submit], button'); if (btn) t += ' ' + (btn.textContent || ''); } catch (e) {}
+    try { var near = form.closest && form.closest('section, article, div'); if (near) { var hd = near.querySelector('h1, h2, h3, h4'); if (hd) t += ' ' + (hd.textContent || ''); } } catch (e) {}
+    return t.toLowerCase();
+  }
+  function looksBookable(form, fields) {
+    var hasWho = !!(fields.name || fields.email);
+    var hasWhen = !!(fields.start || fields.asset);
+    var bookish = /book|reserv|\brent\b|avail|quote|enquir|inquir|schedule/i.test(formText(form));
+    return hasWho && (hasWhen || bookish);
+  }
+  function readMapped(fields) {
+    var out = {};
+    for (var k in fields) { if (!fields.hasOwnProperty(k)) continue; var el = fields[k]; var v = (el && el.value != null) ? String(el.value).trim() : ''; if (v !== '') out[k] = v; }
+    return out;
+  }
+  function wireAutoForm(form) {
+    if (form.__atlasWired) return false;
+    if (!looksBookable(form, mapForm(form))) return false;
+    form.__atlasWired = true;
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault(); if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      var payload = readMapped(mapForm(form)); payload.slug = cleanSlug(DEFAULT_SLUG);
+      if (!payload.name && !payload.email) { msg(form, 'Please add your name and email.', false); return; }
+      var btn = form.querySelector('[type="submit"], button:not([type="button"])');
+      var label = btn ? btn.textContent : '';
+      if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+      msg(form, '', true);
+      book(payload).then(function (j) {
+        if (j.payUrl) { window.location.href = j.payUrl; return; }
+        try { form.reset(); } catch (e) {}
+        msg(form, j.message || (j.confirmed ? 'Your booking is confirmed.' : 'Booking request received.'), true);
+        if (j.portal) {
+          var a = document.createElement('a'); a.href = j.portal; a.textContent = 'Sign & manage your booking';
+          a.style.cssText = 'display:inline-block;margin-top:8px;font:600 14px system-ui;color:#146c43;';
+          var mm = form.querySelector('[data-atlas-message]'); if (mm) mm.appendChild(document.createElement('br')), mm.appendChild(a);
+        }
+        if (typeof window.atlasOnBooked === 'function') { try { window.atlasOnBooked(j); } catch (e) {} }
+      }).catch(function (err) {
+        var em = (err && err.message) || 'Something went wrong';
+        if (/fetch/i.test(em)) { em = 'Booking is temporarily unavailable. Please try again or contact us.'; console.warn('[atlas-embed] request blocked. Add this site to the allowed list in Atlas: Settings > Add booking to your site (origin: ' + window.location.origin + ').'); }
+        msg(form, em, false);
+      }).then(function () { if (btn) { btn.disabled = false; btn.textContent = label; } });
+    }, true);
+    return true;
+  }
+  function isDeadCta(el) {
+    if (el.__atlasWired) return false;
+    var txt = ((el.textContent || '') + ' ' + (el.getAttribute('aria-label') || '')).toLowerCase();
+    if (!/book|reserv|\brent\b|avail|get started|request a|enquir|inquir/i.test(txt)) return false;
+    if (el.closest && el.closest('form')) return false;              // a submit button inside a form is handled by form wiring
+    if (el.getAttribute('onclick')) return false;                    // never override the site's own handler
+    if ((el.tagName || '').toLowerCase() === 'a') { var href = (el.getAttribute('href') || '').trim(); if (href && href !== '#' && !/^javascript:/i.test(href)) return false; }  // never override a real link
+    return true;
+  }
+  function wireAutoButton(el) {
+    if (el.__atlasWired) return false; el.__atlasWired = true;
+    el.addEventListener('click', function (ev) { ev.preventDefault(); window.open(bookUrl(cleanSlug(DEFAULT_SLUG)), '_blank', 'noopener'); });
+    return true;
+  }
+  function autoScan() {
+    var n = 0, forms = document.querySelectorAll('form:not([data-atlas-ignore])');
+    for (var i = 0; i < forms.length; i++) { if (wireAutoForm(forms[i])) n++; }
+    var cands = document.querySelectorAll('a, button');
+    for (var j = 0; j < cands.length; j++) { if (isDeadCta(cands[j])) wireAutoButton(cands[j]); }
+    return n;
+  }
+  var _obs = null;
+  function observe() {
+    if (_obs || typeof MutationObserver === 'undefined') return;
+    try {
+      _obs = new MutationObserver(function () { autoScan(); });
+      _obs.observe(document.documentElement || document.body, { childList: true, subtree: true });
+      var tries = [400, 1200, 3000, 6000]; for (var i = 0; i < tries.length; i++) setTimeout(autoScan, tries[i]);   // builders inject forms after load
+      setTimeout(function () { try { if (_obs) { _obs.disconnect(); _obs = null; } } catch (e) {} }, 15000);         // then stop observing to stay light
+    } catch (e) {}
+  }
+
+  // ---- wire explicit markers first; if the page has none (and auto is not disabled), fall back to AUTO MODE ----
   function scan() {
     var forms = document.querySelectorAll('[data-atlas-form]'); for (var i = 0; i < forms.length; i++) wireForm(forms[i]);
     var btns = document.querySelectorAll('[data-atlas-book]'); for (var j = 0; j < btns.length; j++) wireButton(btns[j]);
+    var manual = SELF && (SELF.getAttribute('data-atlas-manual') != null || SELF.getAttribute('data-atlas-auto') === 'off');
+    if (!manual && !forms.length && !btns.length) { autoScan(); observe(); }
   }
 
-  window.AtlasBooking = { book: book, openPopup: openPopup, scan: scan };
+  window.AtlasBooking = { book: book, openPopup: openPopup, scan: scan, autoScan: autoScan };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scan); else scan();
 })();
