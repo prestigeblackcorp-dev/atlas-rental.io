@@ -1399,15 +1399,16 @@ function delMember(tid){
   }).catch(function(){ toast('Network error deleting account'); });
 }
 /* ================= grant / comp ================= */
-var _grant = {id:null, action:'tier', tier:'pro', credits:500, days:7};
+var _grant = {id:null, action:'tier', tier:'pro', credits:500, days:7, webGrant:true};
 function openGrant(tid){ var m=null, _L=DATA.members||[]; for(var _i=0;_i<_L.length;_i++){ if(_L[_i].tenant_id===tid){ m=_L[_i]; break; } } if(!m) return;   // look up by safe id -> no tenant-controlled text in the onclick attribute (was a stored-XSS sink)
-  _grant={id:m.tenant_id, action:'gold', tier:m.tier||'pro', credits:500, days:7};
+  _grant={id:m.tenant_id, action:'gold', tier:m.tier||'pro', credits:500, days:7, webGrant:true};
   $('modal').innerHTML =
     '<div class="modal-h"><h3>Grant &middot; '+esc(m.name||m.email||'member')+'</h3><div class="sp" style="flex:1"></div><button class="icon-btn" onclick="closeModal()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>'+
     '<div class="modal-b"><div class="desc">Comp this member instantly &mdash; no charge to them.</div>'+
       '<div class="opt-row" id="gOpts">'+
         '<div class="opt on" data-a="gold" onclick="grantMode(this)">Give Gold</div>'+
         '<div class="opt" data-a="tier" onclick="grantMode(this)">Upgrade tier</div>'+
+        '<div class="opt" data-a="website" onclick="grantMode(this)">Website tab</div>'+
         '<div class="opt" data-a="credits" onclick="grantMode(this)">Add credits</div>'+
         '<div class="opt" data-a="trial" onclick="grantMode(this)">Extend trial</div>'+
         '<div class="opt" data-a="clearsub" onclick="grantMode(this)">Clear stale sub</div>'+
@@ -1422,13 +1423,15 @@ function grantBody(){ var h='';
   else if(_grant.action==='tier'){ h='<div class="fld"><label>Set tier to</label><select class="inp" onchange="_grant.tier=this.value">'+TIERS.map(function(t){return '<option value="'+t+'"'+(t===_grant.tier?' selected':'')+'>'+TIER_LABEL[t]+'</option>';}).join('')+'</select></div><div class="desc" style="margin:0">Marks them active on this tier at no cost.</div>'; }
   else if(_grant.action==='credits'){ h='<div class="fld"><label>Credits to add</label><input class="inp num" type="number" min="0" value="'+_grant.credits+'" oninput="_grant.credits=parseInt(this.value,10)||0"></div><div class="desc" style="margin:0">Added to their Atlas.io credit balance.</div>'; }
   else if(_grant.action==='trial'){ h='<div class="fld"><label>Give extra trial days</label><input class="inp num" id="gDays" type="number" min="1" value="'+_grant.days+'" oninput="_grant.days=parseInt(this.value,10)||0"></div><div style="display:flex;gap:6px;margin:8px 0 4px">'+[7,14,30].map(function(n){return '<button type="button" class="btn ghost" style="padding:5px 12px;font-size:12px" onclick="grantDays('+n+')">+'+n+'</button>';}).join('')+'</div><div class="desc" style="margin:0">Adds days on top of their <b>current</b> trial end (stacks every time you Apply) and defers the first charge to match. The member gets an in-app notice + email. The new charge date shows here after you apply.</div>'; }
+  else if(_grant.action==='website'){ h='<div class="fld"><label>Website tab access</label><select class="inp" onchange="_grant.webGrant=(this.value===\'1\')"><option value="1"'+(_grant.webGrant!==false?' selected':'')+'>Grant &mdash; unlock the Website tab</option><option value="0"'+(_grant.webGrant===false?' selected':'')+'>Revoke the manual grant</option></select></div><div class="desc" style="margin:0">Comps the <b>hosted website</b> (Website tab) to this member regardless of tier &mdash; billed $0. Revoke only removes a manual grant; it never cancels a paid website add-on or a grandfathered site.</div>'; }
   else { h='<div class="desc" style="margin:0">Clears this member\'s leftover <b>subscription id</b> (Stripe/Square) so a stale or test subscription stops counting as a paying seat in your MRR. Does <b>not</b> change their plan, tier, or access.</div>'; }
   $('gBody').innerHTML=h;
 }
-function doGrant(){ var body={tenant_id:_grant.id, action:_grant.action}; if(_grant.action==='tier')body.tier=_grant.tier; else if(_grant.action==='credits')body.credits=_grant.credits; else if(_grant.action==='trial')body.days=_grant.days;
+function doGrant(){ var body={tenant_id:_grant.id, action:_grant.action}; if(_grant.action==='tier')body.tier=_grant.tier; else if(_grant.action==='credits')body.credits=_grant.credits; else if(_grant.action==='trial')body.days=_grant.days; else if(_grant.action==='website')body.grant=(_grant.webGrant!==false);
   var _act=_grant.action, _dys=_grant.days;
   api('/api/admin/grant',{method:'POST',body:body}).then(function(r){ if(r.json&&r.json.ok){ closeModal();
       if(_act==='trial'){ var _nb=r.json.next_bill||r.json.trial_ends, _d=_nb?new Date(Number(_nb)):null, _s=(_d&&isFinite(_d.getTime()))?_d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):''; toast('Trial +'+(r.json.days||_dys)+'d'+(_s?(' -- first charge '+_s):' applied')); }
+      else if(_act==='website'){ var _w=r.json.website; toast(_w==='granted'?'Website tab granted':_w==='revoked'?'Website grant revoked':_w==='already'?'Already has website access':_w==='none'?'No manual grant to revoke':'Website updated'); }
       else toast('Grant applied');
       loadAll(true); }
     else toast((r.json&&r.json.error)||'Could not apply grant'); }); }
@@ -1467,7 +1470,7 @@ $('scrim').addEventListener('click', function(e){ if(e.target===$('scrim')) clos
 /* ================= AI Command Center ================= */
 var _xI='<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
 function _mdLite(s){ return esc(s).replace(/\n{2,}/g,'<br><br>').replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(Do this first:)/i,'<b style="color:var(--gold2)">$1</b>'); }
-var ATLAS_EXPECT_BUILD='2026.11.25ln';
+var ATLAS_EXPECT_BUILD='2026.11.25lo';
 function renderBuildBanner(){ var el=$('buildBanner'); if(!el) return; var c=DATA.aiCfg||{}; if(c.build===ATLAS_EXPECT_BUILD){ el.innerHTML=''; return; } if(!c.build){ el.innerHTML='<div style="background:rgba(224,180,80,.12);border:1px solid rgba(224,180,80,.5);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#d0a53f">Your live worker is <b>out of date</b>. Competitor delete, Deep-read, Generate-brief and the newest features will not work until you paste the latest <b>worker.js</b> into Cloudflare, then reload this page.</div>'; return; } el.innerHTML='<div style="background:rgba(224,180,80,.10);border:1px solid rgba(224,180,80,.4);border-radius:10px;padding:9px 14px;margin-bottom:14px;font-size:12.5px;color:#d0a53f">Live worker build <b>'+esc(c.build)+'</b>; this dashboard expects <b>'+ATLAS_EXPECT_BUILD+'</b>. Paste the latest worker.js to update.</div>'; }
 /* ===== Atlas Counsel: what deserves your attention today ===== */
 function loadCounsel(){ return api('/api/admin/counsel').then(function(r){ if(r.status===404){ DATA.counsel={needsDeploy:true}; } else { DATA.counsel=r.json||{}; } renderCounsel(); }).catch(function(){ var el=$('cxBody'); if(el) el.innerHTML='<div class="mut">Could not reach the platform.</div>'; }); }
