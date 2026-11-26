@@ -435,6 +435,23 @@ img{max-width:100%}
 .avatar{width:32px;height:32px;border-radius:9px;background:var(--brand-700);color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
 .side__acct b{color:#fff;font-size:13px;display:block;line-height:1.2}
 .side__acct small{font-size:11.5px;color:var(--sidebar-text)}
+/* sidebar foot extras: animated founder badge + quick actions (Ask Atlas.io / theme / report bug) */
+.side__extra{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.side__founder{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:linear-gradient(90deg,rgba(201,169,98,.16),rgba(201,169,98,.04));border:1px solid rgba(201,169,98,.4);border-radius:11px;padding:8px 10px;cursor:pointer;transition:.13s}
+.side__founder:hover{border-color:rgba(201,169,98,.75)}
+.side__medal{flex:none;width:34px;height:34px;display:grid;place-items:center}
+.side__medal svg{width:34px;height:34px;animation:sideMedalShine 2.6s ease-in-out infinite}
+.side__medal--empty{font-size:20px;animation:sideMedalShine 2.6s ease-in-out infinite}
+@keyframes sideMedalShine{0%,100%{filter:drop-shadow(0 0 1px rgba(201,169,98,.45))}50%{filter:drop-shadow(0 0 7px rgba(201,169,98,.95))}}
+.side__fmeta{min-width:0;line-height:1.2}
+.side__fmeta b{color:#fff;font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.side__fmeta small{color:var(--sidebar-text);font-size:11px}
+.side__quick{display:flex;gap:6px}
+.side__qbtn{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex:1;background:rgba(255,255,255,.05);border:1px solid var(--sidebar-line);color:var(--sidebar-text);border-radius:9px;padding:8px 9px;font-size:12.5px;font-weight:650;cursor:pointer;transition:.13s}
+.side__qbtn:hover{background:rgba(255,255,255,.1);color:#fff}
+.side__qbtn svg{width:15px;height:15px;flex:none}
+.side__qbtn--icon{flex:none;width:38px;padding:8px}
+@media (prefers-reduced-motion:reduce){.side__medal svg,.side__medal--empty{animation:none}}
 
 .main{display:flex;flex-direction:column;min-width:0;background:var(--paper)}
 .topbar{position:sticky;top:0;z-index:20;background:var(--topbar-bg);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:calc(13px + env(safe-area-inset-top)) 26px 13px;display:flex;align-items:center;gap:16px}
@@ -1604,6 +1621,7 @@ body.trk-fs-on .trk-fs-exit{display:grid}
       <nav class="side__nav" id="sideNav"></nav>
       <div class="side__foot">
         <div class="trial-box" id="trialBox"></div>
+        <div class="side__extra" id="sideExtra"></div>
         <div class="side__acct">
           <div class="avatar" id="acctAv" onclick="Atlas.goSettings('billing')" style="cursor:pointer">A</div>
           <div style="min-width:0;flex:1;cursor:pointer" onclick="Atlas.goSettings('billing')"><b id="acctName">Owner</b><small id="acctBiz">Your Company</small></div>
@@ -1884,7 +1902,7 @@ const Atlas = (function(){
   function _applyTheme(t){ t=(t||_theme())==='dark'?'dark':'light'; if(t==='dark' && !_canDark()) t='light'; document.documentElement.setAttribute('data-theme',t); }
   function setTheme(t){ t=t==='dark'?'dark':'light'; if(t==='dark' && !_canDark()){ try{ toast('Dark mode unlocks once you start a paid plan'); }catch(e){} return; } _lsSet('atlas_theme',t); _applyTheme(t); try{ applyBrand(); }catch(e){}   // fix: recompute brand tints for the new theme so dark-mode hover rows stay legible
     if(typeof S!=='undefined'&&S){ if(!S.prefs)S.prefs={}; S.prefs.theme=t; try{save();}catch(e){} }
-    try{ renderSet(); }catch(e){} try{ if(document.getElementById('navDrawer').classList.contains('on')) _renderDrawer(); }catch(e){}
+    try{ renderSet(); }catch(e){} try{ if(document.getElementById('navDrawer').classList.contains('on')) _renderDrawer(); }catch(e){} try{ if(typeof _renderSideFoot==='function') _renderSideFoot(); }catch(e){}   // flip the sidebar theme toggle's icon/label to the new theme
     setTimeout(function(){ try{drawRevChart();}catch(e){} try{drawSrcChart();}catch(e){} },20); }
   function _emailKey(e){ return String(e||'').trim().toLowerCase(); }
   function _passHash(s){ var h=5381,i; for(i=0;i<String(s).length;i++){ h=((h<<5)+h+String(s).charCodeAt(i))>>>0; } return 'h'+h.toString(36); }
@@ -2576,7 +2594,7 @@ const Atlas = (function(){
   function _fbSel(key){ _fbPending=key||''; try{ Array.prototype.forEach.call(document.querySelectorAll('.fbpick'),function(el){ var on=el.getAttribute('data-fbkey')===key; el.style.borderColor=on?'rgba(201,169,98,.9)':'rgba(201,169,98,.25)'; el.style.boxShadow=on?'0 0 0 1px rgba(201,169,98,.6)':'none'; }); }catch(e){} var c=document.getElementById('fbpickConfirm'); if(!c) return; if(!key||!_FB_META[key]){ c.innerHTML=''; return; } c.innerHTML='<button class="btn btn--primary" style="width:100%" onclick="Atlas._fbCommit()">Make '+esc(_FB_META[key].name)+' my mark &mdash; permanently</button>'; }
   function _fbCommit(){ var key=_fbPending; if(!key||!_FB_META[key]) return; var cb=document.querySelector('#fbpickConfirm .btn'); if(cb){ cb.disabled=true; cb.textContent='Saving...'; } _api('/api/founder/badge',{method:'POST',body:{badge:key}}).then(function(res){ var j=res&&res.json; if(res.status>=200&&res.status<300&&j&&j.ok){ _founderInfo.badge=j.badge||key; try{ if(typeof S!=='undefined'&&S){ S.founderBadge=j.badge||key; save(); } }catch(e){} try{ closeModal(); }catch(e){} try{ toast('Your founder badge is set: '+((_FB_META[j.badge||key]||{}).name||'')); }catch(e){} try{ if(typeof buildApp==='function') buildApp(); }catch(e){} } else { if(cb){ cb.disabled=false; cb.textContent='Try again'; } try{ toast((j&&j.error)||'Could not save your badge.'); }catch(e){} } }).catch(function(){ if(cb){ cb.disabled=false; cb.textContent='Try again'; } try{ toast('Network error -- try again.'); }catch(e){} }); }
   /* ---- app version + owner-only feature flags (in-app upgrades) ---- */
-  var APP_VERSION='2026.11.25lq';
+  var APP_VERSION='2026.11.25lr';
   var APP_CHANGELOG=[
     'Getting started now puts <b>your own domain</b> front and center &mdash; the "Get your own domain name" step is a primary action, and the domain search spells out exactly what a domain does for you and what it costs. A domain bought through Atlas connects to your booking site <b>instantly</b> (we point it and issue the SSL for you), so customers can book at your own address right away. Pricing is shown plainly: the domain is billed yearly at the price you see before you buy, and the booking website that runs on it is included on the Enterprise plan and up, or $19/month (or a one-time $199 build) on Starter and Pro &mdash; no surprises.',
     'Accounting fix: your <b>Net Profit</b>, Profit &amp; Loss and revenue charts now subtract an owner or broker fee the moment a booking is <b>confirmed</b> &mdash; matching the &ldquo;Your take&rdquo; figure shown on the booking itself &mdash; instead of waiting until the cash was collected. A confirmed-but-unpaid booking with a percentage split (for example a $1,600 rental where a broker keeps 85%) no longer shows its full rental as profit; the dashboard now agrees with each booking&rsquo;s own economics to the cent. Your Payouts report still lists only fees on money you have actually collected, since that is what you owe partners in cash.',
@@ -13200,7 +13218,22 @@ const Atlas = (function(){
   function _creditsUnlimited(){ try{ return _credits()===Infinity || !!(_curTier()&&_curTier().credits===Infinity) || _isOwnerAcct(); }catch(e){ return false; } }   // true unlimited (owner / Diamond) -> credit meters show "Unlimited" instead of a number   // server balance is authoritative when live
   function _spendCredit(n){ n=n||1; _ensureCredits(); if(_credits()<n) return false; var f=Math.min(S.credits.free,n); S.credits.free-=f; S.credits.purchased-=(n-f); save(); return true; }
   function _addCredits(n){ _ensureCredits(); S.credits.purchased=(S.credits.purchased||0)+n; if(typeof S.credits.bal==='number') S.credits.bal=(S.credits.bal||0)+n; save(); }
-  function renderTrialBox(){ var el=document.getElementById('trialBox'); if(!el) return; var t=_curTier(), c=_credits();
+  // Sidebar foot extras: a compact ANIMATED founder badge (founders only) + quick actions (Ask Atlas.io / theme toggle / report
+  // a bug) that live only in the topbar + mobile drawer otherwise. The plan tier + Atlas.io credits stay in #trialBox above.
+  function _renderSideFoot(){ var el=document.getElementById('sideExtra'); if(!el) return; var html='';
+    try{ if((typeof _isFounder==='function'&&_isFounder())||(typeof S!=='undefined'&&S&&S.founder)){
+      var no=((typeof S!=='undefined'&&S&&S.founderNo)||(typeof _founderInfo!=='undefined'&&_founderInfo.no)||0);
+      var key=((typeof _founderInfo!=='undefined'&&_founderInfo.badge)||(typeof S!=='undefined'&&S&&S.founderBadge)||'');
+      var medal=key?_founderBadgeSvg(key,34):'';
+      html+='<button class="side__founder" onclick="Atlas._founderBadgePick&&Atlas._founderBadgePick()" title="'+(key?'Your founder badge':'Choose your founder badge')+'"><span class="side__medal'+(medal?'':' side__medal--empty')+'">'+(medal||'&#11088;')+'</span><span class="side__fmeta"><b>Founding member</b><small>'+(no?('#'+Number(no).toLocaleString()+' of 1,000'):'50% off for life')+'</small></span></button>';
+    } }catch(e){}
+    var dark=(typeof _theme==='function'&&_theme()==='dark'); var canDark=(typeof _canDark==='function'&&_canDark());
+    html+='<div class="side__quick">';
+    html+='<button class="side__qbtn" onclick="Atlas.openAio()" title="Ask Atlas.io"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2l1.6 4.4L16 8l-4.4 1.6L10 14l-1.6-4.4L4 8l4.4-1.6L10 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg><span>Ask Atlas.io</span></button>';
+    if(canDark) html+='<button class="side__qbtn side__qbtn--icon" onclick="Atlas.setTheme(\''+(dark?'light':'dark')+'\')" title="'+(dark?'Switch to light mode':'Switch to dark mode')+'"><svg viewBox="0 0 20 20" fill="none">'+(dark?'<circle cx="10" cy="10" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.6 4.6l1.4 1.4M14 14l1.4 1.4M15.4 4.6l-1.4 1.4M6 14l-1.4 1.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>':'<path d="M16 11A6 6 0 019 4a6 6 0 108 8z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>')+'</svg></button>';
+    html+='<button class="side__qbtn side__qbtn--icon" onclick="Atlas.reportBug()" title="Report a bug"><svg viewBox="0 0 20 20" fill="none"><path d="M10 3.2l6.8 11.6H3.2L10 3.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M10 8v3.6M10 13.6v.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>';
+    html+='</div>'; el.innerHTML=html; }
+  function renderTrialBox(){ var el=document.getElementById('trialBox'); try{ _renderSideFoot(); }catch(e){} if(!el) return; var t=_curTier(), c=_credits();
     if(t.id==='diamond'){ el.innerHTML='<b>&#9670; Diamond &middot; Owner</b><small>Limitless &middot; every feature unlocked</small><button class="btn btn--ghost btn--sm btn--full" style="margin-top:10px" onclick="Atlas.goSettings(\'owner\')">Owner console</button>'; return; }
     if(t.comp){ el.innerHTML='<b>'+(t.id==='gold'?'&#9733; Gold':'Free access')+'</b><small>Comped &middot; all features &middot; '+c.toLocaleString()+' credits</small>'; return; }
     if(_isActive()){
