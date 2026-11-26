@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Atlas Rental.io Partner Program</title>
+<meta name="description" content="Partner with Atlas Rental.io and earn recurring commission on the subscription revenue of every rental business you refer.">
+<style>
+  :root{
+    --bg:#0a0f0d; --bg2:#0c1411; --surf:#111a16; --surf2:#152019; --surf3:#1a2720;
+    --line:#213029; --line2:#2b3d34;
+    --ink:#e9f2ec; --mut:#8ba095; --mut2:#7e9186;
+    --em:#31d68a; --em2:#23a86c; --emdim:#153a2a;
+    --gold:#efc978; --gold2:#f4d99a;
+    --red:#ff6f6f; --amber:#f4b454; --blue:#6cb8ff;
+    --r:16px; --r2:12px; --r3:9px;
+    --sh:0 1px 0 rgba(255,255,255,.03) inset, 0 8px 30px rgba(0,0,0,.42);
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{background:#080c0a}
+  html,body{margin:0;padding:0}
+  body{background:radial-gradient(1200px 700px at 78% -8%,#123122 0%,rgba(18,49,34,0) 60%),linear-gradient(180deg,#0a0f0d,#080c0a);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh;font-size:15px;line-height:1.55}
+  button{font-family:inherit;cursor:pointer}
+  a{color:var(--em);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px}
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0;gap:12px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px;letter-spacing:.2px;color:var(--ink)}
+  .brand:hover{text-decoration:none}
+  .logo{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,var(--em2),#0f6b45);color:#eafff4;font-weight:900;box-shadow:0 6px 18px rgba(35,168,108,.35)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line2);background:var(--surf2);color:var(--ink);border-radius:var(--r3);padding:11px 16px;font-size:14px;font-weight:650;transition:border-color .15s,background .15s,transform .05s}
+  .btn:hover{border-color:var(--em2);text-decoration:none}
+  .btn:active{transform:translateY(1px)}
+  .btn--primary{background:linear-gradient(160deg,var(--em),var(--em2));border-color:transparent;color:#05140d}
+  .btn--primary:hover{filter:brightness(1.05)}
+  .btn--full{width:100%}
+  .btn--lg{padding:14px 22px;font-size:15px}
+  .hero{padding:40px 0 20px;text-align:center}
+  .eyebrow{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--em);background:var(--emdim);border:1px solid var(--line2);border-radius:999px;padding:6px 13px;margin-bottom:18px}
+  h1{font-size:40px;line-height:1.1;letter-spacing:-.02em;margin:0 0 16px;font-weight:850}
+  h1 .accent{color:var(--em)}
+  .sub{font-size:17px;color:var(--mut);max-width:620px;margin:0 auto 26px;line-height:1.6}
+  .cta-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:38px 0 10px}
+  .stat{background:linear-gradient(180deg,var(--surf2),var(--surf));border:1px solid var(--line);border-radius:var(--r2);padding:18px 14px;text-align:center}
+  .stat b{display:block;font-size:26px;font-weight:850;color:var(--em);letter-spacing:-.01em}
+  .stat span{display:block;font-size:12px;color:var(--mut);margin-top:5px}
+  .section{padding:30px 0}
+  .section h2{font-size:24px;letter-spacing:-.01em;margin:0 0 8px;text-align:center}
+  .section .lead{color:var(--mut);text-align:center;max-width:560px;margin:0 auto 26px}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .step{background:var(--surf);border:1px solid var(--line);border-radius:var(--r2);padding:20px 18px}
+  .step .n{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--emdim);color:var(--em);font-weight:850;font-size:15px;margin-bottom:12px}
+  .step h3{margin:0 0 6px;font-size:16px}
+  .step p{margin:0;color:var(--mut);font-size:13.5px}
+  .card{background:linear-gradient(180deg,var(--surf2),var(--surf));border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:26px}
+  .rule{background:var(--surf);border:1px solid var(--line2);border-left:3px solid var(--gold);border-radius:var(--r3);padding:15px 17px;margin:22px 0;font-size:13.5px;color:var(--ink);line-height:1.6}
+  .rule b{color:var(--gold2)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+  .fld{margin-bottom:14px}
+  .fld label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut2);margin:0 0 6px 2px;font-weight:650}
+  .fld .opt{text-transform:none;letter-spacing:0;color:var(--mut);font-weight:400}
+  .inp,textarea.inp,select.inp{width:100%;background:#0c1310;border:1px solid var(--line2);border-radius:var(--r3);color:var(--ink);padding:12px 13px;font-size:15px;outline:none;transition:border-color .15s,box-shadow .15s;font-family:inherit}
+  .inp:focus{border-color:var(--em2);box-shadow:0 0 0 3px rgba(49,214,138,.12)}
+  textarea.inp{resize:vertical;min-height:78px;line-height:1.5}
+  .msg{border-radius:var(--r3);padding:13px 15px;font-size:14px;margin-bottom:16px;display:none;line-height:1.5}
+  .msg--err{background:rgba(255,111,111,.1);border:1px solid rgba(255,111,111,.4);color:#ffc6c6}
+  .msg--ok{background:var(--emdim);border:1px solid var(--line2);color:#bff3da}
+  .note{font-size:12px;color:var(--mut2);margin-top:10px;text-align:center}
+  .foot{padding:36px 0;text-align:center;color:var(--mut2);font-size:12.5px;border-top:1px solid var(--line);margin-top:30px}
+  .foot a{color:var(--mut)}
+  .closed{display:none;text-align:center;background:var(--surf);border:1px solid var(--line2);border-radius:var(--r2);padding:30px 24px;color:var(--mut);margin:20px 0}
+  .ok-wrap{display:none;text-align:center;padding:14px 0}
+  .ok-ic{width:60px;height:60px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;background:var(--emdim);color:var(--em);font-size:30px}
+  @media(max-width:720px){ h1{font-size:30px} .stats{grid-template-columns:repeat(2,1fr)} .steps{grid-template-columns:1fr} .grid2{grid-template-columns:1fr} .sub{font-size:15px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="nav">
+    <a class="brand" href="https://atlasrental.io"><span class="logo">A</span> Atlas Rental.io</a>
+    <a class="btn" href="/affiliate/dashboard/">Partner sign in</a>
+  </div>
+
+  <div class="hero">
+    <span class="eyebrow">Partner Program</span>
+    <h1>Earn <span class="accent">recurring</span> commission for every rental business you bring to Atlas.</h1>
+    <p class="sub">Atlas Rental.io is the all-in-one platform rental businesses run on &mdash; bookings, contracts, payments, a branded site and an AI assistant. Refer owners you know, and earn a share of their subscription every month they stay.</p>
+    <div class="cta-row">
+      <a class="btn btn--primary btn--lg" href="#apply">Become a partner</a>
+      <a class="btn btn--lg" href="/affiliate/dashboard/">Partner sign in</a>
+    </div>
+    <div class="stats" id="stats">
+      <div class="stat"><b id="stCommission">&mdash;</b><span>Commission rate</span></div>
+      <div class="stat"><b id="stRecurring">Monthly</b><span>Recurring payout</span></div>
+      <div class="stat"><b id="stWindow">&mdash;</b><span>Attribution window</span></div>
+      <div class="stat"><b id="stMin">&mdash;</b><span>Minimum payout</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>How it works</h2>
+    <p class="lead">No cost to join. Share your link, we track the rest.</p>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><h3>Apply</h3><p>Tell us a little about your audience. We review every application and email you once you are approved.</p></div>
+      <div class="step"><div class="n">2</div><h3>Share your link</h3><p>Get a unique referral link and QR code. Anyone who signs up through it is attributed to you for the full window.</p></div>
+      <div class="step"><div class="n">3</div><h3>Earn every month</h3><p>When a referred business becomes a paying subscriber, you earn commission on their subscription &mdash; every month they stay.</p></div>
+    </div>
+  </div>
+
+  <div class="section" id="apply">
+    <div class="card">
+      <div class="closed" id="closedBox">
+        <h2 style="margin-top:0">Applications are not open right now</h2>
+        <p>The Atlas partner program is not accepting new applications at the moment. Please check back soon.</p>
+      </div>
+
+      <div id="applyWrap">
+        <h2 style="margin:0 0 6px;text-align:left">Apply to become a partner</h2>
+        <p style="color:var(--mut);margin:0 0 20px">Approval is manual and usually quick. You will set a password now so you can sign in to your partner dashboard once approved.</p>
+
+        <div class="rule">
+          <b>How commissions work:</b> you earn exclusively on the <b>recurring Atlas subscription revenue (MRR)</b> of the businesses you refer &mdash; every month they keep paying. Commissions are <b>not</b> paid on add-ons, custom domains, credit or email top-ups, setup or one-time fees, or trial periods. Clear and honest, so there are no surprises on either side.
+        </div>
+
+        <div class="msg msg--err" id="formErr"></div>
+
+        <form id="applyForm" autocomplete="on" novalidate>
+          <div class="grid2">
+            <div class="fld"><label>Full name</label><input class="inp" id="fName" type="text" autocomplete="name" placeholder="Jordan Rivera"></div>
+            <div class="fld"><label>Email address</label><input class="inp" id="fEmail" type="email" autocomplete="email" placeholder="you@example.com"></div>
+          </div>
+          <div class="fld"><label>Create a password <span class="opt">&mdash; for your partner dashboard</span></label><input class="inp" id="fPass" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div>
+          <div class="grid2">
+            <div class="fld"><label>Country</label><input class="inp" id="fCountry" type="text" autocomplete="country-name" placeholder="United States"></div>
+            <div class="fld"><label>City / region <span class="opt">&mdash; optional</span></label><input class="inp" id="fCity" type="text" placeholder="Austin, TX"></div>
+          </div>
+          <div class="fld"><label>Website or main channel <span class="opt">&mdash; optional</span></label><input class="inp" id="fWebsite" type="text" inputmode="url" maxlength="200" placeholder="https://..."></div>
+          <div class="grid2">
+            <div class="fld"><label>Instagram <span class="opt">&mdash; optional</span></label><input class="inp" id="fInstagram" type="text" maxlength="120" placeholder="@handle"></div>
+            <div class="fld"><label>YouTube <span class="opt">&mdash; optional</span></label><input class="inp" id="fYoutube" type="text" maxlength="120" placeholder="channel or @handle"></div>
+          </div>
+          <div class="grid2">
+            <div class="fld"><label>TikTok <span class="opt">&mdash; optional</span></label><input class="inp" id="fTiktok" type="text" maxlength="120" placeholder="@handle"></div>
+            <div class="fld"><label>Other channel <span class="opt">&mdash; optional</span></label><input class="inp" id="fOther" type="text" maxlength="200" placeholder="X, LinkedIn, Facebook..."></div>
+          </div>
+          <div class="fld"><label>Who is your audience? <span class="opt">&mdash; optional</span></label><textarea class="inp" id="fAudience" placeholder="e.g. car & exotic rental owners, event pros, party-rental operators..."></textarea></div>
+          <div class="fld"><label>How do you plan to promote Atlas? <span class="opt">&mdash; optional</span></label><textarea class="inp" id="fStrategy" placeholder="e.g. my newsletter, a review video, direct outreach to owners I know..."></textarea></div>
+          <button type="submit" class="btn btn--primary btn--full btn--lg" id="submitBtn">Submit application</button>
+          <div class="note">Already a partner? <a href="/affiliate/dashboard/">Sign in to your dashboard</a></div>
+        </form>
+
+        <div class="ok-wrap" id="okWrap">
+          <div class="ok-ic">&#10003;</div>
+          <h2 style="margin:0 0 8px">Application received</h2>
+          <p style="color:var(--mut);max-width:440px;margin:0 auto 20px" id="okMsg">We will review it and email you once your account is approved. You can then sign in to your partner dashboard.</p>
+          <a class="btn" href="/affiliate/dashboard/">Go to partner sign in</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    Atlas Rental.io &middot; <a href="https://atlasrental.io">Home</a> &middot; <a href="https://atlasrental.io/terms">Terms</a> &middot; <a href="https://atlasrental.io/privacy">Privacy</a>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var ATLAS_API=(/(^|\.)atlasrental\.io$/.test(location.hostname)) ? '' : 'https://atlas.prestigeblackcorp.workers.dev';
+  function $(id){ return document.getElementById(id); }
+  function api(path, opts){ opts=opts||{}; var h={'Content-Type':'application/json'};
+    return fetch(ATLAS_API+path,{method:opts.method||'GET',headers:h,credentials:'include',body:opts.body?JSON.stringify(opts.body):undefined})
+      .then(function(r){ return r.json().catch(function(){return{};}).then(function(j){ return {status:r.status,json:j}; }); }); }
+  function showErr(m){ var e=$('formErr'); if(!e) return; if(m){ e.textContent=m; e.style.display='block'; try{ e.scrollIntoView({behavior:'smooth',block:'center'}); }catch(x){} } else { e.style.display='none'; } }
+
+  // Load public program facts (also confirms whether applications are open).
+  api('/api/affiliate/program').then(function(r){
+    var j=r.json||{};
+    if(!(j && j.enabled)){ $('closedBox').style.display='block'; $('applyWrap').style.display='none'; var st=$('stats'); if(st) st.style.display='none'; return; }
+    if(j.commission_pct!=null) $('stCommission').textContent=(Math.round(j.commission_pct*10)/10)+'%';
+    if(j.attribution_window_days!=null) $('stWindow').textContent=j.attribution_window_days+' days';
+    if(j.min_payout!=null) $('stMin').textContent='$'+Number(j.min_payout).toFixed(0);
+  }).catch(function(){ /* leave placeholders; the form still submits and the server is authoritative */ });
+
+  $('applyForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    showErr('');
+    var name=($('fName').value||'').trim();
+    var email=($('fEmail').value||'').trim();
+    var pass=($('fPass').value||'');
+    if(!name){ showErr('Please enter your name.'); $('fName').focus(); return; }
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ showErr('Please enter a valid email address.'); $('fEmail').focus(); return; }
+    if(pass.length<8){ showErr('Your password needs to be at least 8 characters.'); $('fPass').focus(); return; }
+    var body={ name:name, email:email, password:pass,
+      country:($('fCountry').value||'').trim(), city:($('fCity').value||'').trim(),
+      website:($('fWebsite').value||'').trim(), instagram:($('fInstagram').value||'').trim(), youtube:($('fYoutube').value||'').trim(),
+      tiktok:($('fTiktok').value||'').trim(), other:($('fOther').value||'').trim(),
+      audience:{ note:($('fAudience').value||'').trim() }, strategy:{ note:($('fStrategy').value||'').trim() } };
+    var btn=$('submitBtn'); btn.disabled=true; var _t=btn.textContent; btn.textContent='Submitting...';
+    api('/api/affiliate/apply',{method:'POST',body:body}).then(function(r){
+      btn.disabled=false; btn.textContent=_t;
+      var j=r.json||{};
+      if(r.status===200 && j.ok && j.received){
+        if(j.message) $('okMsg').textContent=j.message;
+        $('applyForm').style.display='none';
+        $('okWrap').style.display='block';
+        try{ $('okWrap').scrollIntoView({behavior:'smooth',block:'center'}); }catch(x){}
+        return;
+      }
+      if(r.status===200 && j.ok && j.enabled===false){ $('closedBox').style.display='block'; $('applyWrap').style.display='none'; return; }
+      showErr((j && j.error) || 'Something went wrong. Please try again.');
+    }).catch(function(){ btn.disabled=false; btn.textContent=_t; showErr('Network error. Please check your connection and try again.'); });
+  });
+})();
+</script>
+</body>
+</html>

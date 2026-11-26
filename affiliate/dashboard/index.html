@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="robots" content="noindex,nofollow">
+<title>Atlas Partner Dashboard</title>
+<style>
+  :root{
+    --bg:#eef4f1; --bg2:#e7efe9;
+    --card:#ffffff; --card2:#f5faf7; --card3:#eef6f1;
+    --line:#e4ece7; --line2:#d7e4dc;
+    --ink:#12201a; --ink2:#2c3b33; --mut:#67796f; --mut2:#8a9a90;
+    --em:#15a86c; --em2:#0f8f5a; --emdk:#0b6e46; --em050:#eafaf2; --em100:#d2f0e0;
+    --gold:#c2962f; --gold050:#fbf4e3;
+    --amber:#b7791f; --amber050:#fbf1df;
+    --red:#d6453b; --red050:#fcebe9;
+    --blue:#2f6fed;
+    --r:18px; --r2:13px; --r3:10px;
+    --sh:0 1px 2px rgba(16,40,28,.05),0 10px 28px rgba(16,40,28,.06);
+    --sh-sm:0 1px 2px rgba(16,40,28,.06);
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{background:var(--bg)}
+  html,body{margin:0;padding:0}
+  body{background:radial-gradient(1100px 620px at 85% -10%,#dcefe3 0%,rgba(220,239,227,0) 58%),linear-gradient(180deg,#eef4f1,#e9f1ec);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh;font-size:14.5px;line-height:1.5}
+  button{font-family:inherit;cursor:pointer}
+  a{color:var(--em2)}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 18px}
+
+  /* ---- login gate ---- */
+  #gate{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:22px;background:radial-gradient(900px 560px at 50% -5%,#d2f1df,#eaf2ec 60%)}
+  .gate-card{width:100%;max-width:412px;background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--sh);padding:32px 28px;text-align:center}
+  .gate-badge{width:56px;height:56px;border-radius:16px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,var(--em),var(--emdk));box-shadow:0 8px 22px rgba(21,168,108,.32);color:#fff;font-weight:900;font-size:23px}
+  .gate-card h1{margin:0 0 5px;font-size:22px;letter-spacing:-.01em;color:var(--ink)}
+  .gate-card p{margin:0 0 20px;color:var(--mut);font-size:13px;line-height:1.5}
+  .fld{position:relative;text-align:left;margin-bottom:13px}
+  .fld label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:0 0 6px 2px;font-weight:700}
+  .inp{width:100%;background:#fff;border:1px solid var(--line2);border-radius:var(--r3);color:var(--ink);padding:12px 13px;font-size:15px;outline:none;transition:border-color .15s,box-shadow .15s;font-family:inherit}
+  .inp::placeholder{color:#aab6ae}
+  .inp:focus{border-color:var(--em);box-shadow:0 0 0 3px rgba(21,168,108,.14)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line2);background:#fff;color:var(--ink);border-radius:var(--r3);padding:11px 16px;font-size:14px;font-weight:650;transition:border-color .15s,background .15s,box-shadow .15s,transform .05s}
+  .btn:hover{border-color:var(--em);background:var(--em050)}
+  .btn:active{transform:translateY(1px)}
+  .btn--primary{background:linear-gradient(160deg,var(--em),var(--em2));border-color:transparent;color:#fff;box-shadow:0 6px 16px rgba(21,168,108,.25)}
+  .btn--primary:hover{filter:brightness(1.05);background:linear-gradient(160deg,var(--em),var(--em2))}
+  .btn--full{width:100%}
+  .btn--sm{padding:8px 12px;font-size:12.5px}
+  .btn--ghost{background:transparent;border-color:var(--line2)}
+  .link-btn{background:none;border:0;color:var(--em2);font-size:12.5px;font-weight:650;padding:8px;margin-top:4px}
+  .link-btn:hover{text-decoration:underline}
+  .msg{border-radius:var(--r3);padding:11px 13px;font-size:13px;margin-bottom:13px;display:none;line-height:1.45;text-align:left}
+  .msg--err{background:var(--red050);border:1px solid #f3c6c2;color:#a8352d}
+  .msg--ok{background:var(--em050);border:1px solid var(--em100);color:var(--emdk)}
+
+  /* ---- dashboard shell ---- */
+  #app{display:none;padding-bottom:56px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 0 14px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px;color:var(--ink)}
+  .logo{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,var(--em),var(--emdk));color:#fff;font-weight:900;box-shadow:0 5px 14px rgba(21,168,108,.28)}
+  .who{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+  .who .nm{font-size:13px;color:var(--mut);font-weight:600}
+  .pill{display:inline-block;font-size:11px;font-weight:750;letter-spacing:.02em;border-radius:999px;padding:3px 10px;text-transform:capitalize}
+  .pill--active{background:var(--em050);color:var(--emdk);border:1px solid var(--em100)}
+  .pill--pending{background:var(--amber050);color:var(--amber);border:1px solid #f0dcae}
+  .pill--gray{background:#eef2f0;color:var(--mut);border:1px solid var(--line2)}
+  .pill--paid{background:var(--em050);color:var(--emdk);border:1px solid var(--em100)}
+  .pill--reversed{background:var(--red050);color:var(--red);border:1px solid #f3c6c2}
+
+  /* ---- tab nav ---- */
+  .tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:5px;box-shadow:var(--sh-sm);overflow-x:auto;margin-bottom:20px}
+  .tab{flex:1;min-width:max-content;border:0;background:none;color:var(--mut);font-size:13px;font-weight:700;padding:9px 14px;border-radius:10px;white-space:nowrap;transition:background .15s,color .15s}
+  .tab:hover{color:var(--ink)}
+  .tab.on{background:var(--em050);color:var(--emdk)}
+  .panel{display:none}
+  .panel.on{display:block}
+
+  /* ---- cards & bits ---- */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-sm);padding:22px;margin-bottom:16px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);margin:0 0 15px;font-weight:750}
+  .hello{font-size:22px;font-weight:800;letter-spacing:-.01em;margin:2px 0 16px;color:var(--ink)}
+  .hello .wave{font-weight:400}
+  .linkrow{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+  .linkbox{flex:1;min-width:250px}
+  .reflink{display:flex;gap:8px;align-items:stretch;background:var(--card2);border:1px solid var(--line2);border-radius:var(--r3);padding:5px 5px 5px 13px}
+  .reflink input{flex:1;background:none;border:0;color:var(--ink);font-family:var(--mono);font-size:13px;outline:none;min-width:0}
+  .qr{width:138px;height:138px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:9px;flex:none;display:flex;align-items:center;justify-content:center;box-shadow:var(--sh-sm)}
+  .qr img,.qr svg{width:100%;height:100%;display:block}
+  .qr-dl{display:block;text-align:center;font-size:11.5px;margin-top:7px;color:var(--em2);font-weight:650}
+  .statrow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .mini{background:var(--card2);border:1px solid var(--line);border-radius:var(--r2);padding:16px 15px}
+  .mini .k{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;font-weight:650}
+  .mini .v{font-size:25px;font-weight:850;margin-top:6px;letter-spacing:-.015em;color:var(--ink)}
+  .mini .v.money{color:var(--em2)}
+  .earn{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .earn .mini{background:linear-gradient(180deg,#fff,var(--card3))}
+  .earn .mini .v{font-size:22px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--line)}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:700}
+  tbody tr:last-child td{border-bottom:0}
+  td.money{font-variant-numeric:tabular-nums;font-weight:700}
+  .tbl-wrap{overflow-x:auto}
+  .empty{color:var(--mut);font-size:13.5px;padding:10px 2px}
+  .terms{display:flex;gap:22px;flex-wrap:wrap;font-size:13px;color:var(--mut)}
+  .terms b{color:var(--ink);font-weight:750}
+  .finenote{font-size:12px;color:var(--mut2);margin-top:13px;line-height:1.55}
+
+  /* ---- next-achievement teaser + goals ladder ---- */
+  .goalbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .goalbar .ring{flex:none}
+  .bar{height:9px;background:var(--card3);border-radius:999px;overflow:hidden;margin-top:9px}
+  .bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--em),var(--em2));border-radius:999px}
+  .ladder{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px}
+  .rung{border:1px solid var(--line);border-radius:var(--r2);padding:13px 14px;background:var(--card2)}
+  .rung.done{background:var(--em050);border-color:var(--em100)}
+  .rung.next{border-color:var(--em);box-shadow:0 0 0 2px rgba(21,168,108,.14)}
+  .rung .ico{font-size:19px}
+  .rung .t{font-weight:750;font-size:13.5px;margin-top:5px;color:var(--ink)}
+  .rung .s{font-size:11.5px;color:var(--mut);margin-top:2px}
+
+  /* ---- coming-soon ---- */
+  .soon{text-align:center;padding:10px 6px 4px}
+  .soon .badge{display:inline-block;font-size:11px;font-weight:750;letter-spacing:.08em;text-transform:uppercase;color:var(--em2);background:var(--em050);border:1px solid var(--em100);border-radius:999px;padding:5px 12px;margin-bottom:14px}
+  .soon h3{font-size:19px;margin:0 0 8px;letter-spacing:-.01em}
+  .soon p{color:var(--mut);max-width:520px;margin:0 auto 18px;line-height:1.6}
+  .feat{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;text-align:left;margin-top:6px}
+  .feat .f{background:var(--card2);border:1px solid var(--line);border-radius:var(--r2);padding:15px 16px}
+  .feat .f .ico{font-size:20px}
+  .feat .f b{display:block;margin:8px 0 3px;font-size:14px;color:var(--ink)}
+  .feat .f span{font-size:12.5px;color:var(--mut);line-height:1.5}
+
+  .rescard{display:flex;gap:13px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line)}
+  .rescard:last-child{border-bottom:0}
+  .rescard .ico{width:38px;height:38px;border-radius:11px;background:var(--em050);color:var(--emdk);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+  .rescard b{font-size:14px;color:var(--ink)}
+  .rescard p{margin:2px 0 0;font-size:12.5px;color:var(--mut)}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px;border-radius:999px;font-size:13px;box-shadow:0 10px 26px rgba(16,40,28,.22);opacity:0;pointer-events:none;transition:opacity .2s;z-index:80}
+  .toast.on{opacity:1}
+
+  /* ---- daily leads ---- */
+  .leadhead{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .leadhead p{margin:4px 0 0;color:var(--mut);font-size:13px;max-width:580px;line-height:1.55}
+  .leadsum{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line2);background:#fff;color:var(--ink2);border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:650;display:inline-flex;align-items:center;gap:6px;transition:border-color .15s,background .15s,color .15s}
+  .chip.on{background:var(--em050);border-color:var(--em100);color:var(--emdk)}
+  .chip:hover{border-color:var(--em)}
+  .selz{background:#fff;border:1px solid var(--line2);border-radius:var(--r3);padding:10px 12px;font-size:13.5px;color:var(--ink);font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s}
+  .selz:focus{border-color:var(--em);box-shadow:0 0 0 3px rgba(21,168,108,.14)}
+  .pill--new{background:#eef2f0;color:var(--mut);border:1px solid var(--line2)}
+  .pill--contacted{background:var(--amber050);color:var(--amber);border:1px solid #f0dcae}
+  .pill--clicked{background:#e8f0fe;color:#1b4fc4;border:1px solid #c6d8fb}
+  .pill--won{background:var(--em050);color:var(--emdk);border:1px solid var(--em100)}
+  .pill--lost{background:#f1f3f2;color:var(--mut2);border:1px solid var(--line2)}
+  .lead{border:1px solid var(--line);border-radius:var(--r2);background:var(--card2);padding:16px;margin-bottom:12px}
+  .lead.hot{border-color:#c6d8fb;box-shadow:0 0 0 2px rgba(47,111,237,.12)}
+  .lead-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .lead-biz{font-size:15.5px;font-weight:800;color:var(--ink);letter-spacing:-.01em;line-height:1.25}
+  .lead-meta{font-size:12.5px;color:var(--mut);margin-top:4px;display:flex;flex-wrap:wrap;gap:3px 12px;align-items:center}
+  .lead-meta a{color:var(--em2);text-decoration:none}
+  .lead-meta a:hover{text-decoration:underline}
+  .nbadge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:750;color:var(--emdk);background:var(--em050);border:1px solid var(--em100);border-radius:999px;padding:3px 9px;white-space:nowrap}
+  .soc{display:inline-flex;gap:8px;align-items:center}
+  .soc a{font-size:12px;font-weight:650}
+  .lead-field{margin-top:13px}
+  .lead-field .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);font-weight:750;margin:0 0 5px 1px;display:flex;align-items:center;gap:7px}
+  .copyrow{display:flex;gap:7px;align-items:stretch;background:#fff;border:1px solid var(--line2);border-radius:var(--r3);padding:5px 5px 5px 12px}
+  .copyrow input{flex:1;background:none;border:0;color:var(--ink2);font-family:var(--mono);font-size:12px;outline:none;min-width:0}
+  .msgbox{width:100%;background:#fff;border:1px solid var(--line2);border-radius:var(--r3);color:var(--ink2);padding:11px 12px;font-size:13px;line-height:1.55;font-family:inherit;resize:vertical;min-height:92px;outline:none;white-space:pre-wrap;transition:border-color .15s,box-shadow .15s}
+  .msgbox:focus{border-color:var(--em);box-shadow:0 0 0 3px rgba(21,168,108,.14)}
+  .lead-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px;align-items:center}
+  .lead-actions .sep{flex:1 1 10px}
+  .btn--mini{padding:7px 11px;font-size:12px;border-radius:9px;font-weight:650}
+  .btn--won{background:var(--em050);border-color:var(--em100);color:var(--emdk)}
+  .btn--won:hover{background:var(--em100);border-color:var(--em)}
+  .btn--danger:hover{border-color:var(--red);background:var(--red050);color:#a8352d}
+  .notice{background:var(--amber050);border:1px solid #f0dcae;color:#7a4e12;border-radius:var(--r2);padding:14px 16px;font-size:13px;line-height:1.55;margin-bottom:16px}
+  .notice b{color:#5f3c0d}
+  .notice.info{background:var(--em050);border-color:var(--em100);color:var(--emdk)}
+  .notice.info b{color:var(--emdk)}
+
+  @media(max-width:760px){ .statrow,.earn,.leadsum{grid-template-columns:repeat(2,1fr)} .linkrow{flex-direction:column;align-items:stretch} .qr{align-self:center} .hello{font-size:19px} .leadhead{flex-direction:column} .leadhead .btn{align-self:flex-start} }
+</style>
+</head>
+<body>
+
+<!-- LOGIN GATE -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="gate-badge">A</div>
+    <h1>Atlas Rental.io</h1>
+    <p>Partner dashboard &mdash; sign in to see your referral link, stats and earnings.</p>
+    <div class="msg msg--err" id="gErr"></div>
+    <div class="msg msg--ok" id="gOk"></div>
+
+    <!-- password mode -->
+    <div id="pwMode">
+      <div class="fld"><label>Email</label><input class="inp" id="gEmail" type="email" autocomplete="email" placeholder="you@example.com"></div>
+      <div class="fld"><label>Password</label><input class="inp" id="gPass" type="password" autocomplete="current-password" placeholder="Your password"></div>
+      <button class="btn btn--primary btn--full" id="pwBtn">Sign in</button>
+      <button class="link-btn" id="toOtp">Email me a sign-in code instead</button>
+    </div>
+
+    <!-- otp mode -->
+    <div id="otpMode" style="display:none">
+      <div class="fld"><label>Email</label><input class="inp" id="oEmail" type="email" autocomplete="email" placeholder="you@example.com"></div>
+      <div id="otpStep1"><button class="btn btn--primary btn--full" id="otpReqBtn">Send me a code</button></div>
+      <div id="otpStep2" style="display:none">
+        <div class="fld"><label>6-digit code</label><input class="inp" id="oCode" type="text" inputmode="numeric" maxlength="6" placeholder="123456" style="letter-spacing:4px;text-align:center;font-size:18px"></div>
+        <button class="btn btn--primary btn--full" id="otpVerBtn">Verify &amp; sign in</button>
+      </div>
+      <button class="link-btn" id="toPw">Use a password instead</button>
+    </div>
+
+    <p style="margin:18px 0 0;font-size:12.5px;color:var(--mut)">Not a partner yet? <a href="/affiliate/">Apply here</a></p>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="app">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="logo">A</span> Atlas Rental.io <span style="font-weight:600;font-size:12px;color:var(--mut);letter-spacing:.01em">Partners</span></div>
+      <div class="who">
+        <span class="nm" id="whoName"></span>
+        <span class="pill pill--active" id="whoStatus">active</span>
+        <button class="btn btn--sm btn--ghost" id="logoutBtn">Sign out</button>
+      </div>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <button class="tab on" data-tab="overview">Overview</button>
+      <button class="tab" data-tab="leads">Daily Leads</button>
+      <button class="tab" data-tab="earnings">Referrals &amp; Earnings</button>
+      <button class="tab" data-tab="studio">Content Studio</button>
+      <button class="tab" data-tab="goals">Goals</button>
+      <button class="tab" data-tab="account">Account</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="panel on" data-panel="overview">
+      <div class="hello" id="hello"></div>
+
+      <div class="card">
+        <h2>Your referral link</h2>
+        <div class="linkrow">
+          <div class="linkbox">
+            <div class="reflink">
+              <input id="refLink" type="text" readonly value="">
+              <button class="btn btn--sm btn--primary" id="copyBtn">Copy</button>
+            </div>
+            <p style="font-size:12.5px;color:var(--mut);margin:11px 0 0">Share this link or the QR code. Anyone who signs up through it is attributed to you, and sees any welcome bonus you offer them.</p>
+          </div>
+          <div>
+            <div class="qr" id="qrBox"></div>
+            <a class="qr-dl" id="qrDl" download="atlas-referral-qr.png" style="display:none">Download QR</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Performance</h2>
+        <div class="statrow">
+          <div class="mini"><div class="k">Clicks</div><div class="v" id="sClicks">0</div></div>
+          <div class="mini"><div class="k">Referrals</div><div class="v" id="sReferrals">0</div></div>
+          <div class="mini"><div class="k">Paying</div><div class="v" id="sPaying">0</div></div>
+          <div class="mini"><div class="k">Converted</div><div class="v" id="sConverted">0</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Earnings</h2>
+        <div class="earn">
+          <div class="mini"><div class="k">Pending</div><div class="v money" id="erPending">$0</div></div>
+          <div class="mini"><div class="k">Approved</div><div class="v money" id="erApproved">$0</div></div>
+          <div class="mini"><div class="k">Paid out</div><div class="v money" id="erPaid">$0</div></div>
+          <div class="mini"><div class="k">Unpaid total</div><div class="v money" id="erUnpaid">$0</div></div>
+        </div>
+      </div>
+
+      <div class="card" id="nextGoalCard" style="display:none">
+        <h2>Next milestone</h2>
+        <div class="goalbar">
+          <div style="flex:1;min-width:220px">
+            <div id="nextGoalLabel" style="font-weight:750;color:var(--ink)"></div>
+            <div class="bar"><i id="nextGoalBar" style="width:0%"></i></div>
+            <div id="nextGoalSub" style="font-size:12px;color:var(--mut);margin-top:7px"></div>
+          </div>
+          <button class="btn btn--sm" onclick="navTo('goals')">View all goals</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DAILY LEADS -->
+    <div class="panel" data-panel="leads">
+      <div class="card">
+        <div class="leadhead">
+          <div>
+            <h2 style="margin-bottom:6px">Daily leads</h2>
+            <p>Fresh local rental businesses to pitch Atlas to &mdash; a new batch every morning. You reach out from <b>your own</b> accounts; we hand you a ready-to-send message and your tracked link. When a business signs up through that link, the referral &mdash; and the commission &mdash; is yours.</p>
+          </div>
+          <button class="btn btn--sm btn--primary" id="leadsRefreshBtn">Get fresh leads</button>
+        </div>
+      </div>
+
+      <div id="leadsNotice"></div>
+
+      <div class="leadsum" id="leadsStats" style="display:none">
+        <div class="mini"><div class="k">Leads</div><div class="v" id="lsTotal">0</div></div>
+        <div class="mini"><div class="k">Contacted</div><div class="v" id="lsContacted">0</div></div>
+        <div class="mini"><div class="k">Replied</div><div class="v" id="lsReplied">0</div></div>
+        <div class="mini"><div class="k">Won</div><div class="v money" id="lsWon">0</div></div>
+      </div>
+
+      <div class="card" id="leadsPrefsCard" style="display:none">
+        <h2>What to send me</h2>
+        <div class="lead-field" style="margin-top:0">
+          <div class="lbl">Niches &mdash; pick up to 5</div>
+          <div class="chips" id="prefNiches"></div>
+        </div>
+        <div class="lead-field" style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1;min-width:190px">
+            <div class="lbl">Preferred outreach channel</div>
+            <select class="selz" id="prefChannel" style="width:100%"></select>
+          </div>
+          <div style="flex:2;min-width:230px">
+            <div class="lbl">Cities / areas &mdash; optional, comma-separated</div>
+            <input class="inp" id="prefLocations" type="text" placeholder="Miami FL, Scottsdale AZ" style="padding:10px 12px;font-size:13.5px">
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <button class="btn btn--sm btn--primary" id="prefSaveBtn">Save preferences</button>
+          <span id="prefSaved" style="font-size:12.5px;color:var(--emdk);margin-left:10px;display:none;font-weight:650">Saved &#10003;</span>
+        </div>
+      </div>
+
+      <div id="leadsList"></div>
+    </div>
+
+    <!-- REFERRALS & EARNINGS -->
+    <div class="panel" data-panel="earnings">
+      <div class="card">
+        <h2>Program terms</h2>
+        <div class="terms" id="terms"></div>
+        <div class="finenote" id="fineNote"></div>
+      </div>
+      <div class="card">
+        <h2>Commissions</h2>
+        <div class="tbl-wrap"><table id="commTable"><thead><tr><th>Customer</th><th>Eligible</th><th>Rate</th><th>Commission</th><th>Status</th><th>Date</th></tr></thead><tbody id="commBody"></tbody></table></div>
+        <div class="empty" id="commEmpty" style="display:none">No commissions yet. They appear here once a referred business starts a paid subscription.</div>
+      </div>
+      <div class="card">
+        <h2>Payouts</h2>
+        <div class="tbl-wrap"><table id="poTable"><thead><tr><th>Amount</th><th>Status</th><th>Method</th><th>Reference</th><th>Date</th></tr></thead><tbody id="poBody"></tbody></table></div>
+        <div class="empty" id="poEmpty" style="display:none">No payouts yet.</div>
+      </div>
+    </div>
+
+    <!-- CONTENT STUDIO (coming soon) -->
+    <div class="panel" data-panel="studio">
+      <div class="card">
+        <div class="soon">
+          <span class="badge">Coming soon</span>
+          <h3>Atlas Content Studio</h3>
+          <p>Two ready-to-post ideas every day &mdash; captions, hooks, hashtags and Atlas-approved visuals, personalized to your audience and platform. Market Atlas daily without ever staring at a blank page.</p>
+          <div class="feat">
+            <div class="f"><div class="ico">&#128197;</div><b>Daily content package</b><span>Two fresh posts a day with caption, hook, CTA, hashtags and a suggested visual.</span></div>
+            <div class="f"><div class="ico">&#128161;</div><b>Endless idea library</b><span>Generate more ideas by category and platform &mdash; education, demos, industry tips and more.</span></div>
+            <div class="f"><div class="ico">&#127916;</div><b>Media library</b><span>Atlas-approved images, reels and demo clips, ready to preview, save and share.</span></div>
+            <div class="f"><div class="ico">&#9989;</div><b>Calendar &amp; checklist</b><span>Plan, schedule and track what you have posted, with a simple daily goal of two.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GOALS & ACHIEVEMENTS -->
+    <div class="panel" data-panel="goals">
+      <div class="card">
+        <h2>Sales milestones</h2>
+        <p style="color:var(--mut);font-size:13px;margin:0 0 16px">Earned on verified, paying subscription conversions. Your progress updates automatically.</p>
+        <div class="ladder" id="ladder"></div>
+      </div>
+    </div>
+
+    <!-- ACCOUNT & RESOURCES -->
+    <div class="panel" data-panel="account">
+      <div class="card">
+        <h2>Account</h2>
+        <div style="display:flex;gap:26px;flex-wrap:wrap">
+          <div><div class="k" style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em">Name</div><div id="acName" style="font-weight:700;margin-top:4px"></div></div>
+          <div><div class="k" style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em">Email</div><div id="acEmail" style="font-weight:700;margin-top:4px"></div></div>
+          <div><div class="k" style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em">Status</div><div style="margin-top:4px"><span class="pill pill--active" id="acStatus">active</span></div></div>
+        </div>
+        <div style="margin-top:18px"><button class="btn btn--ghost btn--sm" id="logoutBtn2">Sign out</button></div>
+      </div>
+      <div class="card">
+        <h2>Resources</h2>
+        <div class="rescard"><div class="ico">&#128279;</div><div><b>Your referral link</b><p>Copy it from the Overview tab, or scan the QR to share on the spot.</p></div></div>
+        <div class="rescard"><div class="ico">&#128176;</div><div><b>How you get paid</b><p>Commission on recurring Atlas subscription revenue only. Payable after the holding period; paid out manually once you pass the minimum.</p></div></div>
+        <div class="rescard"><div class="ico">&#128231;</div><div><b>Questions?</b><p>Reply to any Atlas partner email and we will help you out.</p></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+(function(){
+  "use strict";
+  var ATLAS_API=(/(^|\.)atlasrental\.io$/.test(location.hostname)) ? '' : 'https://atlas.prestigeblackcorp.workers.dev';
+  var _csrf=null;
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function usd(c){ c=Number(c)||0; var neg=c<0; c=Math.abs(c); return (neg?'-$':'$')+(c/100).toFixed(2); }
+  function fdate(ms){ ms=Number(ms)||0; if(!ms) return '--'; try{ return new Date(ms).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}); }catch(e){ return '--'; } }
+  function api(path, opts){ opts=opts||{}; var h={'Content-Type':'application/json'}; if(_csrf && opts.method && opts.method!=='GET') h['X-CSRF-Token']=_csrf;
+    return fetch(ATLAS_API+path,{method:opts.method||'GET',headers:h,credentials:'include',body:opts.body?JSON.stringify(opts.body):undefined})
+      .then(function(r){ return r.json().catch(function(){return{};}).then(function(j){ return {status:r.status,json:j}; }); }); }
+  var _tt=null;
+  function toast(m){ var t=$('toast'); if(!t) return; t.textContent=m; t.classList.add('on'); if(_tt) clearTimeout(_tt); _tt=setTimeout(function(){ t.classList.remove('on'); },1900); }
+  function gErr(m){ var e=$('gErr'); e.style.display=m?'block':'none'; if(m) e.textContent=m; var o=$('gOk'); if(o) o.style.display='none'; }
+  function gOk(m){ var e=$('gOk'); e.style.display=m?'block':'none'; if(m) e.textContent=m; }
+
+  // ---- tab nav ----
+  function navTo(name){
+    var tabs=document.querySelectorAll('.tab'); for(var i=0;i<tabs.length;i++){ tabs[i].classList.toggle('on', tabs[i].getAttribute('data-tab')===name); }
+    var pans=document.querySelectorAll('.panel'); for(var j=0;j<pans.length;j++){ pans[j].classList.toggle('on', pans[j].getAttribute('data-panel')===name); }
+    if(name==='leads') loadLeadsOnce();
+    try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(e){ window.scrollTo(0,0); }
+  }
+  window.navTo=navTo;
+  (function(){ var tb=$('tabs'); if(tb) tb.addEventListener('click', function(e){ var b=e.target.closest ? e.target.closest('.tab') : null; if(b && b.getAttribute('data-tab')) navTo(b.getAttribute('data-tab')); }); })();
+
+  // ---- auth gate ----
+  function showApp(data){ $('gate').style.display='none'; $('app').style.display='block'; render(data); }
+
+  $('pwBtn').addEventListener('click', function(){
+    gErr('');
+    var email=($('gEmail').value||'').trim(), pass=($('gPass').value||'');
+    if(!email || !pass){ gErr('Enter your email and password.'); return; }
+    var b=$('pwBtn'); b.disabled=true; var _t=b.textContent; b.textContent='Signing in...';
+    api('/api/affiliate/login',{method:'POST',body:{email:email,password:pass}}).then(function(r){
+      b.disabled=false; b.textContent=_t; var j=r.json||{};
+      if(r.status===200 && j.ok && j.csrf){ _csrf=j.csrf; loadMe(); return; }
+      if(r.status===200 && j.enabled===false){ gErr('The partner program is not active right now.'); return; }
+      gErr((j && j.error) || 'Invalid email or password.');
+    }).catch(function(){ b.disabled=false; b.textContent=_t; gErr('Network error. Please try again.'); });
+  });
+  $('gPass').addEventListener('keydown', function(e){ if(e.key==='Enter') $('pwBtn').click(); });
+
+  $('toOtp').addEventListener('click', function(){ gErr(''); gOk(''); $('pwMode').style.display='none'; $('otpMode').style.display='block'; var e=($('gEmail').value||'').trim(); if(e) $('oEmail').value=e; });
+  $('toPw').addEventListener('click', function(){ gErr(''); gOk(''); $('otpMode').style.display='none'; $('pwMode').style.display='block'; });
+
+  $('otpReqBtn').addEventListener('click', function(){
+    gErr(''); gOk('');
+    var email=($('oEmail').value||'').trim();
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ gErr('Enter a valid email address.'); return; }
+    var b=$('otpReqBtn'); b.disabled=true; var _t=b.textContent; b.textContent='Sending...';
+    api('/api/affiliate/otp/request',{method:'POST',body:{email:email}}).then(function(r){
+      b.disabled=false; b.textContent=_t;
+      if(r.status===200 && (r.json||{}).enabled===false){ gErr('The partner program is not active right now.'); return; }
+      if(r.status===429){ gErr(((r.json||{}).error)||'Too many requests. Please wait a few minutes.'); return; }
+      if(r.status!==200){ gErr(((r.json||{}).error)||'Could not send a code. Please try again.'); return; }
+      $('otpStep1').style.display='none'; $('otpStep2').style.display='block';
+      gOk('If an approved partner account exists for that email, a 6-digit code is on its way. It expires in 10 minutes.');
+      setTimeout(function(){ try{ $('oCode').focus(); }catch(e){} },100);
+    }).catch(function(){ b.disabled=false; b.textContent=_t; gErr('Network error. Please try again.'); });
+  });
+
+  $('otpVerBtn').addEventListener('click', function(){
+    gErr('');
+    var email=($('oEmail').value||'').trim(), code=($('oCode').value||'').replace(/\D/g,'').slice(0,6);
+    if(code.length!==6){ gErr('Enter the 6-digit code from your email.'); return; }
+    var b=$('otpVerBtn'); b.disabled=true; var _t=b.textContent; b.textContent='Verifying...';
+    api('/api/affiliate/otp/verify',{method:'POST',body:{email:email,code:code}}).then(function(r){
+      b.disabled=false; b.textContent=_t; var j=r.json||{};
+      if(r.status===200 && j.ok && j.csrf){ _csrf=j.csrf; gOk(''); loadMe(); return; }
+      if(r.status===200 && j.enabled===false){ gErr('The partner program is not active right now.'); return; }
+      if(r.status===429){ gErr((j && j.error)||'Too many attempts. Please wait a few minutes.'); return; }
+      gErr((j && j.error) || 'That code is invalid or has expired.');
+    }).catch(function(){ b.disabled=false; b.textContent=_t; gErr('Network error. Please try again.'); });
+  });
+  $('oCode').addEventListener('keydown', function(e){ if(e.key==='Enter') $('otpVerBtn').click(); });
+
+  function doLogout(){ api('/api/affiliate/logout',{method:'POST'}).then(function(){ location.reload(); }).catch(function(){ location.reload(); }); }
+  $('logoutBtn').addEventListener('click', doLogout);
+  var _lo2=$('logoutBtn2'); if(_lo2) _lo2.addEventListener('click', doLogout);
+
+  $('copyBtn').addEventListener('click', function(){
+    var v=$('refLink').value||'';
+    function done(){ toast('Link copied'); }
+    try{ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(v).then(done,function(){ fallbackCopy(); }); return; } }catch(e){}
+    fallbackCopy();
+    function fallbackCopy(){ try{ var el=$('refLink'); el.focus(); el.select(); document.execCommand('copy'); done(); }catch(e){ toast('Press Ctrl/Cmd+C to copy'); } }
+  });
+
+  // ---- data ----
+  function loadMe(){
+    api('/api/affiliate/me').then(function(r){
+      var j=r.json||{};
+      if(r.status===200 && j.ok && j.affiliate){ showApp(j); return; }
+      if(r.status===200 && j.enabled===false){ gErr('The partner program is not active right now.'); return; }
+      // not authed -> stay on gate
+    }).catch(function(){ /* stay on gate */ });
+  }
+
+  // Sales milestones (verified paying conversions). Mirrors the achievement ladder in the growth directive.
+  var MILESTONES=[
+    {n:1,ico:'⭐',t:'First Sale'},{n:10,ico:'🚀',t:'Getting Started'},{n:50,ico:'📈',t:'Rising Affiliate'},
+    {n:100,ico:'🌟',t:'Growth Partner'},{n:250,ico:'🔥',t:'Elite Performer'},{n:500,ico:'⚡',t:'Power Affiliate'},
+    {n:1000,ico:'🏆',t:'Ambassador'},{n:3000,ico:'👑',t:'Industry Leader'},{n:10000,ico:'💎',t:'Atlas Legend'}
+  ];
+
+  function render(d){
+    var a=d.affiliate||{}, ref=d.referral||{}, pr=d.program||{}, st=d.stats||{}, er=d.earnings||{};
+    var nm=(a.name||a.email||'Partner');
+    $('whoName').textContent=nm;
+    var status=(a.status||'active'); var sp=$('whoStatus'); sp.textContent=status;
+    sp.className='pill '+(status==='active'||status==='approved'?'pill--active':(status==='pending'?'pill--pending':'pill--gray'));
+    var first=String(nm).split(/[\s@]/)[0]||'there';
+    $('hello').innerHTML='Welcome back, '+esc(first)+' <span class="wave">&#128075;</span>';
+    // account tab
+    var _acN=$('acName'); if(_acN) _acN.textContent=(a.name||'--');
+    var _acE=$('acEmail'); if(_acE) _acE.textContent=(a.email||'--');
+    var _acS=$('acStatus'); if(_acS){ _acS.textContent=status; _acS.className='pill '+(status==='active'||status==='approved'?'pill--active':(status==='pending'?'pill--pending':'pill--gray')); }
+
+    var link=ref.link||'';
+    $('refLink').value=link;
+    renderQR(link);
+
+    $('sClicks').textContent=(st.clicks||0).toLocaleString();
+    $('sReferrals').textContent=(st.referrals||0).toLocaleString();
+    $('sPaying').textContent=(st.paying||0).toLocaleString();
+    $('sConverted').textContent=(st.converted||0).toLocaleString();
+
+    $('erPending').textContent=usd(er.pending_cents);
+    $('erApproved').textContent=usd(er.approved_cents);
+    $('erPaid').textContent=usd(er.paid_cents);
+    $('erUnpaid').textContent=usd(er.unpaid_cents);
+
+    var pct=(pr.commission_pct!=null)?(Math.round(pr.commission_pct*10)/10+'%'):'--';
+    var months=(pr.commission_months===0||pr.commission_months==null)?'every month (lifetime)':(pr.commission_months+' months');
+    $('terms').innerHTML=''+
+      '<div><b>'+pct+'</b> commission</div>'+
+      '<div>Paid <b>'+months+'</b></div>'+
+      '<div>Holding period <b>'+((pr.holding_days!=null?pr.holding_days:30))+' days</b></div>'+
+      '<div>Minimum payout <b>'+usd(pr.min_payout_cents||0)+'</b></div>';
+    $('fineNote').innerHTML='Commission is earned only on the recurring Atlas <b>subscription revenue</b> of businesses you refer &mdash; not on add-ons, domains, credits, or one-time fees. A commission becomes payable after the holding period (once it is safe from refunds) and payouts are issued manually by Atlas once you pass the minimum. Figures reflect confirmed (live) activity.';
+
+    renderCommissions(d.commissions||[]);
+    renderPayouts(d.payouts||[]);
+    renderGoals(d);
+  }
+
+  function renderGoals(d){
+    d=d||{};
+    var st=d.stats||{}, ms=d.milestone||null;
+    // Milestone progress = VERIFIED qualified conversions from the backend (refunded + test-mode EXCLUDED). Fall back to
+    // the current paying count only if an older worker didn't send milestone data. This is the authoritative sales metric.
+    var conv=(ms && typeof ms.conversions==='number') ? ms.conversions : (Number(st.paying)||0);
+    // ladder
+    var lad=$('ladder'); if(lad){
+      lad.innerHTML=MILESTONES.map(function(m){
+        var done=conv>=m.n; var next=!done && MILESTONES.filter(function(x){return x.n>conv;})[0]===m;
+        return '<div class="rung'+(done?' done':'')+(next?' next':'')+'">'+
+          '<div class="ico">'+m.ico+'</div><div class="t">'+esc(m.t)+'</div>'+
+          '<div class="s">'+m.n.toLocaleString()+' verified sale'+(m.n===1?'':'s')+(done?' &middot; done':(next?' &middot; next up':''))+'</div></div>';
+      }).join('');
+    }
+    // overview teaser
+    var nextM=MILESTONES.filter(function(x){return x.n>conv;})[0];
+    var card=$('nextGoalCard');
+    if(card){
+      if(nextM){
+        card.style.display='';
+        var prev=0; for(var i=0;i<MILESTONES.length;i++){ if(MILESTONES[i].n===nextM.n){ prev=i>0?MILESTONES[i-1].n:0; break; } }
+        var span=Math.max(1,nextM.n-prev); var pctW=Math.max(3,Math.min(100,Math.round(((conv-prev)/span)*100)));
+        $('nextGoalLabel').innerHTML=nextM.ico+' '+esc(nextM.t)+' &mdash; '+conv.toLocaleString()+' / '+nextM.n.toLocaleString()+' verified sales';
+        $('nextGoalBar').style.width=pctW+'%';
+        $('nextGoalSub').textContent=(nextM.n-conv).toLocaleString()+' more verified sale'+((nextM.n-conv)===1?'':'s')+' to unlock '+nextM.t+'.';
+      } else { card.style.display='none'; }
+    }
+  }
+
+  function pillFor(s){ var m={pending:'pending',approved:'active',paid:'paid',reversed:'reversed',rejected:'gray'}; return '<span class="pill pill--'+(m[s]||'gray')+'">'+esc(s||'?')+'</span>'; }
+
+  function renderCommissions(cs){
+    var body=$('commBody');
+    if(!cs.length){ body.innerHTML=''; $('commEmpty').style.display='block'; $('commTable').style.display='none'; return; }
+    $('commEmpty').style.display='none'; $('commTable').style.display='';
+    body.innerHTML=cs.map(function(x){
+      var rate=(Number(x.commission_bps)||0)/100; rate=(rate%1?rate.toFixed(2):rate)+'%';
+      var cust=String(x.referee_tenant||'--'); if(cust.length>10) cust=cust.slice(0,8)+'...';
+      return '<tr><td style="color:var(--mut);font-family:var(--mono);font-size:12px">'+esc(cust)+'</td>'+
+        '<td class="money">'+usd(x.eligible_cents)+'</td><td style="color:var(--mut)">'+rate+'</td>'+
+        '<td class="money" style="color:'+(Number(x.commission_cents)<0?'var(--red)':'var(--em2)')+'">'+usd(x.commission_cents)+'</td>'+
+        '<td>'+pillFor(x.status)+(x.livemode!==1?' <span style="color:var(--mut2);font-size:11px">(test)</span>':'')+'</td>'+
+        '<td style="color:var(--mut)">'+fdate(x.created_at)+'</td></tr>';
+    }).join('');
+  }
+
+  function renderPayouts(po){
+    var body=$('poBody');
+    if(!po.length){ body.innerHTML=''; $('poEmpty').style.display='block'; $('poTable').style.display='none'; return; }
+    $('poEmpty').style.display='none'; $('poTable').style.display='';
+    body.innerHTML=po.map(function(p){
+      return '<tr><td class="money">'+usd(p.amount_cents)+'</td><td>'+pillFor(p.status)+'</td>'+
+        '<td style="color:var(--mut)">'+esc(p.method||'--')+'</td><td style="color:var(--mut)">'+esc(p.reference||'--')+'</td>'+
+        '<td style="color:var(--mut)">'+fdate(p.created_at)+'</td></tr>';
+    }).join('');
+  }
+
+  function renderQR(link){
+    var box=$('qrBox'); if(!box) return;
+    if(!link || typeof qrcode==='undefined'){ box.style.display='none'; return; }
+    try{
+      var qr=qrcode(0,'M'); qr.addData(link); qr.make();
+      var url=qr.createDataURL(6,2);
+      box.innerHTML='<img alt="Referral QR code" src="'+url+'">';
+      box.style.display='flex';
+      var dl=$('qrDl'); if(dl){ dl.href=url; dl.style.display='block'; }
+    }catch(e){ box.style.display='none'; }
+  }
+
+  // ======== DAILY LEADS (Phase 2) ========
+  // The dash NEVER sends on the affiliate's behalf. It hands them a tracked link + a ready message to send from THEIR OWN
+  // account; "Copy message" is the send proxy (marks the lead contacted + feeds the adaptive message engine). Outcomes are
+  // self-reported. Lead data = Google Places + each business's own public site (see LAUNCH-AFFILIATE-LEADS-ENGINE.md).
+  var CHAN_LABEL={ig_dm:'Instagram DM',email:'Email',sms:'Text / SMS',call:'Phone call',walkin:'Walk-in'};
+  var CHAN_VERB={ig_dm:'Open Instagram',email:'Open email',sms:'Open texts',call:'Call now',walkin:'Get directions'};
+  var NICHE_ICO={car:'🚗',exotic:'🏎️',equipment:'🚜',party:'🎉',turo:'🔑',boat:'⛵',rv:'🚐'};
+  var SOC_LABEL={instagram:'Instagram',facebook:'Facebook',tiktok:'TikTok',twitter:'X',linkedin:'LinkedIn',youtube:'YouTube'};
+  var _leadsLoaded=false, _leadsData=null, _prefNiches=[];
+
+  function loadLeadsOnce(){ if(!_leadsLoaded) loadLeads(); }
+
+  function loadLeads(){
+    var list=$('leadsList'); if(list && !_leadsLoaded) list.innerHTML='<div class="card"><div class="empty">Loading your leads&hellip;</div></div>';
+    api('/api/affiliate/leads').then(function(r){
+      _leadsLoaded=true; var j=r.json||{};
+      if(r.status!==200 || !j.ok){ if(list) list.innerHTML='<div class="card"><div class="empty">Could not load leads right now. Please try again.</div></div>'; return; }
+      _leadsData=j; renderLeads(j);
+    }).catch(function(){ _leadsLoaded=true; if(list) list.innerHTML='<div class="card"><div class="empty">Network error. Please try again.</div></div>'; });
+  }
+
+  function renderLeads(d){
+    d=d||{};
+    var st=d.stats||{}; $('leadsStats').style.display='';
+    $('lsTotal').textContent=(st.total||0).toLocaleString();
+    $('lsContacted').textContent=(st.contacted||0).toLocaleString();
+    $('lsReplied').textContent=(st.replied||0).toLocaleString();
+    $('lsWon').textContent=(st.won||0).toLocaleString();
+    renderPrefs(d);
+    var noticeEl=$('leadsNotice'), rb=$('leadsRefreshBtn');
+    if(d.leads_live===false){
+      noticeEl.innerHTML='<div class="notice"><b>Your daily leads are being switched on.</b> Fresh prospects will start arriving here automatically each morning. Set your niches and channel below so the first batch is a good fit.</div>';
+      if(rb){ rb.disabled=true; rb.style.opacity='.55'; rb.style.cursor='default'; rb.title='Available once your leads are switched on'; }
+    } else {
+      noticeEl.innerHTML=''; if(rb){ rb.disabled=false; rb.style.opacity=''; rb.style.cursor=''; rb.title=''; }
+    }
+    var list=$('leadsList'), leads=d.leads||[];
+    if(!leads.length){
+      list.innerHTML='<div class="card"><div class="empty">'+(d.leads_live===false
+        ? 'No leads yet &mdash; they will appear here as soon as your account is switched on.'
+        : 'No leads right now. Tap <b>Get fresh leads</b> for a new batch, or check back tomorrow morning.')+'</div></div>';
+      return;
+    }
+    list.innerHTML=leads.map(leadCardHtml).join('');
+  }
+
+  function renderPrefs(d){
+    $('leadsPrefsCard').style.display='';
+    var prefs=d.prefs||{}; _prefNiches=(prefs.niches||[]).slice();
+    var box=$('prefNiches'), nich=d.niches||[];
+    box.innerHTML=nich.map(function(n){
+      var on=_prefNiches.indexOf(n.key)>=0;
+      return '<button type="button" class="chip'+(on?' on':'')+'" data-niche="'+esc(n.key)+'">'+(NICHE_ICO[n.key]||'')+' '+esc(n.label)+'</button>';
+    }).join('');
+    var sel=$('prefChannel'), chans=d.channels||['ig_dm','email','sms','call','walkin'];
+    sel.innerHTML=chans.map(function(c){ return '<option value="'+esc(c)+'"'+(prefs.channel===c?' selected':'')+'>'+esc(CHAN_LABEL[c]||c)+'</option>'; }).join('');
+    $('prefLocations').value=(prefs.locations||[]).join(', ');
+  }
+
+  function leadPill(s){
+    var m={'new':['new','New'],contacted:['contacted','Contacted'],clicked:['clicked','Clicked link'],replied:['active','Replied'],closed_won:['won','Won'],closed_lost:['lost','Lost'],skipped:['gray','Skipped']};
+    var x=m[s]||['gray',s||'?']; return '<span class="pill pill--'+x[0]+'">'+esc(x[1])+'</span>';
+  }
+
+  function channelHref(ch,l){
+    var ph=(l.phone||'').replace(/[^0-9+]/g,'');
+    if(ch==='email'&&l.email) return 'mailto:'+encodeURIComponent(l.email)+'?subject='+encodeURIComponent(l.subject||'')+'&body='+encodeURIComponent(l.message||'');
+    if(ch==='call'&&ph) return 'tel:'+ph;
+    if(ch==='sms'&&ph) return 'sms:'+ph;
+    if(ch==='walkin') return l.maps_url||(l.address?('https://maps.google.com/?q='+encodeURIComponent(l.address)):'');
+    if(ch==='ig_dm') return (l.socials&&l.socials.instagram)||'https://www.instagram.com/';
+    return (l.socials&&l.socials.instagram)||l.website||l.maps_url||'';
+  }
+
+  function leadCardHtml(l){
+    l=l||{}; var id=esc(l.id||'');
+    var terminal=(l.status==='closed_won'||l.status==='closed_lost'||l.status==='skipped');
+    var hot=(l.status==='clicked'||l.status==='replied');
+    var nico=NICHE_ICO[l.niche]||'📍', nlabel='';
+    if(_leadsData && _leadsData.niches){ for(var i=0;i<_leadsData.niches.length;i++){ if(_leadsData.niches[i].key===l.niche){ nlabel=_leadsData.niches[i].label; break; } } }
+    var meta=[]; var loc=[l.city,l.region].filter(Boolean).join(', '); if(loc) meta.push(esc(loc));
+    if(l.rating) meta.push('&#9733; '+esc(l.rating));
+    if(l.phone) meta.push('<a href="tel:'+esc((l.phone||'').replace(/[^0-9+]/g,''))+'">'+esc(l.phone)+'</a>');
+    if(l.website) meta.push('<a href="'+esc(l.website)+'" target="_blank" rel="noopener nofollow">Website</a>');
+    if(l.maps_url) meta.push('<a href="'+esc(l.maps_url)+'" target="_blank" rel="noopener nofollow">Map</a>');
+    var socs=[]; if(l.socials){ for(var k in l.socials){ if(l.socials[k] && SOC_LABEL[k]) socs.push('<a href="'+esc(l.socials[k])+'" target="_blank" rel="noopener nofollow">'+SOC_LABEL[k]+'</a>'); } }
+    var socHtml=socs.length?'<span class="soc">'+socs.join('<span style="color:var(--line2)">&middot;</span>')+'</span>':'';
+    var ch=l.channel||(_leadsData&&_leadsData.prefs&&_leadsData.prefs.channel)||'ig_dm';
+    var chHref=channelHref(ch,l);
+    var msg=(l.subject?('Subject: '+l.subject+'\n\n'):'')+(l.message||'');
+    var acts='<button class="btn btn--mini btn--primary" data-act="copymsg" data-id="'+id+'">Copy message</button>';
+    if(chHref) acts+='<a class="btn btn--mini" data-act="opench" data-id="'+id+'" href="'+esc(chHref)+'" target="_blank" rel="noopener">'+esc(CHAN_VERB[ch]||'Open')+'</a>';
+    acts+='<span class="sep"></span>';
+    if(!terminal){
+      acts+='<button class="btn btn--mini" data-act="replied" data-id="'+id+'">Replied</button>'+
+            '<button class="btn btn--mini btn--won" data-act="won" data-id="'+id+'">Won</button>'+
+            '<button class="btn btn--mini btn--danger" data-act="lost" data-id="'+id+'">Lost</button>'+
+            '<button class="btn btn--mini btn--ghost" data-act="skip" data-id="'+id+'">Skip</button>';
+    }
+    var sub='<span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--mut2)">';
+    return '<div class="lead'+(hot?' hot':'')+'" data-lead="'+id+'" data-status="'+esc(l.status||'')+'"'+(terminal?' style="opacity:.72"':'')+'>'+
+      '<div class="lead-top"><div style="min-width:0">'+
+        '<div class="lead-biz">'+esc(l.name||'Business')+'</div>'+
+        '<div class="lead-meta"><span class="nbadge">'+nico+' '+esc(nlabel||l.niche||'')+'</span>'+(meta.length?'<span>'+meta.join('</span><span>')+'</span>':'')+socHtml+'</div>'+
+      '</div><div data-pill="'+id+'" style="flex:none">'+leadPill(l.status)+'</div></div>'+
+      '<div class="lead-field"><div class="lbl">Your tracked link '+sub+'&mdash; they sign up through this</span></div>'+
+        '<div class="copyrow"><input type="text" readonly value="'+esc(l.track_link||'')+'"><button class="btn btn--sm btn--ghost" data-act="copylink" data-id="'+id+'">Copy</button></div></div>'+
+      '<div class="lead-field"><div class="lbl">Ready-to-send message '+sub+'&mdash; '+esc(CHAN_LABEL[ch]||'')+', edit freely</span></div>'+
+        '<textarea class="msgbox" data-msg="'+id+'" spellcheck="false">'+esc(msg)+'</textarea></div>'+
+      '<div class="lead-actions">'+acts+'</div></div>';
+  }
+
+  function leadNode(id){ var ns=$('leadsList').querySelectorAll('.lead'); for(var i=0;i<ns.length;i++){ if(ns[i].getAttribute('data-lead')===id) return ns[i]; } return null; }
+  function findLink(id){ var n=leadNode(id), i=n&&n.querySelector('.copyrow input'); return i?i.value:''; }
+  function findMsg(id){ var n=leadNode(id), t=n&&n.querySelector('textarea[data-msg]'); return t?t.value:''; }
+  function copyText(v){ v=v||'';
+    function fb(){ try{ var ta=document.createElement('textarea'); ta.value=v; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }catch(e){} }
+    try{ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(v).then(null, fb); return; } }catch(e){}
+    fb();
+  }
+  function setLeadStatus(id,status){
+    var n=leadNode(id); if(!n) return; n.setAttribute('data-status',status);
+    var pill=n.querySelector('[data-pill]'); if(pill) pill.innerHTML=leadPill(status);
+    if(status==='closed_won'||status==='closed_lost'||status==='skipped'){
+      n.style.opacity='.72';
+      var outs=n.querySelectorAll('[data-act="replied"],[data-act="won"],[data-act="lost"],[data-act="skip"]');
+      for(var i=0;i<outs.length;i++){ if(outs[i].parentNode) outs[i].parentNode.removeChild(outs[i]); }
+    }
+  }
+  function markContacted(id){ var n=leadNode(id); if(n && n.getAttribute('data-status')==='new') setLeadStatus(id,'contacted'); }
+  function postEvent(id,type,meta,cb){
+    var body={lead_id:id,type:type}; if(meta){ for(var k in meta) body[k]=meta[k]; }
+    api('/api/affiliate/lead-event',{method:'POST',body:body}).then(function(r){
+      var j=r.json||{};
+      if(r.status===200 && j.ok){ if(cb) cb();
+        if(type==='reply') toast('Marked as replied'); else if(type==='close_won') toast('Nice -- marked as won'); else if(type==='close_lost') toast('Marked as lost'); else if(type==='skip') toast('Skipped'); }
+      else if(r.status===429){ toast('Too many updates. Please slow down.'); }
+      else if(type!=='copy' && type!=='open_channel'){ toast((j.error)||'Could not update. Try again.'); }
+    }).catch(function(){ if(type!=='copy' && type!=='open_channel') toast('Network error. Try again.'); });
+  }
+
+  function wireLeads(){
+    var np=$('prefNiches'); if(np) np.addEventListener('click',function(e){
+      var b=e.target.closest?e.target.closest('.chip'):null; if(!b) return; var key=b.getAttribute('data-niche'); if(!key) return;
+      var i=_prefNiches.indexOf(key);
+      if(i>=0){ _prefNiches.splice(i,1); b.classList.remove('on'); }
+      else { if(_prefNiches.length>=5){ toast('Pick up to 5 niches'); return; } _prefNiches.push(key); b.classList.add('on'); }
+    });
+    var sb=$('prefSaveBtn'); if(sb) sb.addEventListener('click',function(){
+      var b=this; b.disabled=true; var _t=b.textContent; b.textContent='Saving...';
+      var locs=($('prefLocations').value||'').split(',').map(function(s){return s.trim();}).filter(Boolean).slice(0,12);
+      var body={niches:_prefNiches.slice(0,5),channel:($('prefChannel').value||'ig_dm'),locations:locs};
+      api('/api/affiliate/leads/prefs',{method:'POST',body:body}).then(function(r){
+        b.disabled=false; b.textContent=_t; var j=r.json||{};
+        if(r.status===200 && j.ok){ var sv=$('prefSaved'); if(sv){ sv.style.display='inline'; setTimeout(function(){ sv.style.display='none'; },2200); } if(_leadsData) _leadsData.prefs=(j.prefs||body); toast('Preferences saved'); }
+        else toast((j.error)||'Could not save. Try again.');
+      }).catch(function(){ b.disabled=false; b.textContent=_t; toast('Network error. Try again.'); });
+    });
+    var rb=$('leadsRefreshBtn'); if(rb) rb.addEventListener('click',function(){
+      if(this.disabled) return; var b=this; b.disabled=true; var _t=b.textContent; b.textContent='Finding leads...';
+      api('/api/affiliate/leads/refresh',{method:'POST'}).then(function(r){
+        var j=r.json||{};
+        if(r.status===429){ toast((j.error)||'Please wait a bit before refreshing again.'); b.disabled=false; b.textContent=_t; return; }
+        if(r.status===200 && j.leads_live===false){ toast('Fresh leads arrive automatically each morning.'); b.disabled=false; b.textContent=_t; return; }
+        b.textContent=_t; b.disabled=false; _leadsLoaded=false; loadLeads();
+        if(r.status===200 && j.ok) toast((j.added>0)?('Added '+j.added+' fresh lead'+(j.added===1?'':'s')):'No new leads found right now.');
+      }).catch(function(){ b.disabled=false; b.textContent=_t; toast('Network error. Try again.'); });
+    });
+    var ll=$('leadsList'); if(ll) ll.addEventListener('click',function(e){
+      var el=e.target.closest?e.target.closest('[data-act]'):null; if(!el) return;
+      var act=el.getAttribute('data-act'), id=el.getAttribute('data-id'); if(!id) return;
+      if(act==='copylink'){ copyText(findLink(id)); toast('Link copied'); return; }
+      if(act==='copymsg'){ copyText(findMsg(id)); toast('Message copied'); markContacted(id); postEvent(id,'copy'); return; }
+      if(act==='opench'){ markContacted(id); postEvent(id,'open_channel'); return; }
+      if(act==='replied'){ postEvent(id,'reply',null,function(){ setLeadStatus(id,'replied'); }); return; }
+      if(act==='won'){ postEvent(id,'close_won',null,function(){ setLeadStatus(id,'closed_won'); }); return; }
+      if(act==='lost'){ postEvent(id,'close_lost',null,function(){ setLeadStatus(id,'closed_lost'); }); return; }
+      if(act==='skip'){ postEvent(id,'skip',null,function(){ setLeadStatus(id,'skipped'); }); return; }
+    });
+  }
+  wireLeads();
+
+  // boot: try the existing cookie session first
+  loadMe();
+})();
+</script>
+</body>
+</html>

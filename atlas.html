@@ -1587,6 +1587,7 @@ body.trk-fs-on .trk-fs-exit{display:grid}
       <div class="field"><label>Password</label><div style="position:relative;display:flex;align-items:center"><input class="input" id="authPass" type="password" placeholder="At least 8 characters" autocomplete="current-password" style="padding-right:60px" onkeydown="if(event.key==='Enter')Atlas.authSubmit()"><button type="button" id="authPassEye" onclick="Atlas.authTogglePass()" style="position:absolute;right:8px;background:none;border:0;color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer;padding:6px;line-height:1">Show</button></div></div>
       <div class="field" id="authTokenField" style="display:none"><label>Owner access code</label><input class="input" id="authToken" type="password" placeholder="Owner access code" autocomplete="off" autocapitalize="off" spellcheck="false" onkeydown="if(event.key==='Enter')Atlas.authSubmit()"><div style="font-size:12px;color:var(--muted);margin-top:4px">This email is reserved for the platform owner. Enter your owner access code to continue &mdash; this is not your login password.</div></div>
       <p id="authForgot" style="text-align:right;margin:-6px 0 10px;display:none"><a onclick="Atlas.forgotPassword();return false" style="color:var(--muted);font-size:12.5px;cursor:pointer;text-decoration:underline">Forgot password?</a></p>
+      <div class="field" id="authRefField" style="display:none"><label>Referral or partner code <span style="color:var(--muted);font-weight:400">&mdash; optional</span></label><input class="input" id="authRef" type="text" placeholder="Enter a code" autocomplete="off" autocapitalize="characters" spellcheck="false" oninput="Atlas._refOnInput&&Atlas._refOnInput(this.value)" onkeydown="if(event.key==='Enter')Atlas.authSubmit()"><div id="authRefBenefit" style="display:none;margin-top:7px;font-size:12.5px;line-height:1.5;color:var(--body);background:var(--brand-050);border:1px solid var(--brand-100);border-radius:9px;padding:9px 11px"></div></div>
       <div id="authConsent" style="margin:2px 0 6px"><label class="cfg-check" style="align-items:flex-start;gap:9px;font-size:12px;color:var(--muted);text-align:left"><input type="checkbox" id="authAgree" style="margin-top:2px;flex:none"><span>I agree to the <a href="/terms" target="_blank" rel="noopener" style="color:var(--brand);font-weight:600">Terms</a> &amp; <a href="/privacy" target="_blank" rel="noopener" style="color:var(--brand);font-weight:600">Privacy Policy</a>. My 7-day free trial converts to a paid plan after the trial unless I cancel &mdash; founding members pay $49.50/mo for life (50% off the $99 plan), cancel anytime.</span></label></div>
       <button class="btn btn--primary btn--full btn--lg" id="authBtn" onclick="Atlas.authSubmit()" style="margin-top:6px">Create account</button>
       <div id="ssoBlock" style="display:none;margin-top:14px">
@@ -1988,7 +1989,37 @@ const Atlas = (function(){
   var _refEnabled=false, _referralUrl='';
   var _cryptoEnabled=false;   // crypto (Coinbase) platform billing available -> server-authoritative (COINBASE_COMMERCE_KEY set); hydrated from the profile. Crypto buttons render only when true.
   function _refStoredCode(){ try{ return localStorage.getItem('atlas_ref_code')||''; }catch(e){ return ''; } }
-  function _refCaptureFromUrl(){ try{ var c=new URLSearchParams(location.search).get('ref'); if(c){ c=String(c).trim().slice(0,40); if(c) localStorage.setItem('atlas_ref_code',c); } }catch(e){} }
+  function _refCaptureFromUrl(){ try{ var c=new URLSearchParams(location.search).get('ref'); if(c){ c=String(c).trim().slice(0,40); if(c){ try{ localStorage.setItem('atlas_ref_code',c); }catch(e){} _refTrack(c); } } }catch(e){} }
+  // AFFILIATE/REFERRAL click: when a visitor arrives via a partner link or QR (?ref=CODE), record the click so attribution
+  // is set server-side (first-click aff_ref cookie). Fire-and-forget; never blocks the page; inert without the backend.
+  function _refTrack(code){ try{ if(typeof ATLAS_BACKEND==='undefined' || !ATLAS_BACKEND) return; code=String(code||'').trim().toUpperCase().slice(0,40); if(!code) return; _api('/api/affiliate/track?ref='+encodeURIComponent(code)+'&l='+encodeURIComponent((location.pathname||'/').slice(0,60)),{method:'GET'}).catch(function(){}); }catch(e){} }
+  var _refPrevT=null, _refPrevLast='';
+  function _joinList(a){ a=a||[]; if(a.length<=1) return a.join(''); if(a.length===2) return a[0]+' and '+a[1]; return a.slice(0,-1).join(', ')+', and '+a[a.length-1]; }
+  // Benefit PREVIEW under the signup code field: "Referred by X - you'll get ...". Reads the partner's configured CLIENT
+  // bonus from the PUBLIC /api/affiliate/resolve (no PII beyond the name they publish on their own link). Best-effort.
+  function _refRenderPreview(code){
+    var el=document.getElementById('authRefBenefit'); if(!el) return;
+    code=String(code||'').trim().toUpperCase().slice(0,40);
+    if(!code){ el.style.display='none'; el.innerHTML=''; _refPrevLast=''; return; }
+    if(typeof ATLAS_BACKEND==='undefined' || !ATLAS_BACKEND){ el.style.display='none'; return; }
+    if(code===_refPrevLast) return;   // already previewed this exact code
+    _api('/api/affiliate/resolve?ref='+encodeURIComponent(code),{method:'GET'}).then(function(res){
+      var j=res&&res.json; if(!(j&&j.enabled)){ el.style.display='none'; return; }
+      _refPrevLast=code;
+      if(!j.valid){ el.innerHTML='That code was not recognized &mdash; you can still create your account.'; el.style.color='var(--muted)'; el.style.display='block'; return; }
+      el.style.color='';
+      var b=j.bonus||{}, parts=[];
+      if(b.trial_extra_days) parts.push('<b>+'+b.trial_extra_days+' extra free trial day'+(Number(b.trial_extra_days)===1?'':'s')+'</b>');
+      if(b.website) parts.push('<b>a free website on any plan</b>');
+      if(b.gift_credits) parts.push('<b>'+Number(b.gift_credits).toLocaleString()+' bonus Atlas.io credits</b>');
+      if(b.discount_pct) parts.push('<b>'+b.discount_pct+'% off your first payment</b>');
+      var who=j.partner?('Referred by '+esc(j.partner)+'. '):'';
+      if(parts.length){ el.innerHTML='&#127881; '+who+'You will get '+_joinList(parts)+' when you create your account.'; }
+      else { el.innerHTML='&#10003; '+(who||'Partner code applied.'); }
+      el.style.display='block';
+    }).catch(function(){ el.style.display='none'; });
+  }
+  function _refOnInput(v){ try{ var c=String(v||'').trim().slice(0,40); try{ if(c) localStorage.setItem('atlas_ref_code',c.toUpperCase()); else localStorage.removeItem('atlas_ref_code'); }catch(e){} if(_refPrevT) clearTimeout(_refPrevT); _refPrevT=setTimeout(function(){ _refRenderPreview(c); },350); }catch(e){} }
   _refCaptureFromUrl();
   // P1-1 FIRST-TOUCH ATTRIBUTION (client half): persist the FIRST visit that carries a campaign signal (utm_* OR an
   // external referrer) to localStorage so it survives navigation + a reload, then ride it along on the signup body so the
@@ -2073,7 +2104,7 @@ const Atlas = (function(){
     // A remembered device sends back its trusted_device token (see mfaSubmit) so the server can skip a repeat
     // 2FA challenge; sits in the JSON body (not a header) so it never needs a CORS allow-list change.
     var body = mode==='login' ? {email:email,password:pass,trusted_device:_mfaDeviceToken(email)}
-             : {email:email,password:pass,firstName:first||'',lastName:last||'',business:(S&&S.brand&&S.brand.name)||'My Rental Business',fleet:(S&&S.fleet&&S.fleet.id)||'cars',ref:_refStoredCode(),acq:_acqForSignup()};
+             : {email:email,password:pass,firstName:first||'',lastName:last||'',business:(S&&S.brand&&S.brand.name)||'My Rental Business',fleet:(S&&S.fleet&&S.fleet.id)||'cars',ref:((((document.getElementById('authRef')||{}).value)||'').trim()||_refStoredCode()),acq:_acqForSignup()};
     if(mode==='signup' && setupToken) body.setupToken=setupToken;   // owner-claim: the owner access code rides in the signup body (never a header) so the reserved owner email can be created/recovered on the website
     return _api('/api/auth/'+(mode==='login'?'login':'signup'),{method:'POST',body:body}).then(function(res){
       if(res.json && res.json.mfa_required){ return {mfa:true, method:res.json.method, challenge:res.json.challenge}; }
@@ -2569,6 +2600,13 @@ const Atlas = (function(){
   function _fHalf(d,tier){ d=Number(d)||0; try{ if(!tier && typeof TIERS!=='undefined'){ var _tm=TIERS.filter(function(x){return x.price===d;}); if(_tm.length===1) tier=_tm[0].id; } if(tier && _founderInfo.prices && typeof _founderInfo.prices[tier]==='number') return _founderInfo.prices[tier]/100; }catch(e){} return Math.max(0.50, Math.round(d*100*0.5)/100); }   // 50% off, cent-rounded EXACTLY like the worker (Math.round(cents*0.5)). WAVE-FOUNDERLOCK: a logged-in founder's OWN per-tier locked price (server founderPrices, tier inferred from the unique list price) wins -> existing Starter founders show $25 not $49.50; prospects/unknown -> list x 0.5 (= new-founder rate at the current list).
   function _fNum(d){ d=_fHalf(d); return (d===Math.floor(d))?(''+d):d.toFixed(2); }
   function _fDisp(d){ d=Number(d)||0; if(!_isFounder()) return '$'+d; return '<span style="text-decoration:line-through;opacity:.5">$'+d+'</span> <span style="color:var(--brand);font-weight:850">$'+_fNum(d)+'</span>'; }
+  // PUBLIC landing pricing: while the founder program is OPEN (first 1000 accounts), EVERY prospect sees the list price
+  // struck through next to the founding-member (50% off) price; once it closes / the 1000 cap is hit it reverts to plain
+  // list pricing automatically (server /api/founder/status is authoritative; this only drives display).
+  function _fOpen(){ return !!(_founderInfo.program && _founderInfo.open); }
+  function _fPriceNode(d){ d=Number(d)||0; var disp=(d%1===0)?(''+d):d.toFixed(2);
+    if(!(_fOpen() || _isFounder())) return '<sup>$</sup>'+disp+'<span>/mo</span>';
+    return '<span style="text-decoration:line-through;opacity:.42;font-weight:600;font-size:.46em;vertical-align:middle;margin-right:.3em;color:var(--muted)">$'+disp+'</span><sup>$</sup>'+_fNum(d)+'<span>/mo</span>'; }
   /* ---- WAVE101 FOUNDERS BADGE COLLECTION: the 10 collectible founder medallions (pick ONE, founders-only, set-once). Pure-ASCII inline SVG; shared gradient defs injected once. ---- */
   var _FB_ORDER=['king','queen','boss','shark','money','legend','heart','gent','wild','immortal'];
   var _FB_META={king:{rim:'fb-gold',name:'The King',tag:"Founder's Crown"},queen:{rim:'fb-plat',name:'The Queen',tag:'Royal Tiara'},boss:{rim:'fb-obs',name:'The Big Boss',tag:'Executive Edition'},shark:{rim:'fb-chrome',name:'The Shark',tag:'Certified Predator'},money:{rim:'fb-gold',name:'The Money Machine',tag:'Cashflow Royalty'},legend:{rim:'fb-obs',name:'The Legend',tag:'Hall of Fame'},heart:{rim:'fb-rose',name:'The Heartbreaker',tag:'Too Pretty to Pay Full Price'},gent:{rim:'fb-obs',name:'The Gentleman',tag:'First Class'},wild:{rim:'fb-chrome',name:'The Wildcard',tag:'Built Different'},immortal:{rim:'fb-plat',name:'The Immortal',tag:'Forever Founder'}};
@@ -2594,7 +2632,7 @@ const Atlas = (function(){
   function _fbSel(key){ _fbPending=key||''; try{ Array.prototype.forEach.call(document.querySelectorAll('.fbpick'),function(el){ var on=el.getAttribute('data-fbkey')===key; el.style.borderColor=on?'rgba(201,169,98,.9)':'rgba(201,169,98,.25)'; el.style.boxShadow=on?'0 0 0 1px rgba(201,169,98,.6)':'none'; }); }catch(e){} var c=document.getElementById('fbpickConfirm'); if(!c) return; if(!key||!_FB_META[key]){ c.innerHTML=''; return; } c.innerHTML='<button class="btn btn--primary" style="width:100%" onclick="Atlas._fbCommit()">Make '+esc(_FB_META[key].name)+' my mark &mdash; permanently</button>'; }
   function _fbCommit(){ var key=_fbPending; if(!key||!_FB_META[key]) return; var cb=document.querySelector('#fbpickConfirm .btn'); if(cb){ cb.disabled=true; cb.textContent='Saving...'; } _api('/api/founder/badge',{method:'POST',body:{badge:key}}).then(function(res){ var j=res&&res.json; if(res.status>=200&&res.status<300&&j&&j.ok){ _founderInfo.badge=j.badge||key; try{ if(typeof S!=='undefined'&&S){ S.founderBadge=j.badge||key; save(); } }catch(e){} try{ closeModal(); }catch(e){} try{ toast('Your founder badge is set: '+((_FB_META[j.badge||key]||{}).name||'')); }catch(e){} try{ if(typeof buildApp==='function') buildApp(); }catch(e){} } else { if(cb){ cb.disabled=false; cb.textContent='Try again'; } try{ toast((j&&j.error)||'Could not save your badge.'); }catch(e){} } }).catch(function(){ if(cb){ cb.disabled=false; cb.textContent='Try again'; } try{ toast('Network error -- try again.'); }catch(e){} }); }
   /* ---- app version + owner-only feature flags (in-app upgrades) ---- */
-  var APP_VERSION='2026.11.25lt';
+  var APP_VERSION='2026.11.26lu';
   var APP_CHANGELOG=[
     'Getting started now puts <b>your own domain</b> front and center &mdash; the "Get your own domain name" step is a primary action, and the domain search spells out exactly what a domain does for you and what it costs. A domain bought through Atlas connects to your booking site <b>instantly</b> (we point it and issue the SSL for you), so customers can book at your own address right away. Pricing is shown plainly: the domain is billed yearly at the price you see before you buy, and the booking website that runs on it is included on the Enterprise plan and up, or $19/month (or a one-time $199 build) on Starter and Pro &mdash; no surprises.',
     'Accounting fix: your <b>Net Profit</b>, Profit &amp; Loss and revenue charts now subtract an owner or broker fee the moment a booking is <b>confirmed</b> &mdash; matching the &ldquo;Your take&rdquo; figure shown on the booking itself &mdash; instead of waiting until the cash was collected. A confirmed-but-unpaid booking with a percentage split (for example a $1,600 rental where a broker keeps 85%) no longer shows its full rental as profit; the dashboard now agrees with each booking&rsquo;s own economics to the cent. Your Payouts report still lists only fees on money you have actually collected, since that is what you owe partners in cash.',
@@ -3511,10 +3549,9 @@ const Atlas = (function(){
     var feat=(t.id==='starter');
     var cap = t.vehicles===Infinity ? 'Unlimited assets + locations'
       : ('Up to '+t.vehicles+' assets '+(t.locations>=90?'&middot; multi-location':(t.locations>1?('&middot; '+t.locations+' locations'):'&middot; 1 location')));
-    var price = (t.price%1===0)? t.price : t.price.toFixed(2);
     return '<div class="tier'+(feat?' tier--feat':'')+'">'+(feat?'<div class="tier__badge">Start here</div>':'')
       +'<div class="tier__name">'+t.name+'</div>'
-      +'<div class="tier__price"><sup>$</sup>'+price+'<span>/mo</span></div>'
+      +'<div class="tier__price">'+_fPriceNode(t.price)+'</div>'
       +'<div class="tier__cap">'+cap+'</div>'
       +'<div class="tier__cr">'+t.credits.toLocaleString()+' Atlas.io credits / week</div>'
       +'<div class="tier__cr">'+(t.sites===Infinity?'Unlimited':t.sites)+' booking site'+(t.sites===1?'':'s')+'</div>'
@@ -3526,8 +3563,8 @@ const Atlas = (function(){
     var rank={starter:0,pro:1,enterprise:2,business:3,unlimited:4};
     var ok='<svg class="pc-ok" viewBox="0 0 20 20" fill="none"><path d="M16 6L8.5 13.5 4 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     var no='<span class="pc-no">&mdash;</span>';
-    var head='<thead><tr><th class="pc-corner"></th>'+tiers.map(function(t){ var feat=(t.id==='pro'); var pr=(t.price%1?t.price.toFixed(2):t.price);
-      return '<th class="pc-th'+(feat?' pc-th--feat':'')+'">'+(feat?'<div class="pc-badge">Most popular</div>':'')+'<div class="pc-name">'+t.name+'</div><div class="pc-price"><sup>$</sup>'+pr+'<span>/mo</span></div><div class="pc-cr">'+t.credits.toLocaleString()+' credits / wk</div><button class="btn btn--'+(feat?'primary':'ghost')+' btn--sm" onclick="Atlas.goAuth(\'signup\')">Start free</button></th>'; }).join('')+'</tr></thead>';
+    var head='<thead><tr><th class="pc-corner"></th>'+tiers.map(function(t){ var feat=(t.id==='pro');
+      return '<th class="pc-th'+(feat?' pc-th--feat':'')+'">'+(feat?'<div class="pc-badge">Most popular</div>':'')+'<div class="pc-name">'+t.name+'</div><div class="pc-price">'+_fPriceNode(t.price)+'</div><div class="pc-cr">'+t.credits.toLocaleString()+' credits / wk</div><button class="btn btn--'+(feat?'primary':'ghost')+' btn--sm" onclick="Atlas.goAuth(\'signup\')">Start free</button></th>'; }).join('')+'</tr></thead>';
     function grp(g){ return '<tr class="pc-grp"><th>'+g+'</th>'+tiers.map(function(){return '<td class="pc-grp"></td>';}).join('')+'</tr>'; }
     function valRow(label, fn){ return '<tr><th>'+label+'</th>'+tiers.map(function(t){return '<td class="pc-val">'+fn(t)+'</td>';}).join('')+'</tr>'; }
     function tickRow(label, minR){ return '<tr><th>'+label+'</th>'+tiers.map(function(t){return '<td>'+((rank[t.id]||0)>=minR?ok:no)+'</td>';}).join('')+'</tr>'; }
@@ -3619,6 +3656,7 @@ const Atlas = (function(){
       if(_ef) _ef.style.display='none';                       // the invite token identifies the account -- no email needed
       var _nfi=document.getElementById('authNameField'); if(_nfi) _nfi.style.display='none';   // WAVE104: no first/last name fields on the invite/join screen
       var _cwi=document.getElementById('authConsent'); if(_cwi) _cwi.style.display='none';
+      var _rfi=document.getElementById('authRefField'); if(_rfi) _rfi.style.display='none';   // no referral code on the invite/join screen
       var _fwi=document.getElementById('authForgot'); if(_fwi) _fwi.style.display='none';
       var _pwi=document.getElementById('authPass'); if(_pwi){ _pwi.type='password'; _pwi.setAttribute('autocomplete','new-password'); _pwi.placeholder='At least 8 characters'; }
       var _pei=document.getElementById('authPassEye'); if(_pei) _pei.textContent='Show';
@@ -3634,6 +3672,8 @@ const Atlas = (function(){
       ? 'New to Atlas? <a onclick="Atlas.goAuth(\'signup\')" style="color:var(--brand);font-weight:700;cursor:pointer">Create an account</a>'
       : 'Already have an account? <a onclick="Atlas.goAuth(\'login\')" style="color:var(--brand);font-weight:700;cursor:pointer">Sign in</a>';
     var _cw=document.getElementById('authConsent'); if(_cw) _cw.style.display=login?'none':'block';   // consent shown only when creating an account
+    var _rf=document.getElementById('authRefField'); if(_rf) _rf.style.display=login?'none':'';   // referral/partner code only when creating an account
+    if(!login){ var _ri=document.getElementById('authRef'); var _sc=_refStoredCode(); if(_ri && !_ri.value && _sc){ _ri.value=_sc; } try{ _refRenderPreview((_ri&&_ri.value)||_sc); }catch(e){} }   // prefill from an affiliate link + show the bonus preview
     var _fw=document.getElementById('authForgot'); if(_fw) _fw.style.display=login?'block':'none';   // forgot-password link: only meaningful once an account (and a password) already exists
     var _ag=document.getElementById('authAgree'); if(_ag) _ag.checked=false;
     var _pw=document.getElementById('authPass'); if(_pw){ _pw.type='password'; _pw.setAttribute('autocomplete', login?'current-password':'new-password'); _pw.placeholder = login?'Your password':'At least 8 characters'; }
@@ -16719,7 +16759,7 @@ const Atlas = (function(){
   var _deferredInstall=null;
   // FOUNDER OFFER (public): reveal the hero banner only when the program is live AND still open. Also seeds _founderInfo.program
   // so the signup plan chooser shows founder pricing. No-op (banner stays hidden) when the flag is OFF -> byte-identical marketing page.
-  function _founderBanner(){ try{ if(typeof ATLAS_BACKEND==='undefined' || !ATLAS_BACKEND) return; _api('/api/founder/status',{method:'GET'}).then(function(res){ var j=res&&res.json; if(!(j&&j.enabled&&j.open)) return; _founderInfo.program=true; _founderInfo.open=true; _founderInfo.remaining=j.remaining||0; var cap=(j.cap||1000); var el=document.getElementById('founderBanner'); if(el){ el.innerHTML='&#127881; <b>Founding Member offer</b> &mdash; the first '+cap.toLocaleString()+' businesses get <b>1 week free + 50% off plans for life</b> ($49.50/mo on Starter, normally $99), a founding-member number &amp; badge, and beta-first access. '+(j.remaining||0).toLocaleString()+' of '+cap.toLocaleString()+' spots left.'; el.style.display='block'; } }).catch(function(){}); }catch(e){} }
+  function _founderBanner(){ try{ if(typeof ATLAS_BACKEND==='undefined' || !ATLAS_BACKEND) return; _api('/api/founder/status',{method:'GET'}).then(function(res){ var j=res&&res.json; if(!(j&&j.enabled&&j.open)) return; _founderInfo.program=true; _founderInfo.open=true; _founderInfo.remaining=j.remaining||0; try{ var _pg=document.getElementById('priceGrid'); if(_pg && typeof _priceCompareHtml==='function') _pg.innerHTML=_priceCompareHtml(); }catch(e){} var cap=(j.cap||1000); var el=document.getElementById('founderBanner'); if(el){ el.innerHTML='&#127881; <b>Founding Member offer</b> &mdash; the first '+cap.toLocaleString()+' businesses get <b>1 week free + 50% off plans for life</b> ($49.50/mo on Starter, normally $99), a founding-member number &amp; badge, and beta-first access. '+(j.remaining||0).toLocaleString()+' of '+cap.toLocaleString()+' spots left.'; el.style.display='block'; } }).catch(function(){}); }catch(e){} }
   /* ===== Owner "cha-ching" sale sound. Synthesized with WebAudio (no audio asset -> keeps the client pure ASCII). Plays when a
      sale push arrives (the service worker relays 'atlas-sale' to open tabs) AND when the dashboard sees collected revenue rise on
      a refresh (so it works even before web-push/VAPID is configured). Debounced so a push + a refresh never double-chime. Honors
@@ -16857,7 +16897,7 @@ const Atlas = (function(){
     openDreaming,dreamToggle,dreamConnect,dreamSaveConn,dreamDisconnect,dreamLaunch,dreamOutreach,dreamSend,setupAssistant,_suGoal,_suPhoto,_obAssetPhoto,_obAddAsset,_obDelAsset,_obFbPick,profileSet,profileRate,profileUsage,profileFuel,profileDeposit,profileDepositToggle,setupFinish,
     finish,go,goSettings,setTab,renderSet,openAio,closeAio,openNotifications,aioSend,aioAsk,aioApply,aioUndo,aioCancel,aioBundleApply,aioBundleCancel,aioDiagnose,aioFix,aioWriteCopy,dismissQuicks,toggleCouncil,toast,copyPortal,referCopy,openModal,closeModal,
     setBrandName,setBizTz,setBrandColor,setBrandColorHex,setLogo,renderSetSoft,toggleRule,setRule,removeRule,addRule,setSmartPricing,spAddSeason,spSetSeason,spRmSeason,obRefresh,setField,revOptApply,revOptAsk,setAutoPrice,autoPriceRevertAll,autoPriceRevertOne,
-    goAuth,authSubmit,authTogglePass,ssoLogin,setMoneyStack,bkSaveCard,bkChargeCard,_bkChargeCardSubmit,_askModal,_askOk,_bkRecordPaySubmit,bkRecordPayment,setTipping,logout,deleteAccount,deleteAccountConfirm,_doAccountDelete,_stepUpPrompt,_stepUpSubmit,policyAccept,verifyContinue,verifyResend,verifyStartOver,forgotPassword,sendResetLink,changePassword,_changePwGo,goHome,leadSubmit,subscribe,confirmSubscribe,cancelPlan,billingPortal,_openWeb,openPlans,openCredits,buyCredits,openEmailPacks,buyEmails,buyEmailAddon,buyAddon,removeAddon,renderExtras,buyLocation,buySite,buyAssetBlock,buyTracking,_cryptoCheckout,_cryptoPlanPrompt,_cryptoPlanGo,_squarePlanCheckout,_squarePayGo,_squareDomainCheckout,_squareDomainPayGo,_squareBuyCheckout,_squareBuyPayGo,_squareAddonCheckout,_sqManageAddons,_squareAddonCancel,_sqBackupAdd,_sqBackupGo,_sqBackupRemove,_stBackupAdd,_stBackupRemove,paywallUpdatePayment,paywallChoosePlan,paywallStartTrial,paywallRetryPayment,paywallCancelPlan,showSignupPlans,_hideSignupPlans,_signupPickPlan,_founderBadgePick,_fbSel,_fbCommit,
+    goAuth,authSubmit,authTogglePass,_refOnInput,ssoLogin,setMoneyStack,bkSaveCard,bkChargeCard,_bkChargeCardSubmit,_askModal,_askOk,_bkRecordPaySubmit,bkRecordPayment,setTipping,logout,deleteAccount,deleteAccountConfirm,_doAccountDelete,_stepUpPrompt,_stepUpSubmit,policyAccept,verifyContinue,verifyResend,verifyStartOver,forgotPassword,sendResetLink,changePassword,_changePwGo,goHome,leadSubmit,subscribe,confirmSubscribe,cancelPlan,billingPortal,_openWeb,openPlans,openCredits,buyCredits,openEmailPacks,buyEmails,buyEmailAddon,buyAddon,removeAddon,renderExtras,buyLocation,buySite,buyAssetBlock,buyTracking,_cryptoCheckout,_cryptoPlanPrompt,_cryptoPlanGo,_squarePlanCheckout,_squarePayGo,_squareDomainCheckout,_squareDomainPayGo,_squareBuyCheckout,_squareBuyPayGo,_squareAddonCheckout,_sqManageAddons,_squareAddonCancel,_sqBackupAdd,_sqBackupGo,_sqBackupRemove,_stBackupAdd,_stBackupRemove,paywallUpdatePayment,paywallChoosePlan,paywallStartTrial,paywallRetryPayment,paywallCancelPlan,showSignupPlans,_hideSignupPlans,_signupPickPlan,_founderBadgePick,_fbSel,_fbCommit,
     mfaSubmit,mfaResend,mfaToggleBackup,mfaCancel,
     newBooking,editBooking,bkPreview,bkSetModel,bkAssetChanged,createBooking,openBooking,bkAddCoSigner,_bkCoSignerSubmit,bkCoSignerLink,bkRmCoSigner,bkContractPdf,bkViewAgreement,bkSendAgreement,bkReceiptPdf,setBookingStatus,deleteBooking,bkReqCharge,bkReqDone,bkFilter,bkSearch,bkShowAll,bkAssign,bkSetView,bkCalNav,bkCalDay,exportBkIcs,viewCustomer,custSearch,custShowAll,exportCustomers,saveCustNote,emailCustomer,eraseCustomer,sendCustEmail,addWaitlist,saveWaitlist,editWaitlist,saveWaitlistEdit,rmWait,waitToBooking,addLead,saveLead,leadStage,leadToBooking,rmLead,bkAddCondition,bkRmCondition,bkFinalizeCondition,bkUnlockCondition,bkCompareCondition,bkAddCharge,sendCharge,bkRmCharge,portalPayCharge,
     bkLogIncident,saveIncident,bkIncidentCharge,bkRmIncident,bkCancelFlow,doCancel,bkVoidFlow,doVoid,unvoidBooking,uncancelBooking,bkVoidReport,bkEvidence,bkRebuttalLetter,_rebutCopy,_rebutPrint,bkOrphanDisputes,_orphanLink,_orphanDismiss,bkPortalLink,bkPortalRevoke,bkIdvNudge,bkSendSignLink,idvSetAutoSend,idvSetAutoCarry,bkExtendFlow,bkExtendAmt,bkExtendPreview,bkExtendSave,bkExtRemove,bkRepeat,doRepeat,bkToggleVerify,bkRejectVerify,bkClearVerify,bkRequireResign,bkSignHistory,bkActivityLog,bkPaymentPlan,savePlan,bkPlanPaid,_ppTypeChange,_ppAddRow,_ppRmRow,_ppEdit,bkMeter,saveMeter,bkMeterBill,_mtHint,_mtOverage,bkFuel,saveFuel,_flHint,bkLate,saveLate,_ltHint,bkDriver,saveDriver,bkRmDriver,bkInsurance,saveInsurance,bkBlacklistToggle,blacklistBlockToggle,holdAuth,holdRelease,holdCapture,holdReturn,doCapture,bkCheckIn,doCheckIn,bkCloseOut,doCloseOut,_coCalc,

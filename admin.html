@@ -312,6 +312,7 @@
     <button data-sec="overview" onclick="setSection('overview')">Overview</button>
     <button data-sec="revenue" onclick="setSection('revenue')">Revenue</button>
     <button data-sec="members" onclick="setSection('members')">Members</button>
+    <button data-sec="affiliates" onclick="setSection('affiliates')">Affiliates</button>
     <button data-sec="analytics" onclick="setSection('analytics')">Analytics</button>
     <button data-sec="support" onclick="setSection('support')">Support</button>
     <button data-sec="ai" onclick="setSection('ai')">AI</button>
@@ -746,6 +747,28 @@
   </div>
   </section>
 
+  <section class="hqsec" data-sec="affiliates">
+  <div class="hqgroup">Affiliate &amp; partner program</div>
+  <div class="card">
+    <div class="card-h"><h2>Program settings</h2><div class="sp"></div><button class="chip" onclick="affLoad()">Refresh</button></div>
+    <div class="card-b pad" id="affConfigBody"><div class="mut">Loading&hellip;</div></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Commission accounting</h2></div>
+    <div class="card-b pad" id="affStatsBody"><div class="mut">Loading&hellip;</div></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Affiliates &amp; applications</h2><div class="sp"></div>
+      <select class="inp" id="affFilter" onchange="affLoadList()" style="max-width:150px;font-size:12px"><option value="">All statuses</option><option value="pending">Pending</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="revoked">Revoked</option><option value="denied">Denied</option></select>
+    </div>
+    <div class="card-b pad" id="affListBody"><div class="mut">Loading&hellip;</div></div>
+  </div>
+  <div class="card" id="affDetailCard" style="display:none">
+    <div class="card-h"><h2 id="affDetailTitle">Affiliate detail</h2><div class="sp"></div><button class="chip" onclick="affCloseDetail()">Close</button></div>
+    <div class="card-b pad" id="affDetailBody"><div class="mut">Loading&hellip;</div></div>
+  </div>
+  </section>
+
   <section class="hqsec" data-sec="support">
   <div class="hqgroup">Tickets &amp; feedback</div>
   <div class="card">
@@ -845,16 +868,17 @@ function openReport(key){ var w=window.open('','_blank');
 function _ok200(r){ return !!(r && r.status===200 && r.json && typeof r.json==='object' && r.json.ok!==false && !r.json.error); }
 
 /* ================= section nav (tab bar; only the active section's cards render) ================= */
-var HQ_SECTIONS=['overview','revenue','members','analytics','support','ai','security','system','settings','control'];
+var HQ_SECTIONS=['overview','revenue','members','affiliates','analytics','support','ai','security','system','settings','control'];
 var HQ_SEC_KEY='atlas_hq_section';
 function setSection(name){ if(HQ_SECTIONS.indexOf(name)<0) name='overview';
   var tabs=$('hqTabs'); if(tabs){ Array.prototype.forEach.call(tabs.children,function(b){ var _cur=b.getAttribute('data-sec')===name; b.classList.toggle('on', _cur); if(_cur) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); }); }
   var secs=document.querySelectorAll('.hqsec'); for(var i=0;i<secs.length;i++){ secs[i].classList.toggle('on', secs[i].getAttribute('data-sec')===name); }
   try{ localStorage.setItem(HQ_SEC_KEY,name); }catch(e){}
   try{ if(window._hqA11yPass) window._hqA11yPass(); }catch(e){}
+  try{ if(name==='affiliates' && typeof affLoad==='function') affLoad(); }catch(e){}
 }
 /* RBAC: which capability each HQ tab needs. A staffer sees a tab only if their effective caps include one of these; owner sees all. settings = owner-only (no staff cap grants it). control is gated separately by _isSuperOwner. */
-var HQ_SEC_CAP={overview:['ops.overview'],revenue:['money.view'],members:['members.view'],analytics:['analytics.view','social.view'],support:['support.tickets.view','support.inbox.view','support.bugs.view'],ai:['ai.assist'],security:['security.reports'],system:['ops.system'],settings:[]};
+var HQ_SEC_CAP={overview:['ops.overview'],revenue:['money.view'],members:['members.view'],affiliates:[],analytics:['analytics.view','social.view'],support:['support.tickets.view','support.inbox.view','support.bugs.view'],ai:['ai.assist'],security:['security.reports'],system:['ops.system'],settings:[]};
 function _secAllowed(sec){ if(_isOwner()) return true;
   var caps=DATA.you&&DATA.you.caps;
   if(caps==null) return true;   /* fail-open: no caps info (older worker) -> show all; the worker still enforces access server-side */
@@ -882,7 +906,7 @@ var _HQ_FIND_EXTRA=[
   {label:'Run a full test subscription', sec:'revenue', sel:'#entPayBody', card:'Payments', aliases:'test sub charge payment readiness'},
   {label:'Register a REAL test domain', sec:'settings', sel:'#entRegBody', card:'Domain registrar', aliases:'dynadot buy domain test'}
 ];
-function _secLabel(s){ return ({overview:'Overview',system:'System',revenue:'Revenue',members:'Members',analytics:'Analytics',support:'Support',ai:'AI',security:'Security',settings:'Settings',control:'Take Control'})[s]||s; }
+function _secLabel(s){ return ({overview:'Overview',system:'System',revenue:'Revenue',members:'Members',affiliates:'Affiliates',analytics:'Analytics',support:'Support',ai:'AI',security:'Security',settings:'Settings',control:'Take Control'})[s]||s; }
 function hqBuildIndex(){ var idx=[]; var secs=document.querySelectorAll('.hqsec');
   for(var i=0;i<secs.length;i++){ var sec=secs[i].getAttribute('data-sec'); var cards=secs[i].querySelectorAll('.card');
     for(var j=0;j<cards.length;j++){ var c=cards[j]; var h=c.querySelector('.card-h h2'); var title=h?(h.textContent||'').trim():'';
@@ -1470,7 +1494,7 @@ $('scrim').addEventListener('click', function(e){ if(e.target===$('scrim')) clos
 /* ================= AI Command Center ================= */
 var _xI='<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
 function _mdLite(s){ return esc(s).replace(/\n{2,}/g,'<br><br>').replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(Do this first:)/i,'<b style="color:var(--gold2)">$1</b>'); }
-var ATLAS_EXPECT_BUILD='2026.11.25lo';
+var ATLAS_EXPECT_BUILD='2026.11.26lq';
 function renderBuildBanner(){ var el=$('buildBanner'); if(!el) return; var c=DATA.aiCfg||{}; if(c.build===ATLAS_EXPECT_BUILD){ el.innerHTML=''; return; } if(!c.build){ el.innerHTML='<div style="background:rgba(224,180,80,.12);border:1px solid rgba(224,180,80,.5);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#d0a53f">Your live worker is <b>out of date</b>. Competitor delete, Deep-read, Generate-brief and the newest features will not work until you paste the latest <b>worker.js</b> into Cloudflare, then reload this page.</div>'; return; } el.innerHTML='<div style="background:rgba(224,180,80,.10);border:1px solid rgba(224,180,80,.4);border-radius:10px;padding:9px 14px;margin-bottom:14px;font-size:12.5px;color:#d0a53f">Live worker build <b>'+esc(c.build)+'</b>; this dashboard expects <b>'+ATLAS_EXPECT_BUILD+'</b>. Paste the latest worker.js to update.</div>'; }
 /* ===== Atlas Counsel: what deserves your attention today ===== */
 function loadCounsel(){ return api('/api/admin/counsel').then(function(r){ if(r.status===404){ DATA.counsel={needsDeploy:true}; } else { DATA.counsel=r.json||{}; } renderCounsel(); }).catch(function(){ var el=$('cxBody'); if(el) el.innerHTML='<div class="mut">Could not reach the platform.</div>'; }); }
@@ -2757,6 +2781,146 @@ function _tcBeacon(){ try{ api('/api/trap/beacon',{method:'POST',body:{fingerpri
   // bridge recognizes a signed-in owner). Neither -> the manual key gate. A stale key falls through to the session probe.
   if(saved){ _tok=saved; _probe().then(function(ok){ if(ok) return; _tok=''; return _probe().then(function(ok2){ if(!ok2) _showGate(); }); }).catch(function(){ _tok=''; _probe().then(function(ok2){ if(!ok2) _showGate(); }).catch(_showGate); }); }
   else { _tok=''; _probe().then(function(ok){ if(!ok) _showGate(); }).catch(_showGate); }
+})();
+
+/* ===================== Affiliate & partner program (HQ, owner-only) =====================
+   Drives the /api/admin/affiliate/* routes. Money is never moved here: payouts are recorded,
+   and a payout is marked PAID only after the owner has actually sent it (reference required). */
+(function(){
+  var AFF_SEL=null;
+  var AFF_BONUS_BASE={};   // the currently-open affiliate's full benefits object -> affSaveBonus merges onto it so keys the editor doesn't surface (e.g. discount_cents) are never silently dropped
+  function $id(x){ return document.getElementById(x); }
+  function affUsd(c){ c=Number(c)||0; return (c<0?'-$':'$')+(Math.abs(c)/100).toFixed(2); }
+  function affBps(b){ b=Number(b)||0; return (b/100).toFixed(b%100?2:0)+'%'; }
+  function affPill(s){ var m={active:'active',approved:'active',paid:'active',pending:'trial',suspended:'gray',revoked:'gray',denied:'gray',rejected:'gray',reversed:'past'}; return '<span class="pill '+(m[s]||'gray')+'">'+esc(s||'?')+'</span>'; }
+  function affNum(id){ var e=$id(id); return e?(parseInt(e.value,10)||0):0; }
+  function affField(id,label,val,hint){ return '<div><label style="display:block;font-size:11px;color:var(--mut2);margin-bottom:3px">'+esc(label)+'</label><input class="inp" id="'+id+'" type="number" min="0" value="'+(Number(val)||0)+'" style="width:100%"><div class="mut" style="font-size:10.5px;margin-top:2px">'+esc(hint)+'</div></div>'; }
+  function affStat(label,val){ return '<div><div class="mut" style="font-size:11px">'+esc(label)+'</div><b class="num" style="font-size:16px">'+nfmt(val)+'</b></div>'; }
+  function affMoney(label,val){ return '<div><div class="mut" style="font-size:11px">'+esc(label)+'</div><b class="money" style="font-size:15px">'+affUsd(val)+'</b></div>'; }
+
+  window.affLoad=function(){ affLoadSummary(); affLoadList(); };
+
+  function affLoadSummary(){
+    var cfgEl=$id('affConfigBody'), stEl=$id('affStatsBody'); if(!cfgEl) return;
+    api('/api/admin/affiliate/overview').then(function(r){
+      if(!(r.status===200&&r.json&&r.json.ok)){ cfgEl.innerHTML='<div class="mut">Affiliate backend is not deployed yet (built, not shipped).</div>'; if(stEl) stEl.innerHTML=''; return; }
+      var d=r.json, c=d.config||{}, on=!!d.enabled;
+      cfgEl.innerHTML=''+
+        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">'+
+          '<span class="pill '+(on?'active':'gray')+'">'+(on?'LIVE':'OFF')+'</span>'+
+          '<button class="btn '+(on?'danger ':'')+'sm" onclick="affToggle('+(on?'false':'true')+')">'+(on?'Turn program OFF':'Turn program ON')+'</button>'+
+          '<span class="mut" style="font-size:11.5px">Commissions accrue only while LIVE. Existing rows are untouched when OFF.</span>'+
+        '</div>'+
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:10px">'+
+          affField('affDefBps','Default commission (bps)',c.default_bps,'1500 = 15%')+
+          affField('affHold','Holding days',c.holding_days,'days before a commission is approvable')+
+          affField('affWin','Attribution window (days)',c.attribution_window_days,'click to signup; once attributed it is locked')+
+          affField('affMonths','Commission months',c.commission_months,'0 = lifetime (pays every month)')+
+          affField('affCap','Lifetime cap (cents)',c.commission_cap_cents,'0 = no cap')+
+          affField('affMin','Min payout (cents)',c.min_payout_cents,'5000 = $50')+
+        '</div>'+
+        '<div style="margin-top:12px"><button class="btn ghost sm" onclick="affSaveConfig()">Save settings</button> <span class="mut" style="font-size:11px">Subscription MRR only. First-click attribution. Flat rate across tiers unless a per-affiliate override is set.</span></div>';
+      if(stEl){
+        var a=d.applications||{}, rf=d.referrals||{}, cm=d.commissions||{};
+        stEl.innerHTML=''+
+          '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px">'+affStat('Affiliates',a.total||0)+affStat('Pending',a.pending||0)+affStat('Active',a.active||0)+affStat('Suspended',a.suspended||0)+'</div>'+
+          '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px">'+affStat('Referred tenants',rf.total||0)+affStat('Paying',rf.active_customers||0)+affStat('Clicks',(d.clicks&&d.clicks.total)||0)+'</div>'+
+          '<div style="display:flex;gap:18px;flex-wrap:wrap">'+affMoney('Pending',cm.pending_cents)+affMoney('Approved',cm.approved_cents)+affMoney('Paid',cm.paid_cents)+affMoney('Reversed',cm.reversed_cents)+'</div>'+
+          '<div style="margin-top:10px;padding:10px 12px;background:var(--surf3);border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:10px"><span class="mut">Outstanding liability (accrued, unpaid)</span><b class="money" style="font-size:16px">'+affUsd(cm.outstanding_liability_cents)+'</b></div>';
+      }
+    }).catch(function(){ cfgEl.innerHTML='<div class="mut">Could not load affiliate overview.</div>'; });
+  }
+
+  window.affToggle=function(to){ var want=(to===true||to==='true'); api('/api/admin/affiliate/config',{method:'POST',body:{enabled:want}}).then(function(r){ if(r.status===200&&r.json&&r.json.ok){ toast('Program '+(want?'enabled':'disabled')); affLoadSummary(); } else toast('Could not update'); }); };
+  window.affSaveConfig=function(){ api('/api/admin/affiliate/config',{method:'POST',body:{default_bps:affNum('affDefBps'),holding_days:affNum('affHold'),attribution_window_days:affNum('affWin'),commission_months:affNum('affMonths'),commission_cap_cents:affNum('affCap'),min_payout_cents:affNum('affMin')}}).then(function(r){ if(r.status===200&&r.json&&r.json.ok){ toast('Settings saved'); affLoadSummary(); } else toast('Save failed'); }); };
+
+  window.affLoadList=function(){
+    var el=$id('affListBody'); if(!el) return;
+    var f=$id('affFilter'); var q=(f&&f.value)?('?status='+encodeURIComponent(f.value)):'';
+    api('/api/admin/affiliate/list'+q).then(function(r){
+      if(!(r.status===200&&r.json&&r.json.ok)){ el.innerHTML='<div class="mut">List unavailable.</div>'; return; }
+      var rows=r.json.affiliates||[];
+      if(!rows.length){ el.innerHTML='<div class="mut">No affiliates yet.</div>'; return; }
+      el.innerHTML='<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Name / email</th><th>Status</th><th>Code</th><th>Rate</th><th>Joined</th><th></th></tr></thead><tbody>'+
+        rows.map(function(a){ return '<tr class="row"><td><div class="em">'+esc(a.name||'(no name)')+'</div><div class="mut">'+esc(a.email||'')+'</div></td><td>'+affPill(a.status)+'</td><td class="mut">'+esc(a.code||'--')+'</td><td class="mut">'+(a.commission_bps!=null?affBps(a.commission_bps):'default')+'</td><td class="mut">'+(a.created_at?tsCT(a.created_at):'--')+'</td><td style="text-align:right;white-space:nowrap">'+affRowActions(a)+'</td></tr>'; }).join('')+
+        '</tbody></table></div>';
+    });
+  };
+  function affRowActions(a){ var b=['<button class="chip" onclick="affOpen(\''+esc(a.id)+'\')">View</button>']; var id=esc(a.id);
+    if(a.status==='pending'){ b.push('<button class="chip" onclick="affAct(\''+id+'\',\'approve\')">Approve</button>','<button class="chip" onclick="affAct(\''+id+'\',\'deny\')">Deny</button>'); }
+    else if(a.status==='active'||a.status==='approved'){ b.push('<button class="chip" onclick="affAct(\''+id+'\',\'suspend\')">Suspend</button>'); }
+    else if(a.status==='suspended'){ b.push('<button class="chip" onclick="affAct(\''+id+'\',\'reactivate\')">Reactivate</button>'); }
+    return '<div style="display:inline-flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">'+b.join('')+'</div>'; }
+  window.affAct=function(id,act){ if(act==='deny'||act==='suspend'||act==='revoke'){ if(!confirm('Confirm: '+act+' this affiliate?')) return; } api('/api/admin/affiliate/'+act,{method:'POST',body:{id:id}}).then(function(r){ if(r.status===200&&r.json&&r.json.ok){ toast('Affiliate '+act); affLoadList(); affLoadSummary(); if(AFF_SEL===id) affOpen(id); } else toast((r.json&&r.json.error)||'Action failed'); }); };
+
+  window.affCloseDetail=function(){ AFF_SEL=null; var c=$id('affDetailCard'); if(c) c.style.display='none'; };
+  window.affOpen=function(id){
+    AFF_SEL=id; var card=$id('affDetailCard'), body=$id('affDetailBody'), ttl=$id('affDetailTitle'); if(!card) return;
+    card.style.display=''; body.innerHTML='<div class="mut">Loading&hellip;</div>'; try{ card.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(e){}
+    api('/api/admin/affiliate/get?id='+encodeURIComponent(id)).then(function(r){
+      if(!(r.status===200&&r.json&&r.json.ok)){ body.innerHTML='<div class="mut">Could not load.</div>'; return; }
+      var a=r.json.affiliate||{}, cs=r.json.commissions||[], po=r.json.payouts||[];
+      if(ttl) ttl.textContent=(a.name||a.email||'Affiliate');
+      var apprUnpaid=0, pend=0; cs.forEach(function(x){ if(x.livemode!==1) return; if(x.status==='approved') apprUnpaid+=(Number(x.commission_cents)||0); if(x.status==='pending') pend+=(Number(x.commission_cents)||0); });
+      var bn=(a.benefits&&typeof a.benefits==='object')?a.benefits:{};   // CLIENT signup bonus this partner grants their referred tenants
+      AFF_BONUS_BASE=bn;   // stash the full object so Save merges (never clobbers unsurfaced keys like discount_cents)
+      var _webOn=(bn.website===true||bn.website===1||bn.website==='1');   // boolean-only, matching the server grant (free_website_months is not honored)
+      var _bExpV=''; try{ var _ed=Number(bn.expires_at); if(isFinite(_ed)&&_ed>0){ var _dd=new Date(_ed); if(!isNaN(_dd.getTime())) _bExpV=_dd.toISOString().slice(0,10); } }catch(e){}   // guard: a non-numeric expires_at must not throw and wedge the whole detail view on "Loading"
+      body.innerHTML=''+
+        '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px">'+
+          '<div><div class="mut" style="font-size:11px">Status</div>'+affPill(a.status)+'</div>'+
+          '<div><div class="mut" style="font-size:11px">Code</div><b>'+esc(a.code||'--')+'</b></div>'+
+          '<div><div class="mut" style="font-size:11px">Rate</div><b>'+(a.commission_bps!=null?affBps(a.commission_bps):'default')+'</b></div>'+
+          affMoney('Approved, unpaid (live)',apprUnpaid)+affMoney('Pending (live)',pend)+
+        '</div>'+
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">'+
+          '<button class="btn sm" onclick="affApproveEligible(\''+esc(a.id)+'\')">Approve all eligible</button>'+
+          '<button class="btn gold sm" onclick="affCreatePayout(\''+esc(a.id)+'\')">Create payout (approved)</button>'+
+        '</div>'+
+        '<div style="margin:4px 0 16px;border:1px solid var(--line2);border-radius:10px;padding:12px 13px;background:var(--surf3)">'+
+          '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut2);margin-bottom:3px">Client signup bonus</div>'+
+          '<div class="mut" style="font-size:11px;margin-bottom:10px">Granted ONCE to each NEW tenant who signs up through this partner&#39;s link or code. Trial days, gift credits and website access apply at signup; a discount applies at first charge. Set 0 / unchecked for none.</div>'+
+          '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:10px">'+
+            affField('affBonusTrial','Extra free trial days',bn.trial_extra_days,'added to the 7-day trial (max 365)')+
+            affField('affBonusCredits','Bonus Atlas gift credits',bn.gift_credits,'one-time, added at signup')+
+            affField('affBonusDisc','First-charge discount (%)',bn.discount_pct,'0 = none; off their first subscription payment')+
+            affField('affBonusLimit','Redemption limit',bn.redemption_limit,'0 = unlimited; caps how many clients get it')+
+            '<div><label style="display:block;font-size:11px;color:var(--mut2);margin-bottom:3px">Offer expires</label><input class="inp" id="affBonusExp" type="date" value="'+esc(_bExpV)+'" style="width:100%"><div class="mut" style="font-size:10.5px;margin-top:2px">blank = no expiry</div></div>'+
+          '</div>'+
+          '<label style="display:flex;align-items:center;gap:7px;margin-top:11px;font-size:13px;cursor:pointer"><input type="checkbox" id="affBonusWeb"'+(_webOn?' checked':'')+'> Grant website access on ANY tier (free)</label>'+
+          '<div style="margin-top:12px"><button class="btn gold sm" onclick="affSaveBonus(\''+esc(a.id)+'\')">Save client bonus</button></div>'+
+        '</div>'+
+        '<div class="mut" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin:4px 0 6px">Commissions</div>'+affCommTable(cs)+
+        '<div class="mut" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 6px">Payouts</div>'+affPayoutTable(po);
+    });
+  };
+  window.affSaveBonus=function(id){
+    // MERGE onto the loaded benefits so keys the editor doesn't surface (notably discount_cents, set via add/approve) are
+    // preserved; the six editor fields are set when >0/checked and DELETED when cleared (so zeros still prune to a clean shape).
+    var b=Object.assign({},(AFF_BONUS_BASE&&typeof AFF_BONUS_BASE==='object')?AFF_BONUS_BASE:{});
+    var t=affNum('affBonusTrial'); if(t>0) b.trial_extra_days=Math.min(365,t); else delete b.trial_extra_days;
+    var g=affNum('affBonusCredits'); if(g>0) b.gift_credits=g; else delete b.gift_credits;
+    var d=affNum('affBonusDisc'); if(d>0) b.discount_pct=Math.min(100,d); else delete b.discount_pct;
+    var l=affNum('affBonusLimit'); if(l>0) b.redemption_limit=l; else delete b.redemption_limit;
+    var w=$id('affBonusWeb'); if(w&&w.checked) b.website=true; else delete b.website;
+    var ex=$id('affBonusExp'); if(ex&&ex.value){ var ts=Date.parse(ex.value+'T23:59:59Z'); if(!isNaN(ts)) b.expires_at=ts; else delete b.expires_at; } else delete b.expires_at;
+    api('/api/admin/affiliate/update',{method:'POST',body:{id:id,benefits:b}}).then(function(r){ if(r.status===200&&r.json&&r.json.ok){ toast(Object.keys(b).length?'Client bonus saved':'Client bonus cleared'); if(AFF_SEL===id) affOpen(id); } else toast((r.json&&r.json.error)||'Save failed'); });
+  };
+  function affCommTable(cs){ if(!cs.length) return '<div class="mut">No commissions yet.</div>';
+    return '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Customer</th><th>Eligible</th><th>Rate</th><th>Commission</th><th>Status</th><th>Mode</th><th>Created</th><th></th></tr></thead><tbody>'+
+      cs.map(function(x){ var act=''; if(x.status==='pending') act='<button class="chip" onclick="affComm(\''+esc(x.id)+'\',\'approve\')">Approve</button> <button class="chip" onclick="affComm(\''+esc(x.id)+'\',\'reject\')">Reject</button>'; else if(x.status==='approved') act='<button class="chip" onclick="affComm(\''+esc(x.id)+'\',\'reject\')">Reject</button>';
+        return '<tr class="row"><td class="mut">'+esc(x.referee_tenant||'--')+'</td><td class="mut">'+affUsd(x.eligible_cents)+'</td><td class="mut">'+affBps(x.commission_bps)+'</td><td class="money">'+affUsd(x.commission_cents)+'</td><td>'+affPill(x.status)+'</td><td class="mut">'+(x.livemode===1?'live':'test')+'</td><td class="mut">'+(x.created_at?tsCT(x.created_at):'--')+'</td><td style="text-align:right;white-space:nowrap">'+act+'</td></tr>'; }).join('')+
+      '</tbody></table></div>'; }
+  function affPayoutTable(po){ if(!po.length) return '<div class="mut">No payouts yet.</div>';
+    return '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Amount</th><th>Status</th><th>Method</th><th>Reference</th><th>Created</th><th></th></tr></thead><tbody>'+
+      po.map(function(p){ var act=''; if(p.status==='pending'||p.status==='approved') act='<button class="chip" onclick="affPayPaid(\''+esc(p.id)+'\')">Mark paid</button> <button class="chip" onclick="affPay(\''+esc(p.id)+'\',\'reject\')">Void</button>';
+        return '<tr class="row"><td class="money">'+affUsd(p.amount_cents)+'</td><td>'+affPill(p.status)+'</td><td class="mut">'+esc(p.method||'--')+'</td><td class="mut">'+esc(p.reference||'--')+'</td><td class="mut">'+(p.created_at?tsCT(p.created_at):'--')+'</td><td style="text-align:right">'+act+'</td></tr>'; }).join('')+
+      '</tbody></table></div>'; }
+  window.affComm=function(cid,act){ if(act==='reject'&&!confirm('Reject this commission? This cannot be undone.')) return; api('/api/admin/affiliate/commission',{method:'POST',body:{id:cid,action:act}}).then(function(r){ if(r.status===200&&r.json&&r.json.ok){ toast('Commission '+act+(r.json.updated!=null?(' ('+r.json.updated+')'):'')); if(AFF_SEL) affOpen(AFF_SEL); affLoadSummary(); } else toast('Failed'); }); };
+  window.affApproveEligible=function(id){ api('/api/admin/affiliate/commission',{method:'POST',body:{affiliate_id:id,action:'approve'}}).then(function(r){ if(r.status===200&&r.json&&r.json.ok){ toast('Approved '+(r.json.updated||0)+' commission(s)'); affOpen(id); affLoadSummary(); } else toast('Failed'); }); };
+  window.affCreatePayout=function(id){ api('/api/admin/affiliate/payout',{method:'POST',body:{affiliate_id:id}}).then(function(r){ if(r.status===200&&r.json&&r.json.ok){ var p=r.json.payout||{}; toast('Payout created: '+affUsd(p.amount_cents)); affOpen(id); affLoadSummary(); } else toast((r.json&&r.json.error)||'No approved commissions to pay'); }); };
+  window.affPay=function(pid,act){ if(act==='reject'&&!confirm('Void this payout? Its commissions return to approved.')) return; api('/api/admin/affiliate/payout-action',{method:'POST',body:{id:pid,action:act}}).then(function(r){ if(r.status===200&&r.json&&r.json.ok){ toast('Payout '+act); if(AFF_SEL) affOpen(AFF_SEL); affLoadSummary(); } else toast('Failed'); }); };
+  window.affPayPaid=function(pid){ var ref=prompt('Payment reference (e.g. PayPal/ACH transaction id). Mark PAID only after you have actually sent the money.'); if(!ref) return; api('/api/admin/affiliate/payout-action',{method:'POST',body:{id:pid,action:'mark-paid',reference:ref}}).then(function(r){ if(r.status===200&&r.json&&r.json.ok){ toast('Payout marked paid'); if(AFF_SEL) affOpen(AFF_SEL); affLoadSummary(); } else toast((r.json&&r.json.error)||'Failed'); }); };
 })();
 </script>
 </body>
