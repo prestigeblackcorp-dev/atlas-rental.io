@@ -24,7 +24,7 @@
 <meta name="twitter:description" content="Comparing Atlas Rental.io and Booqable? Here is what to check on any rental platform -- per-booking fees, feature-gating, your website and domain, payments and AI -- and how Atlas answers each. 7-day free trial.">
 <meta name="twitter:image" content="https://atlasrental.io/og-card.jpg">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@graph":[{"@type":"SoftwareApplication","name":"Atlas Rental.io","applicationCategory":"BusinessApplication","operatingSystem":"Web, iOS, Android","url":"https://atlasrental.io/booqable-alternative","description":"Comparing Atlas Rental.io and Booqable? Here is what to check on any rental platform -- per-booking fees, feature-gating, your website and domain, payments and AI -- and how Atlas answers each. 7-day free trial.","offers":{"@type":"Offer","price":"99.00","priceCurrency":"USD","description":"7-day free trial, then plans from $99/month with every core feature on every plan and no per-booking fees."}},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is Atlas affiliated with Booqable?","acceptedAnswer":{"@type":"Answer","text":"No. Atlas Rental.io is an independent product and is not affiliated with, endorsed by, or sponsored by Booqable. This page is to help you compare -- please confirm Booqable's current plans and features on their own site."}},{"@type":"Question","name":"Does Atlas charge per booking?","acceptedAnswer":{"@type":"Answer","text":"No. Atlas never takes a percentage of a booking. You pay a flat monthly plan with every core feature included; your own payment processor charges its normal transaction fees, as it would with any tool."}},{"@type":"Question","name":"Can I move my data over from Booqable or another tool?","acceptedAnswer":{"@type":"Answer","text":"Yes. You set up your inventory and import your items, then Atlas handles bookings, deposits, contracts and reminders. Most operators are running the same day."}},{"@type":"Question","name":"What makes Atlas a good alternative?","acceptedAnswer":{"@type":"Answer","text":"Three things operators mention most: every core feature is on every plan, there are no per-booking fees, and it is truly white-label down to your own domain -- plus a built-in AI assistant. Try it free for 7 days and compare for yourself."}}]}]}
+{"@context":"https://schema.org","@graph":[{"@type":"SoftwareApplication","name":"Atlas Rental.io","applicationCategory":"BusinessApplication","operatingSystem":"Web, iOS, Android","url":"https://atlasrental.io/booqable-alternative","description":"Comparing Atlas Rental.io and Booqable? Here is what to check on any rental platform -- per-booking fees, feature-gating, your website and domain, payments and AI -- and how Atlas answers each. 7-day free trial.","offers":{"@type":"Offer","price":"99.00","priceCurrency":"USD","description":"7-day free trial, then plans from $99/month with every core feature on every plan and no per-booking fees."}},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is Atlas affiliated with Booqable?","acceptedAnswer":{"@type":"Answer","text":"No. Atlas Rental.io is an independent product and is not affiliated with, endorsed by, or sponsored by Booqable. This page is to help you compare -- please confirm Booqable's current plans and features on their own site."}},{"@type":"Question","name":"Does Atlas charge per booking?","acceptedAnswer":{"@type":"Answer","text":"No. Atlas never takes a percentage of a booking. You pay a flat monthly plan with every core feature included; your own payment processor charges its normal transaction fees, as it would with any tool."}},{"@type":"Question","name":"Can I move my data over from Booqable or another tool?","acceptedAnswer":{"@type":"Answer","text":"Yes. You set up your inventory and import your items, then Atlas handles bookings, deposits, contracts and reminders. Most operators are running the same day."}},{"@type":"Question","name":"What makes Atlas a good alternative?","acceptedAnswer":{"@type":"Answer","text":"Operators point to a few things: a built-in AI assistant, every core feature on every plan (you pay for scale, not to unlock the basics), and true white-label right down to your own domain -- which you can register inside Atlas. Try it free for 7 days and compare for yourself."}}]}]}
 </script>
 <style>
 *{box-sizing:border-box}
@@ -140,6 +140,31 @@ section{padding:clamp(40px,6vw,72px) 0}
 .hero-shot figcaption{margin-top:7px;font-size:11px;color:var(--muted)}
 .hero-shot figcaption a{color:var(--muted)}
 @media (prefers-color-scheme:dark){.hero-shot img{filter:brightness(.92) contrast(1.02)}}
+
+/* responsive comparison -- replaces the 3-col table that clipped the Booqable column on mobile */
+.cmp{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden}
+.cmp-head,.cmp-row{display:grid;grid-template-columns:1.05fr 1.35fr 1.35fr}
+.cmp-head{background:var(--surface-2);font-size:13.5px;font-weight:750;color:var(--ink);letter-spacing:.01em}
+.cmp-head>div{padding:15px 18px}
+.cmp-head .cmp-a{color:var(--brand)}
+.cmp-head .cmp-b span{display:block;color:var(--muted);font-weight:600;font-size:12px;margin-top:2px}
+.cmp-row{border-top:1px solid var(--line)}
+.cmp-row>div{padding:16px 18px;font-size:14.5px;line-height:1.5}
+.cmp-k{color:var(--ink);font-weight:700}
+.cmp-va{color:var(--brand-700);font-weight:600}
+.cmp-vb{color:var(--body)}
+.cmp-tag{display:none}
+@media (prefers-color-scheme:dark){.cmp-va{color:var(--brand)}}
+@media (max-width:640px){
+  .cmp-head{display:none}
+  .cmp-row{grid-template-columns:1fr}
+  .cmp-row>div{padding:11px 16px}
+  .cmp-k{background:var(--surface-2);font-size:14.5px;border-bottom:1px solid var(--line)}
+  .cmp-v{display:flex;gap:10px;align-items:baseline}
+  .cmp-tag{display:inline-block;flex:none;min-width:64px;font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+  .cmp-va .cmp-tag{color:var(--brand)}
+  .cmp-row>div:last-child{padding-bottom:14px}
+}
 </style>
 </head>
 <body>
@@ -160,7 +185,7 @@ section{padding:clamp(40px,6vw,72px) 0}
         <a class="seelink" href="https://atlasrental.io/">See everything Atlas does <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
       </div>
       <p class="cta-note"><b>7-day free trial</b> &middot; every core feature on every plan &middot; no per-booking fees</p>
-          <figure class="hero-shot"><img src="/img/shot-overview.jpg?v=2" alt="Atlas Rental.io booking dashboard - a modern Booqable alternative for rental businesses" loading="lazy" decoding="async"></figure>
+          <figure class="hero-shot"><img src="/img/shot-overview.jpg?v=2" alt="Atlas Rental.io booking dashboard - a modern Booqable alternative for rental businesses" width="1456" height="827" fetchpriority="high" decoding="async"></figure>
 </div>
   </section>
 
@@ -173,8 +198,8 @@ section{padding:clamp(40px,6vw,72px) 0}
       <div class="grid">
       <article class="card">
         <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 5-9 5-9-5 9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 17l9 5 9-5"/></svg></div>
-        <h3>Every core feature on every plan</h3>
-        <p>Atlas does not gate features behind higher tiers. E-signatures, the branded portal, analytics, AI and more are in the plan from day one -- you pay for scale, not for unlocking.</p>
+        <h3>Core features on every plan</h3>
+        <p>Atlas does not lock core features behind higher tiers. E-signatures, the branded portal, analytics and the AI assistant are in from day one -- you pay for scale (your caps) and a few optional add-ons, not to unlock the basics.</p>
       </article>
       <article class="card">
         <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4L12 22l-9-9V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg></div>
@@ -208,19 +233,51 @@ section{padding:clamp(40px,6vw,72px) 0}
   <section class="band">
     <div class="wrap">
       <div class="sec-head" style="margin-bottom:22px">
-        <h2>A fair comparison checklist</h2>
-        <p>Run these questions against Atlas and Booqable alike. We have filled in Atlas; confirm Booqable's current answers on their site.</p>
+        <h2>Atlas vs Booqable, point by point</h2>
+        <p>The differences operators tell us tip the decision. We have filled in Atlas; Booqable's plans change, so confirm their current answers on their site.</p>
       </div>
-      <div class="tablewrap"><table class="ctable"><thead><tr><th>&nbsp;</th><th>Atlas Rental.io</th><th>Booqable (verify current plans)</th></tr></thead><tbody>
-        <tr><td>Per-booking commission</td><td class="yes">None</td><td class="mut">None stated (processor fees apply) -- verify</td></tr>
-        <tr><td>Pricing model</td><td class="yes">Flat monthly plan, no per-booking fees</td><td class="mut">Tiered plans that scale by users/features -- verify</td></tr>
-        <tr><td>Features gated by tier</td><td class="yes">Core on every plan; premium by tier</td><td class="mut">Some features unlock on higher tiers -- verify</td></tr>
-        <tr><td>Booking website / storefront</td><td class="yes">Included (Enterprise+) or $19/mo add-on</td><td class="mut">Available; check which tier and price</td></tr>
-        <tr><td>Connect a domain you own</td><td class="yes">Yes, any registrar</td><td class="mut">Custom domain available -- verify</td></tr>
-        <tr><td>Built-in AI assistant</td><td class="yes">Yes, free weekly credits</td><td class="mut">Check their feature list</td></tr>
-        <tr><td>Payment options</td><td class="yes">Stripe, Square, PayPal, crypto</td><td class="mut">Card processing / integrations -- verify</td></tr>
-        <tr><td>Free trial</td><td class="yes">7 days, no card to start</td><td class="mut">14-day trial (publicly listed)</td></tr>
-      </tbody></table></div>
+      <div class="cmp">
+        <div class="cmp-head">
+          <div>&nbsp;</div>
+          <div class="cmp-a">Atlas Rental.io</div>
+          <div class="cmp-b">Booqable<span>verify current plans</span></div>
+        </div>
+        <div class="cmp-row">
+          <div class="cmp-k">Built-in AI assistant</div>
+          <div class="cmp-v cmp-va"><span class="cmp-tag">Atlas</span>Yes &mdash; Atlas.io, with free weekly credits</div>
+          <div class="cmp-v cmp-vb"><span class="cmp-tag">Booqable</span>No built-in AI assistant listed &mdash; verify</div>
+        </div>
+        <div class="cmp-row">
+          <div class="cmp-k">White-label depth</div>
+          <div class="cmp-v cmp-va"><span class="cmp-tag">Atlas</span>Full &mdash; dashboard, portal, contracts, receipts and emails carry your brand; customers never see &ldquo;Atlas&rdquo;</div>
+          <div class="cmp-v cmp-vb"><span class="cmp-tag">Booqable</span>Branding removal and custom domain vary by plan &mdash; verify</div>
+        </div>
+        <div class="cmp-row">
+          <div class="cmp-k">Your own domain</div>
+          <div class="cmp-v cmp-va"><span class="cmp-tag">Atlas</span>Connect one you own, or register one inside Atlas (we point it and issue SSL)</div>
+          <div class="cmp-v cmp-vb"><span class="cmp-tag">Booqable</span>Custom domain available &mdash; verify</div>
+        </div>
+        <div class="cmp-row">
+          <div class="cmp-k">Payment options</div>
+          <div class="cmp-v cmp-va"><span class="cmp-tag">Atlas</span>Stripe, Square, PayPal or crypto &mdash; through your own processor account</div>
+          <div class="cmp-v cmp-vb"><span class="cmp-tag">Booqable</span>Stripe / Booqable Payments &mdash; verify</div>
+        </div>
+        <div class="cmp-row">
+          <div class="cmp-k">What is on every plan</div>
+          <div class="cmp-v cmp-va"><span class="cmp-tag">Atlas</span>All core features; your caps and a few optional add-ons scale with you</div>
+          <div class="cmp-v cmp-vb"><span class="cmp-tag">Booqable</span>Extra users, API and multi-location unlock on higher tiers &mdash; verify</div>
+        </div>
+        <div class="cmp-row">
+          <div class="cmp-k">Booking website</div>
+          <div class="cmp-v cmp-va"><span class="cmp-tag">Atlas</span>Included on Enterprise and up, or a $19/mo add-on (one-time $199) on Starter &amp; Pro</div>
+          <div class="cmp-v cmp-vb"><span class="cmp-tag">Booqable</span>Paid website add-on &mdash; verify</div>
+        </div>
+        <div class="cmp-row">
+          <div class="cmp-k">Pricing model</div>
+          <div class="cmp-v cmp-va"><span class="cmp-tag">Atlas</span>Flat monthly, from $99 (founders $49.50/mo for life); no per-booking cut</div>
+          <div class="cmp-v cmp-vb"><span class="cmp-tag">Booqable</span>Tiered &mdash; Start / Grow / Scale; no per-booking cut listed &mdash; verify</div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -230,7 +287,7 @@ section{padding:clamp(40px,6vw,72px) 0}
         <h3>Atlas pricing, in plain terms</h3>
         <p class="lead">One plan, everything in it. No per-booking cut, no feature unlocks.</p>
         <ul>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>A <b>7-day free trial</b>, then plans from <b>$99/month</b> -- every core feature on every plan.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>A <b>7-day free trial</b>, then plans from <b>$99/month</b> -- founding members lock <b>50% off for life ($49.50/mo)</b>. Every core feature is on every plan.</span></li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>No per-booking fees</b>; your payment processor's standard fees still apply, same as any platform.</span></li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Works for <b>any rental</b> -- vehicles, equipment, events, apparel, spaces and more, not one niche.</span></li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Your brand, your domain, your portal -- customers never see &ldquo;Atlas.&rdquo;</span></li>
@@ -259,7 +316,7 @@ section{padding:clamp(40px,6vw,72px) 0}
       </details>
       <details class="qa">
         <summary>What makes Atlas a good alternative?<span class="pl">+</span></summary>
-        <div class="a">Three things operators mention most: every core feature is on every plan, there are no per-booking fees, and it is truly white-label down to your own domain -- plus a built-in AI assistant. Try it free for 7 days and compare for yourself.</div>
+        <div class="a">Operators point to a few things: a built-in AI assistant, every core feature on every plan (you pay for scale, not to unlock the basics), and true white-label right down to your own domain -- which you can register inside Atlas. Try it free for 7 days and compare for yourself.</div>
       </details>
       </div>
       <p class="note-line">Comparison reflects publicly listed information as of November 2026 and common patterns in tiered rental tools; for Booqable's current plans and features, see <a href="https://booqable.com" rel="nofollow noopener" target="_blank">booqable.com</a>. Atlas Rental.io is not affiliated with Booqable.</p>
