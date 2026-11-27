@@ -2633,7 +2633,7 @@ const Atlas = (function(){
   function _fbSel(key){ _fbPending=key||''; try{ Array.prototype.forEach.call(document.querySelectorAll('.fbpick'),function(el){ var on=el.getAttribute('data-fbkey')===key; el.style.borderColor=on?'rgba(201,169,98,.9)':'rgba(201,169,98,.25)'; el.style.boxShadow=on?'0 0 0 1px rgba(201,169,98,.6)':'none'; }); }catch(e){} var c=document.getElementById('fbpickConfirm'); if(!c) return; if(!key||!_FB_META[key]){ c.innerHTML=''; return; } c.innerHTML='<button class="btn btn--primary" style="width:100%" onclick="Atlas._fbCommit()">Make '+esc(_FB_META[key].name)+' my mark &mdash; permanently</button>'; }
   function _fbCommit(){ var key=_fbPending; if(!key||!_FB_META[key]) return; var cb=document.querySelector('#fbpickConfirm .btn'); if(cb){ cb.disabled=true; cb.textContent='Saving...'; } _api('/api/founder/badge',{method:'POST',body:{badge:key}}).then(function(res){ var j=res&&res.json; if(res.status>=200&&res.status<300&&j&&j.ok){ _founderInfo.badge=j.badge||key; try{ if(typeof S!=='undefined'&&S){ S.founderBadge=j.badge||key; save(); } }catch(e){} try{ closeModal(); }catch(e){} try{ toast('Your founder badge is set: '+((_FB_META[j.badge||key]||{}).name||'')); }catch(e){} try{ if(typeof buildApp==='function') buildApp(); }catch(e){} } else { if(cb){ cb.disabled=false; cb.textContent='Try again'; } try{ toast((j&&j.error)||'Could not save your badge.'); }catch(e){} } }).catch(function(){ if(cb){ cb.disabled=false; cb.textContent='Try again'; } try{ toast('Network error -- try again.'); }catch(e){} }); }
   /* ---- app version + owner-only feature flags (in-app upgrades) ---- */
-  var APP_VERSION='2026.11.26lx';
+  var APP_VERSION='2026.11.26lz';
   var APP_CHANGELOG=[
     'Getting started now puts <b>your own domain</b> front and center &mdash; the "Get your own domain name" step is a primary action, and the domain search spells out exactly what a domain does for you and what it costs. A domain bought through Atlas connects to your booking site <b>instantly</b> (we point it and issue the SSL for you), so customers can book at your own address right away. Pricing is shown plainly: the domain is billed yearly at the price you see before you buy, and the booking website that runs on it is included on the Enterprise plan and up, or $19/month (or a one-time $199 build) on Starter and Pro &mdash; no surprises.',
     'Accounting fix: your <b>Net Profit</b>, Profit &amp; Loss and revenue charts now subtract an owner or broker fee the moment a booking is <b>confirmed</b> &mdash; matching the &ldquo;Your take&rdquo; figure shown on the booking itself &mdash; instead of waiting until the cash was collected. A confirmed-but-unpaid booking with a percentage split (for example a $1,600 rental where a broker keeps 85%) no longer shows its full rental as profit; the dashboard now agrees with each booking&rsquo;s own economics to the cent. Your Payouts report still lists only fees on money you have actually collected, since that is what you owe partners in cash.',
@@ -10769,7 +10769,12 @@ const Atlas = (function(){
       if(!cm.resendConnected && cm.resendKey && !_pendingResend){ _pendingResend=cm.resendKey; }
       var plan=EMAIL_PLANS.filter(function(p){return p.id===cm.plan;})[0]||EMAIL_PLANS[0];
       var sub=(S.brand.subdomain||'yourcompany'); var usage=Math.min(100,Math.round(cm.sentThisMonth/Math.max(1,plan.cap)*100));
-      var html='<div class="set-block"><h3>How your emails send</h3><div class="desc">Confirmations, reminders and broadcasts all go out from here.</div>'
+      var html='<div class="set-block" style="border-color:var(--brand)"><h3>Booking alerts to you</h3><div class="desc">Get pinged the instant a booking comes in &mdash; on this device, even when your dashboard is closed. Works on your phone and your computer.</div>'
+        +'<div class="auto-row" id="pushRow" style="display:none"><label class="switch"><input type="checkbox" id="pushToggle" onchange="Atlas.togglePush(this.checked)"><span class="switch__t"></span></label><div style="flex:1;min-width:0"><b style="color:var(--ink);font-size:14px">Push on this device</b><div style="font-size:12.5px;color:var(--muted)" id="pushHint">A new booking or sale reaches you even when the dashboard is closed. Tap and allow notifications when your browser asks.</div></div></div>'
+        +'<div id="pushUnavail" class="bk-lenhint" style="margin:0;display:none">Push is not available in this browser &mdash; open your dashboard in Chrome, Edge, Firefox or Safari (or add it to your phone\'s home screen) to turn it on. Your booking emails still arrive.</div>'
+        +'<div class="bk-lenhint" style="margin:10px 0 0">You also get the full booking details by email automatically. Manage email and text below.</div>'
+        +'</div>'
+        +'<div class="set-block"><h3>How your emails send</h3><div class="desc">Confirmations, reminders and broadcasts all go out from here.</div>'
         +'<div class="mode-pick">'
           +'<button type="button" class="mode-opt '+(cm.mode==='managed'?'sel':'')+'" onclick="Atlas.setCommsMode(\'managed\')"><b>Atlas Mail</b><span>We send for you &mdash; nothing to set up. Replies forward to your inbox.</span></button>'
           +'<button type="button" class="mode-opt '+(cm.mode==='own'?'sel':'')+'" onclick="Atlas.setCommsMode(\'own\')"><b>Your own Resend</b><span>Bring your Resend API key and send on your own account.</span></button>'
@@ -10817,6 +10822,7 @@ const Atlas = (function(){
       else { html+='<div class="bk-lenhint" style="margin:12px 0 0">No broadcasts yet. Your first one is a click away.</div>'; }
       html+='</div>';
       b.innerHTML=html;
+      try{ _pushInit(); }catch(e){}   // reveal the push toggle (or the unavailable note) now the Messaging tab is mounted
     }
     else if(setCur==='integrations'){ b.innerHTML=`
       ${_isOwnerAcct()?`<div class="set-block"><h3>Sync from Prestige Black</h3><div class="desc">Pull your live Prestige Black bookings, customers and vehicles into Atlas &mdash; a <b>read-only mirror</b> (your PB data is never changed). One click; it runs on the Atlas server, no terminal.</div>
@@ -12573,11 +12579,13 @@ const Atlas = (function(){
   function _urlB64ToU8(s){ var pad='='.repeat((4-s.length%4)%4); var b=(s+pad).replace(/-/g,'+').replace(/_/g,'/'); var raw=atob(b); var u=new Uint8Array(raw.length); for(var i=0;i<raw.length;i++)u[i]=raw.charCodeAt(i); return u; }
   function _pushInit(){ try{
       var row=document.getElementById('pushRow'); if(!row) return;
-      if(!_pushSupported()||typeof ATLAS_BACKEND==='undefined'||!ATLAS_BACKEND||typeof _api!=='function') return;   // unsupported / no backend -> leave the row hidden
-      var apply=function(){ if(!_pushVapid||!_pushVapid.enabled){ row.style.display='none'; return; } row.style.display='';
+      var un=document.getElementById('pushUnavail');   // optional "not available here" fallback (present on the tenant Messaging block; absent on the owner console -> null-safe)
+      var showUn=function(){ if(un) un.style.display=''; }, hideUn=function(){ if(un) un.style.display='none'; };
+      if(!_pushSupported()||typeof ATLAS_BACKEND==='undefined'||!ATLAS_BACKEND||typeof _api!=='function'){ row.style.display='none'; showUn(); return; }   // unsupported / no backend -> hide the row, show the fallback note
+      var apply=function(){ if(!_pushVapid||!_pushVapid.enabled){ row.style.display='none'; showUn(); return; } hideUn(); row.style.display='';
         try{ navigator.serviceWorker.ready.then(function(reg){ return reg.pushManager.getSubscription(); }).then(function(sub){ var t=document.getElementById('pushToggle'); if(t) t.checked=!!sub; }).catch(function(){}); }catch(e){} };
       if(_pushVapid){ apply(); return; }
-      _api('/api/push/vapid',{method:'GET'}).then(function(res){ var j=res&&res.json; _pushVapid={enabled:!!(j&&j.enabled),publicKey:(j&&j.publicKey)||''}; apply(); }).catch(function(){});
+      _api('/api/push/vapid',{method:'GET'}).then(function(res){ var j=res&&res.json; _pushVapid={enabled:!!(j&&j.enabled),publicKey:(j&&j.publicKey)||''}; apply(); }).catch(function(){ row.style.display='none'; showUn(); });
     }catch(e){} }
   function togglePush(on){ try{
       if(!_pushSupported()){ toast('This browser does not support push notifications'); return; }
@@ -12590,6 +12598,33 @@ const Atlas = (function(){
       } else {
         navigator.serviceWorker.ready.then(function(reg){ return reg.pushManager.getSubscription(); }).then(function(sub){ if(!sub) return null; var ep=sub.endpoint; return sub.unsubscribe().then(function(){ return _api('/api/push/unsubscribe',{method:'POST',body:{endpoint:ep}}); }); }).then(function(){ toast('Push notifications off for this device'); }).catch(function(){});
       }
+    }catch(e){} }
+  // Push enable from the connect modal (and reusable elsewhere): ensure the VAPID key is loaded, then subscribe/unsubscribe
+  // via the SAME path as the Settings toggle (togglePush). _embPushRefresh paints the modal button + hint from live state.
+  function _embPushState(cb){ var st={supported:_pushSupported(),vapid:false,subscribed:false};
+    try{
+      if(!st.supported||typeof ATLAS_BACKEND==='undefined'||!ATLAS_BACKEND||typeof _api!=='function'){ cb(st); return; }
+      var done=function(){ try{ navigator.serviceWorker.ready.then(function(reg){ return reg.pushManager.getSubscription(); }).then(function(sub){ st.subscribed=!!sub; cb(st); }).catch(function(){ cb(st); }); }catch(e){ cb(st); } };
+      if(_pushVapid){ st.vapid=!!_pushVapid.enabled; done(); return; }
+      _api('/api/push/vapid',{method:'GET'}).then(function(res){ var j=res&&res.json; _pushVapid={enabled:!!(j&&j.enabled),publicKey:(j&&j.publicKey)||''}; st.vapid=_pushVapid.enabled; done(); }).catch(function(){ cb(st); });
+    }catch(e){ cb(st); } }
+  function _embPushRefresh(btnId){ var btn=document.getElementById(btnId||'embPushBtn'), hint=document.getElementById('embPushHint'); if(!btn) return;
+    _embPushState(function(st){ try{
+      if(!st.supported){ btn.disabled=true; btn.textContent='Not available in this browser'; if(hint) hint.innerHTML='This browser cannot show push alerts. Your booking emails still arrive.'; return; }
+      if(!st.vapid){ btn.disabled=true; btn.textContent='Push coming soon'; if(hint) hint.innerHTML='Push is being enabled on your account. Email alerts work now.'; return; }
+      btn.disabled=false;
+      if(st.subscribed){ btn.textContent='Push is on for this device'; btn.classList.remove('btn--ghost'); btn.classList.add('btn--primary'); if(hint) hint.innerHTML='You will be pinged here on every new booking. Tap to turn off.'; }
+      else { btn.textContent='Turn on push alerts'; btn.classList.add('btn--ghost'); btn.classList.remove('btn--primary'); if(hint) hint.innerHTML='One tap &mdash; your browser asks permission, then alerts arrive instantly.'; }
+    }catch(e){} });
+  }
+  function enablePush(btnId){ try{
+      if(!_pushSupported()){ toast('This browser does not support push notifications'); return; }
+      if(typeof _api!=='function'){ toast('Connect your dashboard first'); return; }
+      var finish=function(){ setTimeout(function(){ try{ _embPushRefresh(btnId); }catch(e){} }, 1400); };
+      var go=function(){ if(!_pushVapid||!_pushVapid.enabled){ toast('Push is being set up on your account'); _embPushRefresh(btnId); return; }
+        navigator.serviceWorker.ready.then(function(reg){ return reg.pushManager.getSubscription(); }).then(function(sub){ togglePush(!sub); finish(); }).catch(function(){ togglePush(true); finish(); }); };
+      if(_pushVapid){ go(); return; }
+      _api('/api/push/vapid',{method:'GET'}).then(function(res){ var j=res&&res.json; _pushVapid={enabled:!!(j&&j.enabled),publicKey:(j&&j.publicKey)||''}; go(); }).catch(function(){ toast('Could not reach the push service'); });
     }catch(e){} }
   function _bkHasReq(b){ try{ return ((b&&b.portal&&b.portal.requests)||[]).some(function(r){ return r&&(!r.status||r.status==='requested'); }); }catch(e){ return false; } }
   function _bkDispOpen(b){ try{ var P=(b&&b.paid)||{}, open=0; for(var k in P){ var s=P[k]; if(!s||typeof s!=='object'||!s.disputed) continue; var pd=s.disputed; if(pd.byId&&typeof pd.byId==='object'){ for(var id in pd.byId){ var e=pd.byId[id]||{}; if(!e.reinstatedAt && !e.lostAt && !(pd.lostAt&&String(id)===String(pd.lostDisputeId))) open+=Number(e.amountCents)||0; } } else if(!pd.reinstatedAt && !pd.lostAt){ open+=Number(pd.amountCents)||0; } } return open; }catch(e){ return 0; } }   // open (unresolved) chargeback cents on a booking, mirroring the openBooking banner's per-byId classification (audit fix F4)
@@ -13154,7 +13189,8 @@ const Atlas = (function(){
       +'<div class="field" style="margin-top:12px"><label>A &ldquo;Book now&rdquo; button or direct link</label><textarea class="input mono" id="embedBtnCode" readonly rows="3" style="resize:vertical;font-size:12px;line-height:1.5" onclick="this.select()">'+esc(btn)+'</textarea><button class="btn btn--ghost btn--sm" style="margin-top:6px" onclick="Atlas.copyEmbed(\'embedBtnCode\')">Copy button</button><div style="display:flex;gap:8px;margin-top:8px"><input class="input mono" id="embedLink" readonly value="'+esc(url)+'" style="flex:1;font-size:12px" onclick="this.select()"><button class="btn btn--ghost btn--sm" onclick="Atlas.copyEmbed(\'embedLink\')">Copy link</button></div><div style="font-size:12px;color:var(--muted);margin-top:6px">Point any existing button, bio link or social profile at this.</div></div>'
       +'</details>';
     var body = pub
-      ? ('<p style="font-size:13px;color:var(--muted);margin:0 0 12px">Connect the website you already have &mdash; no rebuild, no DNS changes. Paste one line; Atlas reads your page and wires your booking forms so a filled form drops straight into this dashboard, branded as you.</p>'
+      ? ('<p style="font-size:13px;color:var(--muted);margin:0 0 10px">Connect the website you already have &mdash; no rebuild, no DNS changes, and <b>you never have to use the Atlas booking form</b>. Paste one line and Atlas does the rest: it reads your live page and wires the booking form you already built, so a filled form drops straight into this dashboard with the full details (name, dates, item) and alerts you instantly.</p>'
+         +'<p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">No booking form yet? Atlas adds one for you &mdash; drop <code>&lt;div data-atlas-booking&gt;&lt;/div&gt;</code> wherever you want it to appear, or Atlas shows a tasteful <b>Book now</b> button automatically. Either way, every booking flows straight here.</p>'
          +'<div class="field"><label>1 &middot; Paste this on your site <span style="color:var(--brand);font-weight:600">&middot; recommended</span></label>'
          +'<div style="font-size:12px;color:var(--muted);margin:-4px 0 6px">Add it once before <code>&lt;/body&gt;</code>. Squarespace: <b>Settings &rsaquo; Advanced &rsaquo; Code Injection &rsaquo; Footer</b>. Wix / GoDaddy / WordPress: your site-wide footer or custom-code area.</div>'
          +'<textarea class="input mono" id="embedScript" readonly rows="2" style="resize:vertical;font-size:12px;line-height:1.5" onclick="this.select()">'+esc(scriptSnip)+'</textarea>'
@@ -13165,14 +13201,57 @@ const Atlas = (function(){
          +'<textarea class="input mono" id="embOrigins" rows="2" placeholder="https://www.yoursite.com" style="resize:vertical;font-size:12px;line-height:1.5">'+esc(_embOriginsVal)+'</textarea></div>'
          +'<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;cursor:pointer"><input type="checkbox" id="embAutoConf"'+(emb.autoConfirm?' checked':'')+' style="margin-top:3px"><span style="font-size:13px">Auto-confirm website bookings<div style="font-size:12px;color:var(--muted)">Confirm bookings instantly when no deposit is required (skips your manual review). Bookings that need a deposit still confirm on payment.</div></span></label>'
          +'<button class="btn btn--primary btn--sm btn--full" style="margin-top:12px" onclick="Atlas._saveEmbedCfg()">Save &amp; connect my site</button>'
+         +'<div class="field" style="margin-top:16px"><label>3 &middot; Test the connection</label>'
+         +'<div style="font-size:12px;color:var(--muted);margin:-4px 0 6px">Run this after you save. It checks every step &mdash; site published, items bookable, your address on the allow-list, the one line actually installed on your site, and email / push alerts on &mdash; and tells you exactly what to fix if anything was missed.</div>'
+         +'<button class="btn btn--ghost btn--sm" onclick="Atlas.testConnection()">Test connection</button>'
+         +'<div id="embTestOut" style="margin-top:10px"></div></div>'
+         +'<div class="field" style="margin-top:16px"><label>4 &middot; Instant alerts on this device</label>'
+         +'<div style="font-size:12px;color:var(--muted);margin:-4px 0 8px">Turn on push and your phone or computer pings the moment a booking lands &mdash; even with the dashboard closed. One tap; your browser will ask permission. You can manage this anytime in <b>Settings &rsaquo; Messaging</b>.</div>'
+         +'<button class="btn btn--ghost btn--sm" id="embPushBtn" onclick="Atlas.enablePush(\'embPushBtn\')">Turn on push alerts</button>'
+         +'<div id="embPushHint" style="font-size:11.5px;color:var(--muted);margin-top:6px"></div></div>'
          +other+_helpGuideLink('web','booking embed'))
       : ('<p style="font-size:13px;color:var(--muted);margin:0 0 10px">One quick step first: switch your Atlas <b>booking engine</b> on. That is what &ldquo;publish&rdquo; does &mdash; it lets your own website send bookings to you. It is <b>free on any plan</b> and takes one click.</p>'
          +'<p style="font-size:12.5px;color:var(--muted);margin:0 0 14px">Your existing website stays your front page &mdash; you do not have to use or link the Atlas page. Just make sure you have added at least one '+esc((S.fleet&&S.fleet.noun)||'item')+' to rent first.</p>'
          +'<button class="btn btn--primary btn--full" onclick="Atlas._publishThenEmbed()">Publish &amp; get my code</button>'
          +'<div style="text-align:center;margin-top:10px"><a href="#" onclick="Atlas.closeModal();Atlas.go(\'website\');return false" style="font-size:12.5px;color:var(--muted)">or set up my booking site first</a></div>');
     openModal('<div class="modal__head"><h3>Connect your website</h3>'+_xBtn()+'</div><div class="modal__body">'+body+'</div>');
+    if(pub){ setTimeout(function(){ try{ _embPushRefresh('embPushBtn'); }catch(e){} }, 40); }
   }
   function copyEmbed(id){ var t=document.getElementById(id||'embedCode'); if(t){ try{ t.select(); navigator.clipboard.writeText(t.value); }catch(e){} } toast('Copied'); }
+  // Connect-your-site TEST: owner-run diagnostic. Calls /api/embed/selftest and renders a plain-language checklist so the owner
+  // can self-serve "is anything missing / misconfigured" without a real test booking (see the worker selftest handler).
+  function testConnection(){
+    var out=document.getElementById('embTestOut'); if(!out) return;
+    out.innerHTML='<span style="font-size:12px;color:var(--muted)">Testing your connection...</span>';
+    _api('/api/embed/selftest').then(function(r){
+      var j=(r&&r.json)||{};
+      if(r&&r.status===404){ out.innerHTML='<div style="font-size:12px;color:var(--muted)">This needs the latest worker. Paste worker.js into Cloudflare, then reload and try again.</div>'; return; }
+      if(!j.ok){ out.innerHTML='<div style="font-size:12.5px;color:#b42318">'+esc(j.error||'Could not run the test. Please try again.')+'</div>'; return; }
+      out.innerHTML=_embTestHtml(j);
+    }).catch(function(){ out.innerHTML='<div style="font-size:12px;color:var(--muted)">Network error &mdash; please try again.</div>'; });
+  }
+  function _embTestRow(ok,label,note){
+    var ic=(ok===true)?'&#10003;':((ok===false)?'&#10007;':'&#8226;');
+    var col=(ok===true)?'#15803d':((ok===false)?'#b42318':'var(--muted)');
+    return '<div style="display:flex;gap:8px;align-items:flex-start;margin:5px 0;font-size:12.5px"><span style="color:'+col+';font-weight:800;min-width:12px">'+ic+'</span><span><b>'+esc(label)+'</b>'+(note?('<div style="color:var(--muted);font-size:11.5px;line-height:1.4">'+esc(note)+'</div>'):'')+'</span></div>';
+  }
+  function _embTestHtml(j){
+    var h='<div style="border:1px solid var(--line,#e5e7eb);border-radius:10px;padding:12px 14px">';
+    h+='<div style="font-weight:700;font-size:13px;margin-bottom:6px">'+(j.ready?'<span style="color:#15803d">&#10003; Ready to take website bookings</span>':'<span style="color:#b45309">Almost there &mdash; finish the steps below</span>')+'</div>';
+    h+=_embTestRow(!!j.published,'Booking site published', j.published?'':'Publish it (button above) so your website is allowed to send bookings.');
+    var ac=(j.assets&&j.assets.count>0);
+    h+=_embTestRow(ac,'Bookable items', ac?(j.assets.count+' published'+((j.assets.sample&&j.assets.sample.length)?(': '+j.assets.sample.join(', ')):'')):'Add at least one item to rent so customers have something to book.');
+    var oo=(j.origins&&j.origins.length>0);
+    h+=_embTestRow(oo,'Website address on the allow-list', oo?j.origins.join(', '):'Add your site address in step 2, then Save.');
+    if(j.originChecks&&j.originChecks.length){ for(var i=0;i<j.originChecks.length;i++){ var c=j.originChecks[i]; var st=(c.installed===true)?true:((c.installed===false)?false:null); h+=_embTestRow(st,'Snippet on '+(c.origin||'your site'), c.note||''); } }
+    h+=_embTestRow(!!(j.email&&j.email.configured),'Email alerts', (j.email&&j.email.configured)?'You will get the full booking details by email.':'Connect email in Settings for emailed details (web-push still works).');
+    var pu=(j.push&&j.push.available);
+    h+=_embTestRow(!!pu,'Push alerts', pu?((Number(j.push.devices)||0)+' device(s) subscribed'):'Turn on notifications on your device to get instant alerts.');
+    if(j.quote){ h+=_embTestRow(true,'Pricing check', 'A 1-period test of "'+(j.quote.asset||'')+'" would total $'+(((Number(j.quote.total_cents)||0)/100).toFixed(2))+' -- pricing resolves.'); }
+    if(j.issues&&j.issues.length){ h+='<div style="margin-top:9px;font-size:11.5px;color:var(--muted)"><b>To finish:</b><ul style="margin:4px 0 0;padding-left:16px">'+j.issues.map(function(x){return '<li style="margin:2px 0">'+esc(x)+'</li>';}).join('')+'</ul></div>'; }
+    h+='</div>';
+    return h;
+  }
   // Website connection (embed): persist the tenant's allowed origins + auto-confirm toggle. Lives in settings.embed, read by the
   // worker (CORS allow-list + auto-confirm). Normalizes each line to a bare https origin (scheme+host); localhost may be http for dev.
   function _saveEmbedCfg(){
@@ -15345,6 +15424,7 @@ const Atlas = (function(){
       +'<div class="set-block"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h3>Site traffic</h3><div class="desc" style="margin-bottom:0">How many people visit your published site and how many ask to book.</div></div><button class="btn btn--ghost btn--sm" style="flex:none" onclick="Atlas.webLoadSiteStats(true)">Refresh</button></div>'
         +'<div id="webStatsBox" style="margin-top:14px"><div class="bk-lenhint" style="margin:0">Loading your traffic&hellip;</div></div>'
       +'</div>'
+      +'<div class="set-block" id="domBlock" style="border-color:var(--brand)"><h3>Your own domain <span class="chip chip--ok" style="font-size:10px;vertical-align:middle">Recommended</span></h3><div class="desc">Put your site on a professional web address customers trust &mdash; buy one through Atlas (we set up the DNS for you) or connect one you already own. Swap anytime.</div>'+_domainHtml()+'</div>'
       +'<div class="set-block"><h3>Content</h3><div class="desc">Atlas.io drafted this. Edit anything.</div>'
         +'<div class="field"><label>Headline</label><input class="input" data-webfield="headline" value="'+esc(w.headline)+'" oninput="Atlas.setWebField(\'headline\',this.value)"></div>'
         +'<div class="field"><label>Tagline</label><input class="input" data-webfield="tagline" value="'+esc(w.tagline)+'" oninput="Atlas.setWebField(\'tagline\',this.value)"></div>'
@@ -15381,7 +15461,6 @@ const Atlas = (function(){
              +(_web().published?('<div class="bk-lenhint" style="margin:8px 0 0;'+(_siteDirty()?'border-color:#C77D0A;color:#8a5200"><b>Unpublished changes</b> &mdash; your live site still shows the last published version. Publish to push your latest listings, pricing and copy.':'border-color:var(--brand);color:var(--ink)"><b>Live</b> &mdash; customers can book at your link now.')+'</div>'):''))
           : '<div class="bk-lenhint" style="margin:0">This is a <b>preview</b>. Your public booking site and shareable link go live once your Atlas backend is connected (see go-live steps) &mdash; then Publish here. Nothing is served publicly until then.</div>')
       +'</div>'
-      +'<div class="set-block" id="domBlock" style="border-color:var(--brand)"><h3>Your own domain <span class="chip chip--ok" style="font-size:10px;vertical-align:middle">Recommended</span></h3><div class="desc">Put your site on a professional web address customers trust &mdash; buy one through Atlas (we set up the DNS for you) or connect one you already own. Swap anytime.</div>'+_domainHtml()+'</div>'
       +_scopedLinksHtml()
       +_webSitesHtml()
       +'<div class="set-block" id="webLegalBlock"><h3>Legal pages</h3><div class="desc">Every public site needs these. We build them compliant to your country/state.</div>'+_webLegalHtml()+'</div>'
@@ -16893,7 +16972,7 @@ const Atlas = (function(){
   }
   document.addEventListener('DOMContentLoaded',function(){ (window.__atlasStoreReady||Promise.resolve()).then(init).catch(function(){ init(); }); });   // wait for the IndexedDB big-store hydration so loaders read migrated data, not an empty localStorage
 
-  return {startTrial,demo,demoStart,demoSkip,exitDemo,_demoSeePricing,next,back,brandLive,logoPick,pickColor,pickColorHex,pickFleet,toggleFleet,setMoney,saveMoneyRules,setDisplayCurrency,setNotify,togglePush,setTypeRate,setTypeCfg,setCard,setCancelPolicy,setSenderAddress,connect,doConnect,disconnectIntegration,_stripeTest,connectQuickbooks,connectXero,connectPaypal,connectSquare,connectCoinbase,setActivePay,connectAtlas,idvSetProvider,idvToggle,setTurnaround,setIdScanRetention,setAutoHold,setPassFee,setTaxOn,setTaxTripCharges,syncTax,
+  return {startTrial,demo,demoStart,demoSkip,exitDemo,_demoSeePricing,next,back,brandLive,logoPick,pickColor,pickColorHex,pickFleet,toggleFleet,setMoney,saveMoneyRules,setDisplayCurrency,setNotify,togglePush,enablePush,setTypeRate,setTypeCfg,setCard,setCancelPolicy,setSenderAddress,connect,doConnect,disconnectIntegration,_stripeTest,connectQuickbooks,connectXero,connectPaypal,connectSquare,connectCoinbase,setActivePay,connectAtlas,idvSetProvider,idvToggle,setTurnaround,setIdScanRetention,setAutoHold,setPassFee,setTaxOn,setTaxTripCharges,syncTax,
     playFilm,closeFilm,filmMute,filmSeek,filmTapStop,
     openDreaming,dreamToggle,dreamConnect,dreamSaveConn,dreamDisconnect,dreamLaunch,dreamOutreach,dreamSend,setupAssistant,_suGoal,_suPhoto,_obAssetPhoto,_obAddAsset,_obDelAsset,_obFbPick,profileSet,profileRate,profileUsage,profileFuel,profileDeposit,profileDepositToggle,setupFinish,
     finish,go,goSettings,setTab,renderSet,openAio,closeAio,openNotifications,aioSend,aioAsk,aioApply,aioUndo,aioCancel,aioBundleApply,aioBundleCancel,aioDiagnose,aioFix,aioWriteCopy,dismissQuicks,toggleCouncil,toast,copyPortal,referCopy,openModal,closeModal,
@@ -16912,7 +16991,7 @@ const Atlas = (function(){
     importAssets,_impFile,previewImport,doImportAssets,exportSetup,exportMyData,importSetup,doImportSetup,
     drillKpi,ovCustomizeKpis,ovCustomizeAna,ovKpiToggle,ovKpiMove,ovKpiSave,ovKpiDragStart,ovKpiDrop,drillDeposits,drillUnpaid,drillCancelLoss,drillAddons,setOvRange,setOvScope,_anaDrillSet,gsDismiss,drillLog,drillLedger,logLedger,saveLedger,rmLedger,editLedger,saveLedgerEdit,logIncome,logExpense,openBudgets,saveBudgets,assetBlock,saveAssetBlock,assetUnblock,blockDaysQuick,maintUnblock,channelAddModal,_channelAddGo,channelSyncNow,channelRemove,channelFeedGet,
     _ldPhotoPick,_ldPhotoClear,_ldRecToggle,pnlSetPeriod,pnlSetKind,pnlMarginDrill,pnlRevDrill,pnlNetDrill,pnlExpDrill,pnlMonthDrill,pnlMonthBookings,heatRowDrill,assetPnlSetPeriod,renderPnl,
-    renderWebsite,goDomain,buildWebsite,setWebField,_webInlineEdit,_webInlineKey,toggleWebSection,setWebFont,setWebTemplate,setWebAccent,webFaqAdd,webFaqSet,webFaqRemove,webPostAdd,webPostSet,webPostRemove,webPostToggle,webPostAddFromForm,webPageAdd,webPageSet,webPageRemove,webPageToggle,webPageNavToggle,webPageSectionAdd,webPageSectionSet,webPageSectionRemove,webPageSectionMove,webSecReorder,webSecDragStart,webSecDragOver,webSecDragLeave,webSecDrop,webSecDragEnd,webPageSectionListSet,webPageSectionListAdd,webPageSectionListRemove,webSecImgUpload,webSecGalleryUpload,webPageAddFromForm,webPageStarterLanding,webEditPage,webPagesBack,aiDesignSite,aiEditPage,webSetHomePage,webFleetPriceSet,webSetDevice,webUndoDesign,webViewLegal,webBookNow,_wbQuote,webSubmitBooking,publishBookingSite,copyBookingLink,webScopedLinkPick,copyScopedLink,_saveEmbedCfg,_publishThenEmbed,webSiteCreate,webAutoSites,webSiteEdit,webSiteSave,webSitePubToggle,webSiteDelete,webSiteCopy,webSiteDomainModal,webSiteDomainConnect,webSiteDomainVerify,webSiteDomainDisconnect,webEmailDomainModal,webEmailDomainConnect,webEmailDomainVerify,webEmailDomainDisconnect,webEmailDomainActivate,copyEmbed,webDomainMode,webRevertDomain,webConnectDomain,webVerifyDomain,webSearchDomain,webBuyDomain,confirmDomainBuy,domainClaimModal,_domClaimGo,webDomLoad,webDomManage,webDomAutoRenew,webDomCheckConn,webDomDns,webDomDnsReload,webDomDnsAdd,webDomDnsDel,webDomDnsSet,webDomDnsSave,buyWebsiteAddon,confirmWebsiteAddon,seoHealthLoad,seoHealthJump,webLoadSiteStats,webMetaImageUpload,
+    renderWebsite,goDomain,buildWebsite,setWebField,_webInlineEdit,_webInlineKey,toggleWebSection,setWebFont,setWebTemplate,setWebAccent,webFaqAdd,webFaqSet,webFaqRemove,webPostAdd,webPostSet,webPostRemove,webPostToggle,webPostAddFromForm,webPageAdd,webPageSet,webPageRemove,webPageToggle,webPageNavToggle,webPageSectionAdd,webPageSectionSet,webPageSectionRemove,webPageSectionMove,webSecReorder,webSecDragStart,webSecDragOver,webSecDragLeave,webSecDrop,webSecDragEnd,webPageSectionListSet,webPageSectionListAdd,webPageSectionListRemove,webSecImgUpload,webSecGalleryUpload,webPageAddFromForm,webPageStarterLanding,webEditPage,webPagesBack,aiDesignSite,aiEditPage,webSetHomePage,webFleetPriceSet,webSetDevice,webUndoDesign,webViewLegal,webBookNow,_wbQuote,webSubmitBooking,publishBookingSite,copyBookingLink,webScopedLinkPick,copyScopedLink,_saveEmbedCfg,_publishThenEmbed,webSiteCreate,webAutoSites,webSiteEdit,webSiteSave,webSitePubToggle,webSiteDelete,webSiteCopy,webSiteDomainModal,webSiteDomainConnect,webSiteDomainVerify,webSiteDomainDisconnect,webEmailDomainModal,webEmailDomainConnect,webEmailDomainVerify,webEmailDomainDisconnect,webEmailDomainActivate,copyEmbed,testConnection,webDomainMode,webRevertDomain,webConnectDomain,webVerifyDomain,webSearchDomain,webBuyDomain,confirmDomainBuy,domainClaimModal,_domClaimGo,webDomLoad,webDomManage,webDomAutoRenew,webDomCheckConn,webDomDns,webDomDnsReload,webDomDnsAdd,webDomDnsDel,webDomDnsSet,webDomDnsSave,buyWebsiteAddon,confirmWebsiteAddon,seoHealthLoad,seoHealthJump,webLoadSiteStats,webMetaImageUpload,
     setFleetType,fleetAlsoToggle,setCustomNoun,setCustomNounSolo,_customNounPreview,demoBig,demoPick,fleetLoc,fleetSearch,fleetStatusFilter,fleetShowAll,
     openPerm,setRolePreset,setPerm,setMemberField,inviteMember,_renderInviteModal,_inviteSet,_invitePreset,_invitePerm,saveInvite,resendInvite,copyInviteLink,teamRetryLoad,removeMember,previewAs,exitPreview,addShift,saveShift,rmShift,schedBuildAI,editShift,saveShiftEdit,schedSetRate,schedView,schedPublish,schedQuickAdd,schedWeekNav,
     search,searchGo,_searchClose,
