@@ -102,6 +102,7 @@ section{padding:clamp(40px,6vw,72px) 0}
 .ctable .yes{color:var(--ok);font-weight:700}
 .ctable .mut{color:var(--muted)}
 .ctable tr:last-child td{border-bottom:none}
+@media (max-width:640px){.ctable{min-width:0;border:0;box-shadow:none;background:transparent}.ctable thead{display:none}.ctable tbody{display:block}.ctable tr{display:block;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm);margin-bottom:12px;overflow:hidden}.ctable td{display:block;border-bottom:1px solid var(--line);padding:11px 16px}.ctable td:first-child{width:auto;background:var(--surface-2);font-weight:750}.ctable td:last-child{border-bottom:none}.ctable .yes::before{content:"Atlas: ";display:block;color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}.ctable .mut::before{content:"Spreadsheet: ";display:block;color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}}
 .price-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:clamp(28px,4vw,44px);max-width:720px;margin:0 auto}
 .price-card h3{font-size:clamp(22px,3vw,27px);margin-bottom:6px;text-align:center}
 .price-card .lead{color:var(--muted);font-size:15.5px;text-align:center;margin:0 auto 22px;max-width:52ch}
@@ -160,7 +161,7 @@ section{padding:clamp(40px,6vw,72px) 0}
         <a class="seelink" href="https://atlasrental.io/">See everything Atlas does <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
       </div>
       <p class="cta-note"><b>7-day free trial</b> &middot; then $49.50/mo for founding members (50% off $99) &middot; no per-booking fees &middot; cancel anytime</p>
-          <figure class="hero-shot"><img src="/img/ind-sheet.jpg" alt="Laptop and notebook on a desk - replace rental spreadsheets with Atlas Rental.io software" loading="lazy" decoding="async"></figure>
+          <figure class="hero-shot"><img src="/img/ind-sheet.jpg" alt="Laptop and notebook on a desk - replace rental spreadsheets with Atlas Rental.io software" fetchpriority="high" decoding="async"></figure>
 </div>
   </section>
 
