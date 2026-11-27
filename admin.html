@@ -328,6 +328,15 @@
   <div id="buildBanner"></div>
   <section class="hqsec" data-sec="overview">
   <div class="kpis" id="kpis"></div>
+  <!-- AFFILIATE PROGRAM KPIs: affiliate-program totals on the overview (owner/analyst only); data from /api/admin/affiliate/overview, click a tile to jump to the full Affiliate section -->
+  <div id="affKpiWrap" style="display:none;margin-top:8px">
+    <div style="display:flex;align-items:center;gap:8px;margin:2px 2px 7px">
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mut2)">Affiliate program</span>
+      <span id="affKpiState"></span>
+      <button class="chip" style="margin-left:auto" onclick="setSection('affiliates')">Manage</button>
+    </div>
+    <div class="kpis" id="affKpis"></div>
+  </div>
   <!-- OWNER ALERTS: never-miss feed (tickets, bugs, feature requests, security, traffic/user/money/usage spikes) -->
   <div class="card" id="alertsCard" style="display:none">
     <div class="card-h"><h2>Alerts</h2><span class="sub" id="alertsSub"></span><div class="sp"></div><button class="chip" onclick="markAlertRead('all')">Mark all read</button><button class="chip" onclick="loadAlerts(true)">Refresh</button></div>
@@ -987,8 +996,10 @@ function loadAll(quiet){ _lastFetch=Date.now();
     api('/api/admin/funnel'),
     api('/api/admin/analytics/cohorts'),
     api('/api/admin/analytics/funnel?seg='+encodeURIComponent(_funSeg)),
-    api('/api/admin/monitor/uptime')
+    api('/api/admin/monitor/uptime'),
+    api('/api/admin/affiliate/overview')
   ]).then(function(r){
+    if(r[20]&&r[20].json){ DATA.affOverview=r[20].json; }   // affiliate-program totals for the overview KPI band (paintAffKpis, called from paintOverview)
     if(r[0].json&&r[0].json.ok){ DATA.overview=r[0].json; paintOverview(); }
     if(r[1].json&&r[1].json.ok){ DATA.members=r[1].json.members||[]; DATA.policyCurrent=r[1].json.policy_current||null; renderMembers(); }
     if(r[2].json&&r[2].json.ok){ DATA.txns=r[2].json.transactions||[]; renderTxns(); }
@@ -1078,6 +1089,28 @@ function paintOverview(){ var o=DATA.overview||{}; var rev=o.revenue||{}, mem=o.
       '<div class="bar">'+_bars+'</div>'+
       '<div class="legend">'+_legend+'</div></div>'+
     '<div><div class="stat-l">Members by tier</div><div style="margin-top:12px;line-height:2.1;font-size:13px">'+tierRows+'</div></div>';
+  try{ paintAffKpis(); }catch(e){}   // affiliate-program KPI band repaints whenever the overview KPIs do
+}
+
+/* ================= affiliate-program KPIs on the overview (data from loadAll r[20] = /api/admin/affiliate/overview) ================= */
+function paintAffKpis(){ var wrap=$('affKpiWrap'), el=$('affKpis'); if(!wrap||!el) return;
+  var d=DATA.affOverview;
+  if(!(d&&d.ok)||!_canSeeMoney()){ wrap.style.display='none'; el.innerHTML=''; return; }   // owner/analyst only (commission $); hidden until the affiliate backend answers ok
+  var a=d.applications||{}, rf=d.referrals||{}, cm=d.commissions||{}, ck=d.clicks||{}, on=!!d.enabled;
+  var st=$('affKpiState'); if(st) st.innerHTML='<span class="pill '+(on?'active':'gray')+'" style="font-size:9.5px">'+(on?'LIVE':'OFF')+'</span>';
+  var pend=Number(cm.pending_cents)||0, rev=Number(cm.reversed_cents)||0, susp=Number(a.suspended)||0;
+  var tiles=[
+    {label:'Affiliates', money:false, val:(a.total||0), fmt:nfmt, sub:nfmt(a.active||0)+' active &middot; '+nfmt(a.pending||0)+' pending'+(susp?(' &middot; '+nfmt(susp)+' suspended'):'')},
+    {label:'Referred paying', money:false, val:(rf.active_customers||0), fmt:nfmt, sub:nfmt(rf.total||0)+' referred total'},
+    {label:'Clicks', money:false, val:(ck.total||0), fmt:nfmt, sub:'referral link clicks'},
+    {label:'Owed', money:true, val:(cm.outstanding_liability_cents||0), fmt:centsUSD, sub:'accrued, unpaid'},
+    {label:'Approved', money:true, val:(cm.approved_cents||0), fmt:centsUSD, sub:'ready to pay'+(pend?(' &middot; '+centsUSD(pend)+' pending'):'')},
+    {label:'Paid', money:true, val:(cm.paid_cents||0), fmt:centsUSD, sub:'lifetime payouts'+(rev?(' &middot; '+centsUSD(rev)+' reversed'):'')}
+  ];
+  el.innerHTML=tiles.map(function(k){ return '<div class="kpi" onclick="setSection(\'affiliates\')" role="button" tabindex="0" title="Open the Affiliate program section"><div class="glow"></div>'+
+    '<div class="k-l">'+esc(k.label)+'</div><div class="k-v'+(k.money?' money':'')+' num">'+k.fmt(k.val)+'</div>'+
+    '<div class="k-s num">'+k.sub+'</div></div>'; }).join('');
+  wrap.style.display='block';
 }
 
 /* ================= expenses + net profit (task #286) ================= */
@@ -1494,7 +1527,7 @@ $('scrim').addEventListener('click', function(e){ if(e.target===$('scrim')) clos
 /* ================= AI Command Center ================= */
 var _xI='<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
 function _mdLite(s){ return esc(s).replace(/\n{2,}/g,'<br><br>').replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(Do this first:)/i,'<b style="color:var(--gold2)">$1</b>'); }
-var ATLAS_EXPECT_BUILD='2026.11.26lr';
+var ATLAS_EXPECT_BUILD='2026.11.26ls';
 function renderBuildBanner(){ var el=$('buildBanner'); if(!el) return; var c=DATA.aiCfg||{}; if(c.build===ATLAS_EXPECT_BUILD){ el.innerHTML=''; return; } if(!c.build){ el.innerHTML='<div style="background:rgba(224,180,80,.12);border:1px solid rgba(224,180,80,.5);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#d0a53f">Your live worker is <b>out of date</b>. Competitor delete, Deep-read, Generate-brief and the newest features will not work until you paste the latest <b>worker.js</b> into Cloudflare, then reload this page.</div>'; return; } el.innerHTML='<div style="background:rgba(224,180,80,.10);border:1px solid rgba(224,180,80,.4);border-radius:10px;padding:9px 14px;margin-bottom:14px;font-size:12.5px;color:#d0a53f">Live worker build <b>'+esc(c.build)+'</b>; this dashboard expects <b>'+ATLAS_EXPECT_BUILD+'</b>. Paste the latest worker.js to update.</div>'; }
 /* ===== Atlas Counsel: what deserves your attention today ===== */
 function loadCounsel(){ return api('/api/admin/counsel').then(function(r){ if(r.status===404){ DATA.counsel={needsDeploy:true}; } else { DATA.counsel=r.json||{}; } renderCounsel(); }).catch(function(){ var el=$('cxBody'); if(el) el.innerHTML='<div class="mut">Could not reach the platform.</div>'; }); }
