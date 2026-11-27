@@ -748,7 +748,7 @@
   </section>
 
   <section class="hqsec" data-sec="affiliates">
-  <div class="hqgroup">Affiliate &amp; partner program</div>
+  <div class="hqgroup">Affiliate program</div>
   <div class="card">
     <div class="card-h"><h2>Program settings</h2><div class="sp"></div><button class="chip" onclick="affLoad()">Refresh</button></div>
     <div class="card-b pad" id="affConfigBody"><div class="mut">Loading&hellip;</div></div>
@@ -1494,7 +1494,7 @@ $('scrim').addEventListener('click', function(e){ if(e.target===$('scrim')) clos
 /* ================= AI Command Center ================= */
 var _xI='<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
 function _mdLite(s){ return esc(s).replace(/\n{2,}/g,'<br><br>').replace(/\n/g,'<br>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(Do this first:)/i,'<b style="color:var(--gold2)">$1</b>'); }
-var ATLAS_EXPECT_BUILD='2026.11.26lq';
+var ATLAS_EXPECT_BUILD='2026.11.26lr';
 function renderBuildBanner(){ var el=$('buildBanner'); if(!el) return; var c=DATA.aiCfg||{}; if(c.build===ATLAS_EXPECT_BUILD){ el.innerHTML=''; return; } if(!c.build){ el.innerHTML='<div style="background:rgba(224,180,80,.12);border:1px solid rgba(224,180,80,.5);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#d0a53f">Your live worker is <b>out of date</b>. Competitor delete, Deep-read, Generate-brief and the newest features will not work until you paste the latest <b>worker.js</b> into Cloudflare, then reload this page.</div>'; return; } el.innerHTML='<div style="background:rgba(224,180,80,.10);border:1px solid rgba(224,180,80,.4);border-radius:10px;padding:9px 14px;margin-bottom:14px;font-size:12.5px;color:#d0a53f">Live worker build <b>'+esc(c.build)+'</b>; this dashboard expects <b>'+ATLAS_EXPECT_BUILD+'</b>. Paste the latest worker.js to update.</div>'; }
 /* ===== Atlas Counsel: what deserves your attention today ===== */
 function loadCounsel(){ return api('/api/admin/counsel').then(function(r){ if(r.status===404){ DATA.counsel={needsDeploy:true}; } else { DATA.counsel=r.json||{}; } renderCounsel(); }).catch(function(){ var el=$('cxBody'); if(el) el.innerHTML='<div class="mut">Could not reach the platform.</div>'; }); }
@@ -2821,7 +2821,7 @@ function _tcBeacon(){ try{ api('/api/trap/beacon',{method:'POST',body:{fingerpri
         '</div>'+
         '<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">'+
           '<div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:2px">Daily leads (Phase 2)'+(c.leads_source_configured?' <span class="pill active" style="font-size:9.5px">key set</span>':' <span class="pill gray" style="font-size:9.5px">no key</span>')+'</div>'+
-          '<div class="mut" style="font-size:11px;margin-bottom:10px">Surfaces nearby rental businesses for your partners to reach out to from their OWN accounts (the dashboard never sends). Inert until the program is ON, this is enabled, and a Google Places API key is set.</div>'+
+          '<div class="mut" style="font-size:11px;margin-bottom:10px">Surfaces nearby rental businesses for your affiliates to reach out to from their OWN accounts (the dashboard never sends). Inert until the program is ON, this is enabled, and a Google Places API key is set.</div>'+
           '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:10px">'+
             '<div><label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink);cursor:pointer"><input type="checkbox" id="affLeadsOn"'+(c.leads_enabled?' checked':'')+'> Enable daily leads</label><div class="mut" style="font-size:10.5px;margin-top:2px">needs the program ON + a key below</div></div>'+
             '<div><label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink);cursor:pointer"><input type="checkbox" id="affLeadsEnrich"'+(c.leads_enrich_site?' checked':'')+'> Enrich with website</label><div class="mut" style="font-size:10.5px;margin-top:2px">look up prospect website + socials</div></div>'+
@@ -2890,7 +2890,7 @@ function _tcBeacon(){ try{ api('/api/trap/beacon',{method:'POST',body:{fingerpri
         '</div>'+
         '<div style="margin:4px 0 16px;border:1px solid var(--line2);border-radius:10px;padding:12px 13px;background:var(--surf3)">'+
           '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut2);margin-bottom:3px">Client signup bonus</div>'+
-          '<div class="mut" style="font-size:11px;margin-bottom:10px">Granted ONCE to each NEW tenant who signs up through this partner&#39;s link or code. Trial days, gift credits and website access apply at signup; a discount applies at first charge. Set 0 / unchecked for none.</div>'+
+          '<div class="mut" style="font-size:11px;margin-bottom:10px">Granted ONCE to each NEW tenant who signs up through this affiliate&#39;s link or code. Trial days, gift credits and website access apply at signup; a discount applies at first charge. Set 0 / unchecked for none.</div>'+
           '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:10px">'+
             affField('affBonusTrial','Extra free trial days',bn.trial_extra_days,'added to the 7-day trial (max 365)')+
             affField('affBonusCredits','Bonus Atlas gift credits',bn.gift_credits,'one-time, added at signup')+

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <meta name="robots" content="noindex,nofollow">
-<title>Atlas Partner Dashboard</title>
+<title>Atlas Affiliate Dashboard</title>
 <style>
   :root{
     --bg:#eef4f1; --bg2:#e7efe9;
@@ -194,7 +194,7 @@
   <div class="gate-card">
     <div class="gate-badge">A</div>
     <h1>Atlas Rental.io</h1>
-    <p>Partner dashboard &mdash; sign in to see your referral link, stats and earnings.</p>
+    <p>Affiliate dashboard &mdash; sign in to see your referral link, stats and earnings.</p>
     <div class="msg msg--err" id="gErr"></div>
     <div class="msg msg--ok" id="gOk"></div>
 
@@ -217,7 +217,7 @@
       <button class="link-btn" id="toPw">Use a password instead</button>
     </div>
 
-    <p style="margin:18px 0 0;font-size:12.5px;color:var(--mut)">Not a partner yet? <a href="/affiliate/">Apply here</a></p>
+    <p style="margin:18px 0 0;font-size:12.5px;color:var(--mut)">Not an affiliate yet? <a href="/affiliate/">Apply here</a></p>
   </div>
 </div>
 
@@ -225,7 +225,7 @@
 <div id="app">
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="logo">A</span> Atlas Rental.io <span style="font-weight:600;font-size:12px;color:var(--mut);letter-spacing:.01em">Partners</span></div>
+      <div class="brand"><span class="logo">A</span> Atlas Rental.io <span style="font-weight:600;font-size:12px;color:var(--mut);letter-spacing:.01em">Affiliates</span></div>
       <div class="who">
         <span class="nm" id="whoName"></span>
         <span class="pill pill--active" id="whoStatus">active</span>
@@ -402,7 +402,7 @@
         <h2>Resources</h2>
         <div class="rescard"><div class="ico">&#128279;</div><div><b>Your referral link</b><p>Copy it from the Overview tab, or scan the QR to share on the spot.</p></div></div>
         <div class="rescard"><div class="ico">&#128176;</div><div><b>How you get paid</b><p>Commission on recurring Atlas subscription revenue only. Payable after the holding period; paid out manually once you pass the minimum.</p></div></div>
-        <div class="rescard"><div class="ico">&#128231;</div><div><b>Questions?</b><p>Reply to any Atlas partner email and we will help you out.</p></div></div>
+        <div class="rescard"><div class="ico">&#128231;</div><div><b>Questions?</b><p>Reply to any Atlas affiliate email and we will help you out.</p></div></div>
       </div>
     </div>
   </div>
@@ -449,7 +449,7 @@
     api('/api/affiliate/login',{method:'POST',body:{email:email,password:pass}}).then(function(r){
       b.disabled=false; b.textContent=_t; var j=r.json||{};
       if(r.status===200 && j.ok && j.csrf){ _csrf=j.csrf; loadMe(); return; }
-      if(r.status===200 && j.enabled===false){ gErr('The partner program is not active right now.'); return; }
+      if(r.status===200 && j.enabled===false){ gErr('The affiliate program is not active right now.'); return; }
       gErr((j && j.error) || 'Invalid email or password.');
     }).catch(function(){ b.disabled=false; b.textContent=_t; gErr('Network error. Please try again.'); });
   });
@@ -465,11 +465,11 @@
     var b=$('otpReqBtn'); b.disabled=true; var _t=b.textContent; b.textContent='Sending...';
     api('/api/affiliate/otp/request',{method:'POST',body:{email:email}}).then(function(r){
       b.disabled=false; b.textContent=_t;
-      if(r.status===200 && (r.json||{}).enabled===false){ gErr('The partner program is not active right now.'); return; }
+      if(r.status===200 && (r.json||{}).enabled===false){ gErr('The affiliate program is not active right now.'); return; }
       if(r.status===429){ gErr(((r.json||{}).error)||'Too many requests. Please wait a few minutes.'); return; }
       if(r.status!==200){ gErr(((r.json||{}).error)||'Could not send a code. Please try again.'); return; }
       $('otpStep1').style.display='none'; $('otpStep2').style.display='block';
-      gOk('If an approved partner account exists for that email, a 6-digit code is on its way. It expires in 10 minutes.');
+      gOk('If an approved affiliate account exists for that email, a 6-digit code is on its way. It expires in 10 minutes.');
       setTimeout(function(){ try{ $('oCode').focus(); }catch(e){} },100);
     }).catch(function(){ b.disabled=false; b.textContent=_t; gErr('Network error. Please try again.'); });
   });
@@ -482,7 +482,7 @@
     api('/api/affiliate/otp/verify',{method:'POST',body:{email:email,code:code}}).then(function(r){
       b.disabled=false; b.textContent=_t; var j=r.json||{};
       if(r.status===200 && j.ok && j.csrf){ _csrf=j.csrf; gOk(''); loadMe(); return; }
-      if(r.status===200 && j.enabled===false){ gErr('The partner program is not active right now.'); return; }
+      if(r.status===200 && j.enabled===false){ gErr('The affiliate program is not active right now.'); return; }
       if(r.status===429){ gErr((j && j.error)||'Too many attempts. Please wait a few minutes.'); return; }
       gErr((j && j.error) || 'That code is invalid or has expired.');
     }).catch(function(){ b.disabled=false; b.textContent=_t; gErr('Network error. Please try again.'); });
@@ -506,7 +506,7 @@
     api('/api/affiliate/me').then(function(r){
       var j=r.json||{};
       if(r.status===200 && j.ok && j.affiliate){ showApp(j); return; }
-      if(r.status===200 && j.enabled===false){ gErr('The partner program is not active right now.'); return; }
+      if(r.status===200 && j.enabled===false){ gErr('The affiliate program is not active right now.'); return; }
       // not authed -> stay on gate
     }).catch(function(){ /* stay on gate */ });
   }
@@ -514,13 +514,13 @@
   // Sales milestones (verified paying conversions). Mirrors the achievement ladder in the growth directive.
   var MILESTONES=[
     {n:1,ico:'⭐',t:'First Sale'},{n:10,ico:'🚀',t:'Getting Started'},{n:50,ico:'📈',t:'Rising Affiliate'},
-    {n:100,ico:'🌟',t:'Growth Partner'},{n:250,ico:'🔥',t:'Elite Performer'},{n:500,ico:'⚡',t:'Power Affiliate'},
+    {n:100,ico:'🌟',t:'Growth Affiliate'},{n:250,ico:'🔥',t:'Elite Performer'},{n:500,ico:'⚡',t:'Power Affiliate'},
     {n:1000,ico:'🏆',t:'Ambassador'},{n:3000,ico:'👑',t:'Industry Leader'},{n:10000,ico:'💎',t:'Atlas Legend'}
   ];
 
   function render(d){
     var a=d.affiliate||{}, ref=d.referral||{}, pr=d.program||{}, st=d.stats||{}, er=d.earnings||{};
-    var nm=(a.name||a.email||'Partner');
+    var nm=(a.name||a.email||'Affiliate');
     $('whoName').textContent=nm;
     var status=(a.status||'active'); var sp=$('whoStatus'); sp.textContent=status;
     sp.className='pill '+(status==='active'||status==='approved'?'pill--active':(status==='pending'?'pill--pending':'pill--gray'));
