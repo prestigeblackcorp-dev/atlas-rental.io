@@ -2633,7 +2633,7 @@ const Atlas = (function(){
   function _fbSel(key){ _fbPending=key||''; try{ Array.prototype.forEach.call(document.querySelectorAll('.fbpick'),function(el){ var on=el.getAttribute('data-fbkey')===key; el.style.borderColor=on?'rgba(201,169,98,.9)':'rgba(201,169,98,.25)'; el.style.boxShadow=on?'0 0 0 1px rgba(201,169,98,.6)':'none'; }); }catch(e){} var c=document.getElementById('fbpickConfirm'); if(!c) return; if(!key||!_FB_META[key]){ c.innerHTML=''; return; } c.innerHTML='<button class="btn btn--primary" style="width:100%" onclick="Atlas._fbCommit()">Make '+esc(_FB_META[key].name)+' my mark &mdash; permanently</button>'; }
   function _fbCommit(){ var key=_fbPending; if(!key||!_FB_META[key]) return; var cb=document.querySelector('#fbpickConfirm .btn'); if(cb){ cb.disabled=true; cb.textContent='Saving...'; } _api('/api/founder/badge',{method:'POST',body:{badge:key}}).then(function(res){ var j=res&&res.json; if(res.status>=200&&res.status<300&&j&&j.ok){ _founderInfo.badge=j.badge||key; try{ if(typeof S!=='undefined'&&S){ S.founderBadge=j.badge||key; save(); } }catch(e){} try{ closeModal(); }catch(e){} try{ toast('Your founder badge is set: '+((_FB_META[j.badge||key]||{}).name||'')); }catch(e){} try{ if(typeof buildApp==='function') buildApp(); }catch(e){} } else { if(cb){ cb.disabled=false; cb.textContent='Try again'; } try{ toast((j&&j.error)||'Could not save your badge.'); }catch(e){} } }).catch(function(){ if(cb){ cb.disabled=false; cb.textContent='Try again'; } try{ toast('Network error -- try again.'); }catch(e){} }); }
   /* ---- app version + owner-only feature flags (in-app upgrades) ---- */
-  var APP_VERSION='2026.11.27ma';
+  var APP_VERSION='2026.11.27mb';
   var APP_CHANGELOG=[
     'Getting started now puts <b>your own domain</b> front and center &mdash; the "Get your own domain name" step is a primary action, and the domain search spells out exactly what a domain does for you and what it costs. A domain bought through Atlas connects to your booking site <b>instantly</b> (we point it and issue the SSL for you), so customers can book at your own address right away. Pricing is shown plainly: the domain is billed yearly at the price you see before you buy, and the booking website that runs on it is included on the Enterprise plan and up, or $19/month (or a one-time $199 build) on Starter and Pro &mdash; no surprises.',
     'Accounting fix: your <b>Net Profit</b>, Profit &amp; Loss and revenue charts now subtract an owner or broker fee the moment a booking is <b>confirmed</b> &mdash; matching the &ldquo;Your take&rdquo; figure shown on the booking itself &mdash; instead of waiting until the cash was collected. A confirmed-but-unpaid booking with a percentage split (for example a $1,600 rental where a broker keeps 85%) no longer shows its full rental as profit; the dashboard now agrees with each booking&rsquo;s own economics to the cent. Your Payouts report still lists only fees on money you have actually collected, since that is what you owe partners in cash.',
@@ -14027,14 +14027,14 @@ const Atlas = (function(){
     if(a.extraPrices && typeof a.extraPrices==='object'){ var _xp={}, _xn=0; for(var _xk in a.extraPrices){ if(Object.prototype.hasOwnProperty.call(a.extraPrices,_xk)){ var _xv=Number(a.extraPrices[_xk]); if(isFinite(_xv)&&_xv>=0){ _xp[String(_xk)]=Math.round(_xv*100)/100; _xn++; } } } if(_xn) o.extraPrices=_xp; }   // WAVE-PA3: per-asset extra PRICE overrides {extraId:price} -> stored snapshot. The worker /book intake (authoritative charge) + the public form estimate BOTH resolve price = asset.extraPrices[id] ?? global, so owner quote == customer estimate == server charge. Emitted ONLY when an override exists, so a no-override asset's snapshot stays byte-identical.
     if(a.hidden===true) o.hidden=true;   // per-asset public visibility: a hidden asset still rides the snapshot so a direct ?asset= link resolves, but the worker _assetPublic drops it from every public LISTING/grid. Emitted only when hidden -> snapshot byte-identical otherwise.
     return o; }); }   // turnaround: per-asset buffer minutes -> worker availability gates read _pa.turnaround (falls back to tenant default when absent)   // loc: per-asset location/branch -> lets the public booking site filter inventory by the customer's chosen location (served at worker public config; form filters additively)   // #361: carry the STABLE asset id into the published snapshot so the worker's double-book guard keys on it (survives a rename) with the name as fallback   // X3 FIX: carry qty into the published snapshot -- the worker availability guards read qty from pubSite.assets, so without this every asset stayed capped at 1 unit no matter what the owner set. extraIds too, so per-asset extras filtering is faithful on the live site.
-  function _publicSiteConfig(){ var wk=_webKeys(), w=_web(); return { unit:S.money.rateModel||'day', noun:_adNoun(), nouns:_adNouns(), tax:Number(S.money.tax)||0, currency:(S.money.currency||'usd'),
+  function _publicSiteConfig(){ var wk=_webKeys(), w=_web(); var _cfg={ unit:S.money.rateModel||'day', noun:_adNoun(), nouns:_adNouns(), tax:Number(S.money.tax)||0, currency:(S.money.currency||'usd'),
     collectPhone:true, depositHold:!!(S.money.depositHold), terms:((S.legal&&S.legal.cancelPolicy)|| ''),
     showFleet:w.showFleet!==false, showAbout:w.showAbout!==false, showReviews:w.showReviews!==false, showContact:w.showContact!==false,   // P0-1: owner section toggles now reach the served page (worker _sec() hides a section only on explicit false)
     faq:_webFaqList(), font:(w.font||'system'), template:(w.template||'classic'), metaTitle:String(w.metaTitle||'').trim().slice(0,70), metaDescription:String(w.metaDescription||'').trim().slice(0,300), metaImage:(/^https:\/\//i.test(String(w.metaImage||''))?String(w.metaImage).slice(0,600):''), accent2:(_aioHex(w.accent2)||''),   // Website builder (AI + owner controls): worker RENDERS these from config -- faq[{q,a}], font system|serif|modern|elegant, template classic|luxury|bold|minimal, meta tags + secondary accent. Defaults ''/'system'/'classic' = current look.
     posts:(Array.isArray(w.posts)?w.posts:[]).map(function(p){ return {slug:p.slug,title:p.title,body:p.body,excerpt:p.excerpt,published:p.published!==false,at:p.at}; }),   // Blog: emit all posts; the worker filters to published for /blog + per-post pages
     pages:(Array.isArray(w.pages)?w.pages:[]).map(function(p){ return {id:p.id,slug:p.slug,title:p.title,seoDesc:p.seoDesc,published:p.published!==false,nav:!!p.nav,at:p.at,sections:p.sections}; }),   // Custom pages: emit all; the worker filters to published + >=1 section for /p/<slug> + nav + sitemap
     homePageId:(w.homePageId||''),   // Increment 3: owner-designated homepage id -- worker renders this page's section stack above the #app booking form (empty = default marketing block; served page byte-identical)
-    analytics:{ ga:String(wk.ga||'').trim(), pixel:String(wk.pixel||'').trim() } }; }   // #24: GA + Meta/TikTok pixel actually injected into the served booking page (see worker _bookPageHtml)
+    analytics:{ ga:String(wk.ga||'').trim(), pixel:String(wk.pixel||'').trim() } }; if(String(w.design||'').toLowerCase()==='atelier'){ _cfg.design='atelier'; _cfg.mood=(String(w.mood||'').toLowerCase()||_atMoodFor((S.fleet&&S.fleet.id)||'')); } return _cfg; }   // #24: GA + Meta/TikTok pixel actually injected into the served booking page (see worker _bookPageHtml)
   // Cross-sys G4: a signature of what the PUBLIC site would serve, captured at publish time. If the live Fleet/pricing/copy later diverges, the owner sees an "unpublished changes" badge (the served site keeps the last snapshot until re-publish).
   function _sitePubSig(){ try{ return JSON.stringify({a:_publicSiteAssets(),c:_publicSiteConfig(),h:_web().headline||'',ab:_web().about||''}); }catch(e){ return ''; } }
   function _siteDirty(){ var w=_web(); return !!w.published && w.pubSig!=null && w.pubSig!==_sitePubSig(); }   // guarded on pubSig!=null so sites published before this feature never false-positive as dirty
@@ -14629,7 +14629,7 @@ const Atlas = (function(){
   function _webFontStack(f){ return f==='serif'?'Georgia,\'Times New Roman\',serif':f==='modern'?'\'Segoe UI\',\'Helvetica Neue\',Arial,sans-serif':f==='elegant'?'\'Playfair Display\',Georgia,\'Didot\',serif':'system-ui,-apple-system,\'Segoe UI\',Roboto,sans-serif'; }
   function _webFaqList(){ var w=_web(); return (Array.isArray(w.faq)?w.faq:[]).filter(function(f){ return f&&String(f.q||'').trim()&&String(f.a||'').trim(); }).map(function(f){ return {q:String(f.q).trim().slice(0,200), a:String(f.a).trim().slice(0,1000)}; }); }   // config: only complete Q&amp;A pairs reach the published site
   function setWebFont(v){ if(!_guard('webEdit'))return; var ok=WEB_FONTS.some(function(f){return f[0]===v;}); _web().font=ok?v:'system'; save(); _webRefreshPreview(); toast('Website font updated'); }
-  function setWebTemplate(v){ if(!_guard('webEdit'))return; var ok=WEB_TEMPLATES.some(function(t){return t[0]===v;}); _web().template=ok?v:'classic'; save(); _webRefreshPreview(); var _r=document.getElementById('webTplRow'); if(_r){ _r.innerHTML=WEB_TEMPLATES.map(function(t){ return _tplSwatch(t[0],t[1],_web().template===t[0]); }).join(''); }   // WAVE75: move the selected-swatch highlight on pick (was only refreshing the preview) + the preview now actually restyles per template
+  function setWebTemplate(v){ if(!_guard('webEdit'))return; var ok=WEB_TEMPLATES.some(function(t){return t[0]===v;}); _web().template=ok?v:'classic'; _web().design=''; save(); _webRefreshPreview(); var _r=document.getElementById('webTplRow'); if(_r){ _r.innerHTML=WEB_TEMPLATES.map(function(t){ return _tplSwatch(t[0],t[1],_web().template===t[0]); }).join(''); }   // WAVE75: move the selected-swatch highlight on pick (was only refreshing the preview) + the preview now actually restyles per template
     toast('Website template updated'); }
   function setWebAccent(){ if(!_guard('webEdit'))return;
     var r1=(val('webAccent1')||'').trim(), r2=(val('webAccent2')||'').trim();
@@ -14666,7 +14666,7 @@ const Atlas = (function(){
   }
   function _webDesignHtml(){ var w=_web(); var cur=w.template||'classic';
     return '<div class="field"><label>Template <span style="color:var(--muted);font-weight:500;font-size:12px">(tap a look &mdash; your whole site restyles to match)</span></label>'
-      +'<div id="webTplRow" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:5px">'+WEB_TEMPLATES.map(function(t){ return _tplSwatch(t[0],t[1],cur===t[0]); }).join('')+'</div></div>'
+      +'<div id="webTplRow" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:5px">'+WEB_TEMPLATES.map(function(t){ return _tplSwatch(t[0],t[1],cur===t[0]); }).join('')+'</div></div>'+_webAtelierPickerHtml()
       +'<div class="field"><label>Font</label><select class="select" onchange="Atlas.setWebFont(this.value)">'+WEB_FONTS.map(function(f){ return '<option value="'+f[0]+'"'+(((w.font||'system')===f[0])?' selected':'')+'>'+esc(f[1])+'</option>'; }).join('')+'</select></div>'
       +'<div class="row2"><div class="field"><label>Accent color</label><input class="input" id="webAccent1" placeholder="#C6A15B" value="'+esc(S.brand.color||'')+'"></div>'
       +'<div class="field"><label>Second accent <span style="color:var(--muted);font-weight:500">(optional)</span></label><input class="input" id="webAccent2" placeholder="#10161C" value="'+esc(w.accent2||'')+'"></div></div>'
@@ -15510,7 +15510,251 @@ const Atlas = (function(){
       +(_bookingSitePublished()?('<a class="btn btn--ghost" href="'+esc(_bookingLink())+'" target="_blank" rel="noopener">Visit site</a>'):('<button class="btn btn--ghost" onclick="Atlas.publishBookingSite()">Publish to go live</button>'))+'</div>'
       +'<div class="web-grid">'+side+prev+'</div>';
   }
+  // ===================================================================== ATLAS ATELIER (client preview port)
+  // Ported VERBATIM from worker.js (_atHexRgb .. _atelierCss, worker ~21638-21790) so the in-builder preview renders the
+  // EXACT served 1-of-1 CSS. If the worker atelier engine changes, re-port these. _atMktCss mirrors worker _mktCss (~22890).
+function _atHexRgb(h){h=String(h||'').replace(/[^0-9a-fA-F]/g,'');if(h.length===3)h=h.charAt(0)+h.charAt(0)+h.charAt(1)+h.charAt(1)+h.charAt(2)+h.charAt(2);if(h.length<6)h=(h+'000000').slice(0,6);else h=h.slice(0,6);return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+function _atHx(rgb){return '#'+rgb.map(function(v){v=Math.max(0,Math.min(255,Math.round(v)));return ('0'+v.toString(16)).slice(-2);}).join('');}
+function _atLum(h){var c=_atHexRgb(h).map(function(v){v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);});return .2126*c[0]+.7152*c[1]+.0722*c[2];}
+function _atMix(h,t,a){var x=_atHexRgb(h),y=_atHexRgb(t);return _atHx([x[0]+(y[0]-x[0])*a,x[1]+(y[1]-x[1])*a,x[2]+(y[2]-x[2])*a]);}
+function _atRgba(h,al){var x=_atHexRgb(h);return 'rgba('+x[0]+','+x[1]+','+x[2]+','+al+')';}
+function _atInk(h){return _atLum(h)>.179?'#17130a':'#ffffff';}   // 0.179 is the exact black/white contrast crossover for relative luminance -> dark ink on gold/amber/mid accents (where white was only ~2.5:1), white on true-dark accents. Maximizes CTA legibility.
+function _atMoods(){return {
+  marine:{g:'#080B11',g2:'#0C111A',s:'#121824',s2:'#19202E',ink:'#F5F2EA',ink2:'#C6CCD6',mut:'#8B94A3',serif:"'Cormorant Garamond','Iowan Old Style','Palatino Linotype',Georgia,serif",dark:1},
+  onyx:{g:'#0A0A0B',g2:'#100F12',s:'#161518',s2:'#201F24',ink:'#F3F2F0',ink2:'#C4C2C6',mut:'#89868E',serif:"'Fraunces','Cormorant Garamond',Georgia,serif",dark:1},
+  midnight:{g:'#0A0E1A',g2:'#0E1322',s:'#141B2E',s2:'#1C2540',ink:'#EEF1F8',ink2:'#BFC6D8',mut:'#8089A0',serif:"'Cormorant Garamond',Georgia,serif",dark:1},
+  ivory:{g:'#F7F4EE',g2:'#FBFAF5',s:'#FFFFFF',s2:'#F1ECE2',ink:'#1A1714',ink2:'#4C463E',mut:'#8C867A',serif:"'Cormorant Garamond','Palatino Linotype',Georgia,serif",dark:0},
+  sand:{g:'#F4EFE7',g2:'#FAF6F0',s:'#FFFFFF',s2:'#EFE7DA',ink:'#211C16',ink2:'#524A3E',mut:'#90897C',serif:"'Fraunces',Georgia,serif",dark:0}
+};}
+// Map a tenant's fleet_type to a default mood (owner config.mood overrides). Keeps auto-selected art direction on-brand.
+function _atMoodFor(fleetType){var f=String(fleetType||'').toLowerCase();
+  if(/boat|yacht|marine|jet|sail|pontoon|houseboat|kayak|paddle|surf|dive|scuba/.test(f))return 'marine';
+  if(/car|exotic|luxury|limo|moto|rv|camper|van|bike|scooter/.test(f))return 'onyx';
+  if(/propert|apart|real|home|house|room|suite|space|storage|office|venue|coworking/.test(f))return 'ivory';
+  if(/event|party|wedding|tent|stage|dj|photo|audio|light|led|arcade|casino/.test(f))return 'midnight';
+  return 'marine';
+}
+// Two-tone hero headline: the owner marks the key phrase with *asterisks* (e.g. "Come aboard the *Azure Eclipse*.")
+// and it renders as an italic-accent <em>, its spaces locked to &nbsp; so a short name never splits mid-phrase -- the
+// elegant treatment the approved design uses. EVERY literal segment is esc()'d and only the hard-coded <em> wrapper is
+// added, so no tenant string ever reaches the markup unescaped. A headline with no * renders exactly as esc(headline).
+function _atHeadline(h){
+  h = String(h || '');
+  if (h.indexOf('*') >= 0) {
+    // Marked emphasis -> italic-accent <em>, spaces inside a short phrase locked to &nbsp; so it never splits. The hero h1
+    // uses NATURAL wrapping (no text-wrap:balance), so the locked phrase controls the break exactly like the approved design.
+    var out = '', re = /\*([^*]+)\*/g, last = 0, m;
+    while ((m = re.exec(h))) {
+      out += esc(h.slice(last, m.index));
+      var em = m[1], ws = em.trim().split(/\s+/);
+      out += '<em>' + ((ws.length <= 3 && em.length <= 22) ? esc(em).replace(/ /g, '&nbsp;') : esc(em)) + '</em>';
+      last = re.lastIndex;
+    }
+    out += esc(h.slice(last));
+    return out;
+  }
+  // No emphasis: esc, then bind the last two short words with &nbsp; so a plain headline never strands a lone word on wrap.
+  var e = esc(h), parts = e.split(' ');
+  if (parts.length >= 3) { var a = parts[parts.length - 2], b = parts[parts.length - 1]; if ((a.length + b.length) <= 18) { parts.splice(parts.length - 2, 2, a + '&nbsp;' + b); e = parts.join(' '); } }
+  return e;
+}
+function _atelierCss(accentHex, mood){
+  var accent = /^#[0-9a-fA-F]{3,8}$/.test(String(accentHex||'')) ? String(accentHex) : '#CA8A04';
+  var moods=_atMoods(); var m=moods[String(mood||'').toLowerCase()]||moods.marine;
+  var accent2 = _atMix(accent, m.dark?'#ffffff':'#000000', m.dark?.34:.20);
+  var accentInk = _atInk(accent);
+  var line=_atRgba(accent,.17), line2=(m.dark?'rgba(255,255,255,.07)':'rgba(0,0,0,.08)');
+  var root=":root{"
+    +"--brand:"+accent+";--at-accent:"+accent+";--at-accent-2:"+accent2+";--at-accent-ink:"+accentInk
+    +";--at-accent-glow:"+_atRgba(accent,.5)
+    +";--at-g:"+m.g+";--at-g2:"+m.g2+";--at-s:"+m.s+";--at-s2:"+m.s2
+    +";--at-ink:"+m.ink+";--at-ink2:"+m.ink2+";--at-mut:"+m.mut
+    +";--at-line:"+line+";--at-line2:"+line2
+    +";--at-noph-ink:"+_atRgba(accent,.55)
+    +";--at-noph-bg:radial-gradient(120% 120% at 50% 0,"+m.s2+","+m.g2+")"
+    +";--at-serif:"+m.serif
+    +";--at-sans:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif"
+    +";--at-label:'Jost','Inter',system-ui,sans-serif"
+    +";--at-maxw:1120px;--at-shadow:0 30px 80px -34px rgba(0,0,0,"+(m.dark?".75":".16")+")}";
+  var importStr="@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=Jost:wght@400;500;600&display=swap');";
+  var grain = m.dark ? 'body::after{content:"";position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:.03;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%27140%27%20height=%27140%27%3E%3Cfilter%20id=%27n%27%3E%3CfeTurbulence%20type=%27fractalNoise%27%20baseFrequency=%27.85%27%20numOctaves=%272%27/%3E%3C/filter%3E%3Crect%20width=%27100%25%27%20height=%27100%25%27%20filter=%27url(%23n)%27/%3E%3C/svg%3E")}' : '';
+  var S=`
+body{background:var(--at-g)!important;color:var(--at-ink)!important;font-family:var(--at-sans)!important;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body .wrap{max-width:var(--at-maxw)!important;padding:0 28px 64px!important}
+body h1,body h2,body h3,body .mkt-sec>h2{font-family:var(--at-serif);font-weight:500;letter-spacing:.004em;color:var(--at-ink)}
+body .at-hero{position:relative;width:100vw;margin-left:calc(50% - 50vw);min-height:92vh;display:flex;align-items:flex-end;isolation:isolate;overflow:hidden}
+body .at-hero-plain{min-height:56vh;background:linear-gradient(140deg,#12161f,#0a0e14)}
+body .at-hero-bg{position:absolute;inset:0;z-index:-2;background:#0a0f17 center/cover no-repeat}
+body .at-hero-bg img{width:100%;height:100%;object-fit:cover;object-position:center 42%}
+body .at-hero::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(6,9,14,.52),rgba(6,9,14,.1) 30%,rgba(6,9,14,.55) 62%,rgba(6,9,14,.96))}
+body .at-hero-in{max-width:var(--at-maxw);margin:0 auto;width:100%;padding:0 28px 78px}
+body .at-logo{height:52px;width:auto;margin:0 0 10px;border-radius:6px}
+body .at-eyebrow{font-family:var(--at-label);font-size:12px;font-weight:500;letter-spacing:.28em;text-transform:uppercase;color:var(--at-accent-2)}
+body .at-hero h1{font-size:clamp(46px,8vw,92px);line-height:1.03;margin:18px 0 0;color:#F6F3EC;text-shadow:0 2px 40px rgba(0,0,0,.5)}
+body .at-hero h1 em{font-style:italic;color:var(--at-accent-2)}
+body .at-hero .at-sub{font-size:clamp(17px,2.2vw,21px);color:#D9DDE4;max-width:40em;margin:22px 0 0}
+body .at-hero-cta{display:flex;gap:14px;margin-top:34px;flex-wrap:wrap}
+body .at-hero-cta .mkt-cta,body .at-hero-cta .at-ghost{padding:15px 30px!important}
+body .at-hero-copy{max-width:760px}
+body .at-nav{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:var(--at-maxw);margin:0 auto;padding:22px 28px;width:100%;box-sizing:border-box}
+body .at-brand{display:flex;align-items:center;gap:11px;text-decoration:none;min-width:0}
+body .at-nav-logo{height:40px;width:auto;border-radius:5px;display:block;flex:none}
+body .at-nav-mono{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;flex:none;border:1px solid var(--at-accent-2);color:var(--at-accent-2);font-family:var(--at-serif);font-size:19px;border-radius:3px}
+body .at-brand-nm{font-family:var(--at-serif);font-size:19px;font-weight:500;color:#F6F3EC;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body .at-navlinks{display:flex;align-items:center;gap:26px;flex:none}
+body .at-navlinks>a:not(.at-nav-cta){font-family:var(--at-label);font-size:12px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#E7E3DA;text-decoration:none;white-space:nowrap;transition:color .2s}
+body .at-navlinks>a:not(.at-nav-cta):hover{color:var(--at-accent-2)}
+body .at-nav-cta{margin:0!important;padding:10px 20px!important;font-size:12px!important}
+body .at-trust{width:100vw;margin-left:calc(50% - 50vw);border-top:1px solid var(--at-line);border-bottom:1px solid var(--at-line);background:var(--at-g2)}
+body .at-trust-in{max-width:var(--at-maxw);margin:0 auto;display:flex;flex-wrap:wrap;gap:11px 44px;justify-content:center;padding:17px 28px;font-family:var(--at-label);font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:var(--at-ink2)}
+body .at-trust-in b{color:var(--at-accent-2);font-weight:600}
+body .mkt-cta,body .btn{font-family:var(--at-label)!important;font-weight:600!important;letter-spacing:.04em;border-radius:2px!important;background:linear-gradient(180deg,var(--at-accent-2),var(--at-accent))!important;color:var(--at-accent-ink)!important;border:0!important;box-shadow:0 12px 30px -12px var(--at-accent-glow);transition:transform .25s ease}
+body .mkt-cta{display:inline-block;padding:14px 28px!important;font-size:14px!important}
+body a.mkt-cta:hover,body .btn:hover{transform:translateY(-2px)}
+body .at-ghost{display:inline-block;font-family:var(--at-label);font-size:14px;font-weight:500;letter-spacing:.04em;padding:13px 26px;border-radius:2px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.22);color:#F3F1EB}
+body .at-ghost:hover{border-color:var(--at-accent-2);color:var(--at-accent-2)}
+body .mkt-sec{background:transparent!important;border:0!important;border-radius:0!important;padding:72px 0 0!important;margin:0!important}
+body .mkt-sec>h2{font-size:clamp(28px,4.2vw,46px);margin:0 0 4px;text-wrap:balance}
+body .mkt-sec>h2::before{content:"";display:block;width:44px;height:1px;background:var(--at-accent);margin:0 0 18px}
+body .mkt-sub{color:var(--at-ink2)!important;font-family:var(--at-label);font-size:12.5px!important;letter-spacing:.04em;margin:0 0 24px!important}
+body .mkt-grid,body .agrid{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:20px!important}
+body .mkt-car,body .acard{border:1px solid var(--at-line2)!important;border-radius:4px!important;overflow:hidden!important;background:var(--at-s)!important;transition:transform .35s ease,border-color .35s ease!important;display:flex;flex-direction:column}
+body .mkt-car:hover,body .acard:hover{transform:translateY(-6px);border-color:var(--at-line)!important}
+body .mkt-ph,body .acard-ph{height:186px!important;object-fit:cover;width:100%}
+body .mkt-noph,body .acard-noph{height:186px!important;display:flex;align-items:center;justify-content:center;font-family:var(--at-serif)!important;font-size:52px!important;color:var(--at-noph-ink)!important;background:var(--at-noph-bg)!important;position:relative}
+body .mkt-noph::after,body .acard-noph::after{content:"";position:absolute;inset:14px;border:1px solid var(--at-line)}
+body .mkt-cb,body .acard-b{padding:17px 19px 21px!important}
+body .mkt-nm,body .acard-nm{font-family:var(--at-serif)!important;font-weight:500!important;font-size:22px!important;color:var(--at-ink)!important;line-height:1.15}
+body .mkt-ty,body .acard-ty{font-family:var(--at-label)!important;font-size:10.5px!important;letter-spacing:.2em!important;text-transform:uppercase;color:var(--at-accent)!important;margin-top:4px!important}
+body .mkt-ds,body .acard-ds{color:var(--at-ink2)!important;font-size:12.5px!important}
+body .mkt-pr,body .acard-pr{font-family:var(--at-label)!important;font-size:14.5px!important;color:var(--at-accent-2)!important;font-weight:600!important;margin-top:11px!important}
+body .acard-spec,body .acard-rule{color:var(--at-mut)!important}
+body .mkt-revs{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:20px!important}
+body .mkt-rev{border:1px solid var(--at-line2)!important;border-radius:4px!important;padding:26px 24px!important;background:var(--at-s)!important}
+body .mkt-rev p{font-family:var(--at-serif)!important;font-style:italic;font-size:19px!important;line-height:1.45!important;color:var(--at-ink)!important}
+body .mkt-stars span,body .mkt-stars{color:var(--at-accent-2)!important}
+body .mkt-by{font-family:var(--at-label)!important;font-size:11.5px!important;letter-spacing:.1em;text-transform:uppercase;color:var(--at-mut)!important}
+body .mkt-sec>div[style*="pre-wrap"]{color:var(--at-ink2)!important;font-size:16px!important;line-height:1.7!important}
+body .hd{background:transparent!important;color:var(--at-ink)!important;border:0!important;border-bottom:1px solid var(--at-line)!important;border-radius:0!important;font-family:var(--at-serif)!important;font-weight:600!important;font-size:25px!important;letter-spacing:.01em;padding:15px 2px!important}
+body .card{background:var(--at-s)!important;border:1px solid var(--at-line)!important;border-radius:5px!important;box-shadow:var(--at-shadow)}
+body #app.card{max-width:660px;margin-left:auto;margin-right:auto;padding:26px 26px 30px!important}
+@media(min-width:561px){body #app .agrid{grid-template-columns:repeat(2,1fr)!important}}
+body label{font-family:var(--at-label)!important;font-size:11px!important;letter-spacing:.13em;text-transform:uppercase;color:var(--at-mut)!important;font-weight:500!important}
+body input,body select,body textarea{background:var(--at-g)!important;border:1px solid var(--at-line2)!important;color:var(--at-ink)!important;border-radius:3px!important}
+body input:focus,body select:focus,body textarea:focus{outline:none;border-color:var(--at-accent)!important}
+body .muted{color:var(--at-mut)!important}
+body .row{border-top:1px solid var(--at-line2)!important}
+body .tot{color:var(--at-ink)!important;font-family:var(--at-serif)!important;font-size:19px!important}
+body .err{color:#ff8f7a!important}
+body nav[aria-label="Site"]{border-bottom:1px solid var(--at-line)!important;padding:12px 2px!important;margin-bottom:0!important}
+body nav[aria-label="Site"] a{color:var(--at-ink2)!important;font-family:var(--at-label)!important;font-size:13px!important;letter-spacing:.06em;text-transform:uppercase;border-bottom:0!important}
+body nav[aria-label="Site"] a:hover{color:var(--at-accent-2)!important}
+body details{background:var(--at-s)!important;border:1px solid var(--at-line2)!important;border-radius:4px!important}
+body summary{color:var(--at-ink)!important;font-family:var(--at-serif)!important;font-size:18px!important}
+body .mkt-foot{color:var(--at-mut)!important;font-family:var(--at-label);letter-spacing:.06em;border-top:1px solid var(--at-line)!important;padding-top:24px!important;margin-top:56px!important}
+body .rv{opacity:0;transform:translateY(24px);transition:opacity .9s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1)}
+body .rv.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){body .rv{opacity:1!important;transform:none!important;transition:none}body .mkt-car:hover,body .acard:hover{transform:none}}
+@media(max-width:900px){body .mkt-grid,body .agrid,body .mkt-revs{grid-template-columns:repeat(2,1fr)!important}body .at-hero{min-height:74vh}body .mkt-sec{padding-top:58px!important}body .at-nav{padding:18px 20px}body .at-navlinks{gap:18px}}
+@media(max-width:560px){body .wrap{padding:0 18px 48px!important}body .mkt-grid,body .agrid,body .mkt-revs{grid-template-columns:1fr!important}body .at-hero{min-height:80vh}body .at-hero-in{padding:0 18px 54px}body .at-trust-in{gap:9px 22px;padding:15px 18px}}
+@media(max-width:720px){body .at-navlinks>a:not(.at-nav-cta){display:none}body .at-brand-nm{font-size:17px}body .at-nav{padding:16px 18px}}
+@media(max-width:430px){body .at-brand-nm{display:none}}
+body footer nav[aria-label="Site links"] a{color:var(--at-ink2)!important}
+body footer nav[aria-label="Site links"] a:hover{color:var(--at-accent-2)!important}
+body footer{border-top:1px solid var(--at-line)!important}
+body footer>div{color:var(--at-mut)!important}
+`;
+  return importStr+root+grain+S;
+}
+  function _atMktCss(){ return '.mkt-hero{background:#fff;border:1px solid #eaeaea;border-radius:14px;padding:26px 20px;margin-top:14px;text-align:center}.mkt-hero img{height:46px;border-radius:10px;margin:0 0 10px}.mkt-hero h1{font-size:26px;line-height:1.22;margin:0 0 6px}.mkt-hero .tl{color:#555;font-size:15px;margin:0 auto;max-width:34em}.mkt-cta{display:inline-block;background:var(--brand);color:#fff;text-decoration:none;border-radius:10px;padding:12px 22px;font-weight:700;font-size:15px;margin-top:16px}.mkt-sec{background:#fff;border:1px solid #eaeaea;border-radius:14px;padding:18px;margin-top:14px}.mkt-sec>h2{margin:0 0 3px;font-size:19px}.mkt-sub{color:#777;font-size:13px;margin:0 0 12px}.mkt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.mkt-car{border:1px solid #ececec;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;background:#fff}.mkt-ph{height:96px;object-fit:cover;background:#f0f0f0;display:block;width:100%}.mkt-noph{display:flex;align-items:center;justify-content:center;height:96px;font-size:28px;font-weight:700;color:#c4c4c4;background:#f3f3f3}.mkt-cb{padding:9px 11px}.mkt-nm{font-weight:700;font-size:14px}.mkt-ty{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#767676;margin-top:1px}.mkt-ds{font-size:12px;color:#666;line-height:1.35;margin-top:3px;max-height:50px;overflow:hidden}.mkt-pr{font-weight:700;font-size:13px;color:var(--brand);margin-top:5px}.mkt-stars span{font-size:15px;letter-spacing:1px}.mkt-revs{display:grid;gap:10px}.mkt-rev{border:1px solid #ececec;border-radius:10px;padding:12px}.mkt-rev p{margin:6px 0 4px;font-size:13.5px;color:#333;line-height:1.5}.mkt-by{font-size:12px;color:#767676}.mkt-foot{text-align:center;color:#616161;font-size:12px;margin-top:22px;line-height:1.6}'; }
+  // Build the iframe srcdoc for the live Atlas Atelier preview. MIRRORS the worker _bookPageHtml atelier branch
+  // (hero + overlaid nav + trust strip + fleet showcase + about), rendered with the SAME ported _atelierCss + _atMktCss,
+  // so the in-builder preview is byte-faithful to the served 1-of-1 page. Isolated in an <iframe> so the aggressive
+  // body/:root/full-bleed atelier CSS can never leak into the dashboard. Read-only view; editing is via the left panel.
+  function _atelierPreviewSrcdoc(){
+    var w=_web();
+    var accent=(S.brand&&S.brand.color)||'#CA8A04';
+    var mood=(w.mood&&String(w.mood).toLowerCase())||_atMoodFor((S.fleet&&S.fleet.id)||'');
+    var biz=String(S.brand.name||'Your business');
+    var bizE=esc(biz);
+    var headline=_atHeadline(w.headline||biz||'Book online');   // two-tone italic-accent <em> treatment (same as served)
+    var tagline=String(w.tagline||'');
+    var about=String(w.about||'');
+    var logo=String((S.brand&&S.brand.logo)||'');
+    var noun=_adNoun(), nounPl=_adNouns();
+    var assets=(DATA.assets||[]).filter(function(a){ return a && a.status!=='Maintenance' && !_assetHidden(a); });
+    var count=assets.length;
+    var heroPhoto=''; for(var i=0;i<assets.length;i++){ var p0=String((assets[i]&&assets[i].photo)||''); if(/^https?:\/\//i.test(p0)){ heroPhoto=p0; break; } }
+    var init=((biz.split(/\s+/).filter(Boolean).slice(0,2).map(function(x){return x.charAt(0);}).join(''))||biz.charAt(0)||'A').toUpperCase();
+    var mark=/^(https?:|data:)/i.test(logo)?('<img class="at-nav-logo" src="'+esc(logo)+'" alt="'+bizE+'">'):('<span class="at-nav-mono" aria-hidden="true">'+esc(init)+'</span>');
+    var links='';
+    if(w.showFleet!==false && count) links+='<a href="#fleet">'+esc(cap(nounPl))+'</a>';
+    if(about) links+='<a href="#about">About</a>';
+    links+='<a href="#app">Contact</a>';
+    var nav='<header class="at-nav"><a class="at-brand" href="#top">'+mark+'<span class="at-brand-nm">'+bizE+'</span></a>'
+      +'<nav class="at-navlinks" aria-label="Site">'+links+'<a class="mkt-cta at-nav-cta" href="#app">Reserve</a></nav></header>';
+    var bg=heroPhoto?('<div class="at-hero-bg"><img src="'+esc(heroPhoto)+'" alt="" aria-hidden="true"></div>'):'';
+    var sub=''; if(about){ var ab=about.replace(/\s+/g,' ').trim(); var dot=ab.search(/[.!?]\s/); sub=(dot>20?ab.slice(0,dot+1):ab).slice(0,170); }
+    var trust='<div class="at-trust"><div class="at-trust-in">'
+      +(count?('<span><b>'+count+'</b> '+esc(count===1?noun:nounPl)+'</span>'):'')
+      +'<span>Instant confirmation</span><span>Secure checkout</span></div></div>';
+    var hero='<section class="'+(heroPhoto?'at-hero':'at-hero at-hero-plain')+'" id="top">'+bg+nav
+      +'<div class="at-hero-in"><div class="at-hero-copy">'
+      +(tagline?('<div class="at-eyebrow">'+esc(tagline)+'</div>'):'')
+      +'<h1>'+headline+'</h1>'
+      +(sub?('<p class="at-sub">'+esc(sub)+'</p>'):'')
+      +'<div class="at-hero-cta"><a class="mkt-cta" href="#app">Check availability</a>'
+      +((w.showFleet!==false&&count)?('<a class="at-ghost" href="#fleet">Explore the '+esc(nounPl)+'</a>'):'')
+      +'</div></div></div></section>'+trust;
+    var fleet='';
+    if(w.showFleet!==false && count){
+      var cards=assets.slice(0,12).map(function(a){
+        var ph=String((a&&a.photo)||''); var real=/^https?:\/\//i.test(ph);
+        var img=real?('<img class="mkt-ph" src="'+esc(ph)+'" alt="'+esc(String(a.name||''))+'" loading="lazy">'):('<div class="mkt-noph">'+esc(String((a.type||a.name||'?')).slice(0,1).toUpperCase())+'</div>');
+        var rate=Number(a&&a.rate)||0, unit=(S.money.rateModel||'day');
+        return '<div class="mkt-car">'+img+'<div class="mkt-cb"><div class="mkt-nm">'+esc(String(a.name||''))+'</div>'
+          +(a.type?('<div class="mkt-ty">'+esc(String(a.type))+'</div>'):'')
+          +(a.desc?('<div class="mkt-ds">'+esc(String(a.desc))+'</div>'):'')
+          +(rate>0?('<div class="mkt-pr">'+money(rate)+' / '+esc(unit)+'</div>'):'')+'</div></div>';
+      }).join('');
+      fleet='<div class="mkt-sec" id="fleet"><h2>Our '+esc(nounPl)+'</h2><div class="mkt-sub">'+count+' '+esc(count===1?noun:nounPl)+' to choose from</div><div class="mkt-grid">'+cards+'</div></div>';
+    }
+    var aboutSec=(w.showAbout!==false && about)?('<div class="mkt-sec" id="about"><h2>About '+bizE+'</h2><div style="white-space:pre-wrap">'+esc(about)+'</div></div>'):'';
+    var foot='<div class="mkt-foot">(c) '+(new Date().getFullYear())+' '+bizE+'</div>';
+    var css=_atMktCss()+_atelierCss(accent,mood);
+    return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style></head><body><div class="wrap">'+hero+fleet+aboutSec+foot+'</div></body></html>';
+  }
+  // The #webPrev inner HTML for an Atelier site: the faithful iframe. Device width is honored by #webPrev's own max-width.
+  function _atelierPreviewFrame(){ try{ return '<iframe title="Atelier site preview" style="width:100%;height:556px;border:0;display:block;background:#080B11" srcdoc="'+esc(_atelierPreviewSrcdoc())+'"></iframe>'; }catch(e){ return '<div class="bk-lenhint" style="margin:0">Preview unavailable.</div>'; } }
+  // Atelier picker (shown under Design). Selecting it sets w.design='atelier' (overrides the template on the served page
+  // via the worker _siteThemeStyle gate); a mood picker chooses the art-direction palette. 'Auto' derives the mood from
+  // the fleet type (same _atMoodFor the worker/preview use), so the emitted mood is always concrete -> preview === served.
+  function _webAtelierPickerHtml(){ var w=_web(); var on=(String(w.design||'').toLowerCase()==='atelier');
+    var moods=[['auto','Auto'],['marine','Marine'],['onyx','Onyx'],['midnight','Midnight'],['ivory','Ivory'],['sand','Sand']];
+    var curMood=(String(w.mood||'').toLowerCase())||'auto';
+    return '<div class="field" style="margin-top:4px"><div style="border:1.5px solid '+(on?'var(--brand)':'var(--line)')+';border-radius:12px;padding:12px;background:'+(on?'var(--brand-050,rgba(0,0,0,.02))':'transparent')+'">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+        +'<div style="min-width:0"><div style="font-weight:700;font-size:13.5px">Atlas Atelier <span class="chip chip--ok" style="font-size:10px;vertical-align:middle">1-of-1</span></div>'
+          +'<div class="desc" style="margin:2px 0 0">A cinematic, editorial design beyond the templates &mdash; full-bleed hero, serif headline, your brand color as a gold-style accent. Overrides the template above.</div></div>'
+        +'<button class="btn '+(on?'btn--ghost':'btn--primary')+' btn--sm" style="flex:none" onclick="Atlas.setWebDesign(\''+(on?'template':'atelier')+'\')">'+(on?'Turn off':'Use Atelier')+'</button>'
+      +'</div>'
+      +(on?('<div style="margin-top:12px;border-top:1px dashed var(--line-2);padding-top:10px"><label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:6px">Mood</label>'
+        +'<div style="display:flex;flex-wrap:wrap;gap:6px">'+moods.map(function(mm){ var sel=(curMood===mm[0]); return '<button type="button" onclick="Atlas.setWebMood(\''+mm[0]+'\')" aria-pressed="'+(sel?'true':'false')+'" style="all:unset;cursor:pointer;font-size:12px;font-weight:600;padding:6px 11px;border-radius:999px;border:1.5px solid '+(sel?'var(--brand)':'var(--line)')+';color:'+(sel?'var(--brand)':'var(--muted)')+'">'+mm[1]+(sel?' &#10003;':'')+'</button>'; }).join('')+'</div>'
+        +'<div class="desc" style="margin:8px 0 0">Auto picks a mood from your fleet type. Your brand color is the accent throughout. See it live in the preview.</div></div>'):'')
+      +'</div></div>';
+  }
+  function setWebDesign(d){ if(!_guard('webEdit'))return; var w=_web();
+    if(String(d)==='atelier'){ w.design='atelier'; if(!w.mood) w.mood=''; }   // '' mood = Auto (resolved from fleet at emit/preview)
+    else { w.design=''; }
+    save(); try{ renderWebsite(); }catch(e){ try{_webRefreshPreview();}catch(_e){} }
+    toast(w.design==='atelier'?'Atelier 1-of-1 design on':'Back to template design'); }
+  function setWebMood(m){ if(!_guard('webEdit'))return; var w=_web(); var v=String(m||'').toLowerCase();
+    var ok=['marine','onyx','midnight','ivory','sand'].indexOf(v)>=0;
+    w.mood=ok?v:'';   // anything else (incl. 'auto') clears -> Auto
+    save(); try{ renderWebsite(); }catch(e){ try{_webRefreshPreview();}catch(_e){} } }
+
   function _webPreviewHtml(){ var w=_web(), rm=S.money.rateModel[0];
+    if(String(w.design||'').toLowerCase()==='atelier') return _atelierPreviewFrame();
     var logo=S.brand.logo?('<img src="'+esc(S.brand.logo)+'" alt="business logo">'):esc(S.brand.initial);
     var _fontStack=_webFontStack(w.font), _a2=(_aioHex(w.accent2)||'');   // live-preview the font + secondary accent (template full styling is applied by the worker on the served page)
     if(_webEditPageId){ var _pgSel=_webPage(_webEditPageId); if(_pgSel) return _webPagePreviewHtml(_pgSel,_fontStack,_a2); }   // a custom page is open in the editor -> preview its section stack (mirrors the worker's /p/<slug> render)
@@ -17027,7 +17271,7 @@ const Atlas = (function(){
     importAssets,_impFile,previewImport,doImportAssets,exportSetup,exportMyData,importSetup,doImportSetup,
     drillKpi,ovCustomizeKpis,ovCustomizeAna,ovKpiToggle,ovKpiMove,ovKpiSave,ovKpiDragStart,ovKpiDrop,drillDeposits,drillUnpaid,drillCancelLoss,drillAddons,setOvRange,setOvScope,_anaDrillSet,gsDismiss,drillLog,drillLedger,logLedger,saveLedger,rmLedger,editLedger,saveLedgerEdit,logIncome,logExpense,openBudgets,saveBudgets,assetBlock,saveAssetBlock,assetUnblock,blockDaysQuick,maintUnblock,channelAddModal,_channelAddGo,channelSyncNow,channelRemove,channelFeedGet,
     _ldPhotoPick,_ldPhotoClear,_ldRecToggle,pnlSetPeriod,pnlSetKind,pnlMarginDrill,pnlRevDrill,pnlNetDrill,pnlExpDrill,pnlMonthDrill,pnlMonthBookings,heatRowDrill,assetPnlSetPeriod,renderPnl,
-    renderWebsite,goDomain,buildWebsite,setWebField,_webInlineEdit,_webInlineKey,toggleWebSection,setWebFont,setWebTemplate,setWebAccent,webFaqAdd,webFaqSet,webFaqRemove,webPostAdd,webPostSet,webPostRemove,webPostToggle,webPostAddFromForm,webPageAdd,webPageSet,webPageRemove,webPageToggle,webPageNavToggle,webPageSectionAdd,webPageSectionSet,webPageSectionRemove,webPageSectionMove,webSecReorder,webSecDragStart,webSecDragOver,webSecDragLeave,webSecDrop,webSecDragEnd,webPageSectionListSet,webPageSectionListAdd,webPageSectionListRemove,webSecImgUpload,webSecGalleryUpload,webPageAddFromForm,webPageStarterLanding,webEditPage,webPagesBack,aiDesignSite,aiEditPage,webSetHomePage,webFleetPriceSet,webFleetPickSet,webFleetFilterToggle,webSetDevice,webUndoDesign,webViewLegal,webBookNow,_wbQuote,webSubmitBooking,publishBookingSite,copyBookingLink,webScopedLinkPick,copyScopedLink,_saveEmbedCfg,_publishThenEmbed,webSiteCreate,webAutoSites,webSiteEdit,webSiteSave,webSitePubToggle,webSiteDelete,webSiteCopy,webSiteDomainModal,webSiteDomainConnect,webSiteDomainVerify,webSiteDomainDisconnect,webEmailDomainModal,webEmailDomainConnect,webEmailDomainVerify,webEmailDomainDisconnect,webEmailDomainActivate,copyEmbed,testConnection,webDomainMode,webRevertDomain,webConnectDomain,webVerifyDomain,webSearchDomain,webBuyDomain,confirmDomainBuy,domainClaimModal,_domClaimGo,webDomLoad,webDomManage,webDomAutoRenew,webDomCheckConn,webDomDns,webDomDnsReload,webDomDnsAdd,webDomDnsDel,webDomDnsSet,webDomDnsSave,buyWebsiteAddon,confirmWebsiteAddon,seoHealthLoad,seoHealthJump,webLoadSiteStats,webMetaImageUpload,
+    renderWebsite,goDomain,buildWebsite,setWebField,_webInlineEdit,_webInlineKey,toggleWebSection,setWebFont,setWebTemplate,setWebAccent,setWebDesign,setWebMood,webFaqAdd,webFaqSet,webFaqRemove,webPostAdd,webPostSet,webPostRemove,webPostToggle,webPostAddFromForm,webPageAdd,webPageSet,webPageRemove,webPageToggle,webPageNavToggle,webPageSectionAdd,webPageSectionSet,webPageSectionRemove,webPageSectionMove,webSecReorder,webSecDragStart,webSecDragOver,webSecDragLeave,webSecDrop,webSecDragEnd,webPageSectionListSet,webPageSectionListAdd,webPageSectionListRemove,webSecImgUpload,webSecGalleryUpload,webPageAddFromForm,webPageStarterLanding,webEditPage,webPagesBack,aiDesignSite,aiEditPage,webSetHomePage,webFleetPriceSet,webFleetPickSet,webFleetFilterToggle,webSetDevice,webUndoDesign,webViewLegal,webBookNow,_wbQuote,webSubmitBooking,publishBookingSite,copyBookingLink,webScopedLinkPick,copyScopedLink,_saveEmbedCfg,_publishThenEmbed,webSiteCreate,webAutoSites,webSiteEdit,webSiteSave,webSitePubToggle,webSiteDelete,webSiteCopy,webSiteDomainModal,webSiteDomainConnect,webSiteDomainVerify,webSiteDomainDisconnect,webEmailDomainModal,webEmailDomainConnect,webEmailDomainVerify,webEmailDomainDisconnect,webEmailDomainActivate,copyEmbed,testConnection,webDomainMode,webRevertDomain,webConnectDomain,webVerifyDomain,webSearchDomain,webBuyDomain,confirmDomainBuy,domainClaimModal,_domClaimGo,webDomLoad,webDomManage,webDomAutoRenew,webDomCheckConn,webDomDns,webDomDnsReload,webDomDnsAdd,webDomDnsDel,webDomDnsSet,webDomDnsSave,buyWebsiteAddon,confirmWebsiteAddon,seoHealthLoad,seoHealthJump,webLoadSiteStats,webMetaImageUpload,
     setFleetType,fleetAlsoToggle,setCustomNoun,setCustomNounSolo,_customNounPreview,demoBig,demoPick,fleetLoc,fleetSearch,fleetStatusFilter,fleetShowAll,
     openPerm,setRolePreset,setPerm,setMemberField,inviteMember,_renderInviteModal,_inviteSet,_invitePreset,_invitePerm,saveInvite,resendInvite,copyInviteLink,teamRetryLoad,removeMember,previewAs,exitPreview,addShift,saveShift,rmShift,schedBuildAI,editShift,saveShiftEdit,schedSetRate,schedView,schedPublish,schedQuickAdd,schedWeekNav,
     search,searchGo,_searchClose,
